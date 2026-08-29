@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>등불 · 경건의 이르는 훈련</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#212B42">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<!-- Firebase (회원가입/로그인 + 데이터 저장) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<!-- PDF 책자 생성 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --paper:#F5F0E4;
+  --paper-deep:#EDE5D2;
+  --card:#FFFDF7;
+  --ink:#22271F;
+  --ink-soft:#5B5A4E;
+  --navy:#212B42;
+  --navy-soft:#3B4560;
+  --gold:#B8863E;
+  --gold-soft:#D9AE6E;
+  --sage:#5B6B4F;
+  --sage-soft:#7C8C6D;
+  --brick:#8B4A42;
+  --line:#DED2B4;
+  --radius:14px;
+  --shadow:0 2px 10px rgba(33,27,10,0.08), 0 1px 2px rgba(33,27,10,0.06);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--paper);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(184,134,62,0.07), transparent 40%),
+    radial-gradient(circle at 90% 85%, rgba(91,107,79,0.07), transparent 45%);
+  color:var(--ink);
+  font-family:'Noto Sans KR',sans-serif;
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,.serif{font-family:'Noto Serif KR',serif;}
+button{font-family:inherit;cursor:pointer;}
+input,textarea,select{font-family:inherit;}
+::selection{background:var(--gold-soft);color:var(--navy);}
+
+.app{max-width:1180px;margin:0 auto;padding:22px 18px 90px;}
+
+/* ---------- Header ---------- */
+.app-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 4px 20px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:18px;
+  gap:12px;flex-wrap:wrap;
+}
+.brand{display:flex;align-items:center;gap:12px;}
+.brand-flame{
+  width:34px;height:34px;flex:none;position:relative;
+}
+.brand-flame svg{width:100%;height:100%;display:block;animation:flicker 3.2s ease-in-out infinite;}
+@keyframes flicker{
+  0%,100%{transform:scale(1) rotate(0deg);}
+  25%{transform:scale(1.04,0.97) rotate(-1.5deg);}
+  50%{transform:scale(0.97,1.03) rotate(1deg);}
+  75%{transform:scale(1.02,0.98) rotate(-0.5deg);}
+}
+.brand-title{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-0.2px;}
+.brand-sub{font-size:12.5px;color:var(--ink-soft);margin-top:1px;}
+.today-pill{
+  font-size:12.5px;color:var(--navy-soft);background:var(--card);
+  border:1px solid var(--line);border-radius:999px;padding:7px 14px;
+  box-shadow:var(--shadow);white-space:nowrap;
+}
+
+/* ---------- Tabs ---------- */
+.tabbar{
+  display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:20px;
+  scrollbar-width:thin;
+}
+.tabbar::-webkit-scrollbar{height:4px;}
+.tabbar::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+.tab-btn{
+  flex:none;border:1px solid transparent;background:transparent;
+  color:var(--ink-soft);font-size:14px;font-weight:500;
+  padding:9px 14px;border-radius:10px;white-space:nowrap;
+  transition:all .15s ease;
+}
+.tab-btn:hover{background:rgba(184,134,62,0.1);color:var(--navy);}
+.tab-btn.active{
+  background:var(--navy);color:#F7F1E1;font-weight:600;
+  box-shadow:var(--shadow);
+}
+.panel{display:none;animation:fadein .25s ease;}
+.panel.active{display:block;}
+@keyframes fadein{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+
+/* ---------- Generic ---------- */
+.card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:20px;
+}
+.grid{display:grid;gap:16px;}
+.grid-2{grid-template-columns:1.3fr 1fr;}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+@media(max-width:820px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+.section-title{font-size:18px;font-weight:700;color:var(--navy);margin:0 0 4px;}
+.section-desc{font-size:13px;color:var(--ink-soft);margin:0 0 16px;line-height:1.6;}
+
+.btn{
+  border:1px solid var(--navy);background:var(--navy);color:#F7F1E1;
+  padding:9px 16px;border-radius:9px;font-size:13.5px;font-weight:600;
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
+.btn.outline{background:transparent;color:var(--navy);}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#fff;}
+.btn.sage{background:var(--sage);border-color:var(--sage);color:#fff;}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--ink-soft);}
+.btn.small{padding:6px 11px;font-size:12.5px;border-radius:7px;}
+.btn.danger{background:transparent;border-color:var(--brick);color:var(--brick);}
+
+.field{margin-bottom:12px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--navy-soft);margin-bottom:5px;}
+.field input,.field textarea,.field select{
+  width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;
+  font-size:13.5px;background:#fffef9;color:var(--ink);
+}
+.field textarea{resize:vertical;min-height:70px;line-height:1.6;}
+.field input:focus,.field textarea:focus,.field select:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
+
+.badge{
+  display:inline-block;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;
+  background:rgba(91,107,79,0.14);color:var(--sage);
+}
+.badge.gold{background:rgba(184,134,62,0.16);color:var(--gold);}
+.badge.brick{background:rgba(139,74,66,0.14);color:var(--brick);}
+
+.empty{
+  text-align:center;color:var(--ink-soft);font-size:13px;padding:26px 10px;
+  border:1.5px dashed var(--line);border-radius:10px;
+}
+
+/* ---------- Home ---------- */
+.hero{
+  background:linear-gradient(135deg,var(--navy) 0%,#2B3652 100%);
+  color:#F3EDDC;border-radius:18px;padding:30px 26px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.hero::after{
+  content:"";position:absolute;right:-40px;top:-40px;width:220px;height:220px;border-radius:50%;
+  background:radial-gradient(circle,rgba(217,174,110,0.22),transparent 70%);
+}
+.hero-eyebrow{font-size:12px;letter-spacing:1.5px;color:var(--gold-soft);font-weight:700;text-transform:uppercase;}
+.hero-verse{font-family:'Noto Serif KR',serif;font-size:20px;line-height:1.7;margin:10px 0 4px;max-width:640px;}
+.hero-verse-ref{font-size:13px;color:#CBB88A;}
+.stat-row{display:flex;gap:14px;margin-top:22px;flex-wrap:wrap;}
+.stat{
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);
+  border-radius:12px;padding:12px 16px;min-width:120px;
+}
+.stat b{display:block;font-size:22px;font-family:'Noto Serif KR',serif;}
+.stat span{font-size:11.5px;color:#CBC2A8;}
+
+/* ---------- Flip card (signature element) ---------- */
+.flip-zone{perspective:1200px;}
+.flip-card{
+  position:relative;width:100%;min-height:150px;cursor:pointer;
+  transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,.2,.2,1);
+}
+.flip-card.flipped{transform:rotateY(180deg);}
+.flip-face{
+  position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;
+  padding:20px;display:flex;flex-direction:column;justify-content:center;
+  border:1px solid var(--line);
+}
+.flip-front{
+  background:var(--card);
+  background-image:repeating-linear-gradient(180deg,transparent,transparent 27px,rgba(184,134,62,0.09) 28px);
+}
+.flip-front::before{
+  content:"";position:absolute;left:14px;top:0;bottom:0;width:1px;background:rgba(139,74,66,0.25);
+}
+.flip-back{
+  transform:rotateY(180deg);
+  background:linear-gradient(160deg,var(--navy),#2B3652);color:#F3EDDC;
+}
+.flip-hint{position:absolute;bottom:8px;right:12px;font-size:10.5px;color:var(--ink-soft);opacity:.65;}
+.flip-back .flip-hint{color:#CBC2A8;}
+.card-ref{font-family:'Noto Serif KR',serif;font-weight:700;font-size:16px;color:var(--navy);padding-left:16px;}
+.card-cat{padding-left:16px;margin-top:6px;}
+.card-text{font-size:14.5px;line-height:1.75;}
+.card-author{font-size:12px;color:var(--gold-soft);margin-top:10px;font-weight:600;}
+
+/* ---------- Reading plan ---------- */
+.progress-wrap{margin-bottom:18px;}
+.progress-bar-bg{height:10px;border-radius:999px;background:var(--paper-deep);overflow:hidden;border:1px solid var(--line);}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--sage));border-radius:999px;transition:width .3s ease;}
+.progress-label{font-size:12.5px;color:var(--ink-soft);margin-top:6px;display:flex;justify-content:space-between;}
+.plan-controls{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.plan-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;max-height:520px;overflow:auto;padding:4px 2px;}
+.plan-day{
+  border:1px solid var(--line);background:var(--card);border-radius:9px;padding:9px 11px;font-size:12px;
+  display:flex;flex-direction:column;gap:3px;transition:background .15s ease;
+}
+.plan-day.done{background:rgba(91,107,79,0.12);border-color:var(--sage-soft);}
+.plan-day .d-num{font-weight:700;color:var(--navy);font-size:11.5px;}
+.plan-day .d-refs{color:var(--ink-soft);line-height:1.45;flex:1;}
+.plan-day label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sage);font-weight:600;cursor:pointer;}
+
+/* ---------- Memory verse cards ---------- */
+.memtabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.memtab{
+  border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+  padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:600;
+}
+.memtab.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+.mem-list{display:grid;gap:10px;}
+.mem-item{
+  border:1px solid var(--line);background:var(--card);border-radius:10px;padding:13px 15px;
+  display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
+}
+.mem-item.mem-done{border-color:var(--sage-soft);background:rgba(91,107,79,0.06);}
+.mem-item .mi-ref{font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:14.5px;}
+.mem-item .mi-text{font-size:13px;color:var(--ink-soft);margin-top:4px;line-height:1.6;white-space:pre-wrap;}
+.mem-actions{display:flex;gap:6px;flex:none;}
+.icon-btn{border:1px solid var(--line);background:transparent;border-radius:7px;width:30px;height:30px;font-size:14px;color:var(--ink-soft);}
+.icon-btn:hover{background:var(--paper-deep);}
+
+/* Test mode */
+.test-stage{max-width:480px;margin:0 auto;}
+.test-progress{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
+.diff-box{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--card);margin-top:12px;font-size:13.5px;line-height:1.8;}
+.diff-box .miss{background:rgba(139,74,66,0.16);color:var(--brick);padding:1px 3px;border-radius:3px;}
+.diff-box .hit{background:rgba(91,107,79,0.14);color:var(--sage);padding:1px 3px;border-radius:3px;}
+.score-tag{font-weight:700;font-size:15px;}
+
+/* ---------- Calendar ---------- */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.cal-nav{display:flex;gap:8px;align-items:center;}
+.cal-month{font-family:'Noto Serif KR',serif;font-size:19px;font-weight:700;color:var(--navy);min-width:130px;text-align:center;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.cal-dow{text-align:center;font-size:11.5px;color:var(--ink-soft);font-weight:700;padding-bottom:4px;}
+.cal-cell{
+  border:1px solid var(--line);border-radius:9px;background:var(--card);min-height:76px;
+  padding:6px 7px;font-size:11.5px;position:relative;cursor:pointer;transition:background .15s;
+}
+.cal-cell:hover{background:var(--paper-deep);}
+.cal-cell.empty{background:transparent;border-color:transparent;cursor:default;}
+.cal-cell.today{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset;}
+.cal-cell .cd-num{font-weight:700;color:var(--navy);}
+.cal-dots{position:absolute;bottom:6px;left:7px;display:flex;gap:3px;}
+.cal-dot{width:5px;height:5px;border-radius:50%;}
+.dot-qt{background:var(--gold);}
+.dot-fel{background:var(--brick);}
+.dot-grace{background:var(--sage);}
+.dot-event{background:var(--navy-soft);}
+.dot-todo{background:#8E6BAA;}
+
+/* ---------- 일정 / 할일 ---------- */
+.list-nav{display:flex;align-items:center;gap:10px;margin:10px 0 14px;}
+.list-nav span{font-size:12.5px;font-weight:700;color:var(--navy);flex:1;text-align:center;}
+.todo-day-block{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
+.todo-day-header{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.todo-row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;}
+.todo-time{font-size:11px;color:var(--ink-soft);min-width:44px;flex:none;}
+.todo-title{flex:1;color:var(--ink);}
+.todo-done-text{text-decoration:line-through;color:var(--ink-soft);}
+.status-btn{
+  border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;
+  flex:none;white-space:nowrap;
+}
+.status-btn.status-todo{color:var(--ink-soft);}
+.status-btn.status-doing{color:var(--gold);border-color:var(--gold-soft);background:rgba(184,134,62,0.08);}
+.status-btn.status-done{color:var(--sage);border-color:var(--sage-soft);background:rgba(91,107,79,0.08);}
+.subsection-title{font-size:13px;font-weight:700;color:var(--navy);margin:16px 0 8px;display:flex;align-items:center;gap:6px;}
+.mini-add-row{display:flex;gap:6px;margin-top:8px;}
+.mini-add-row input[type="text"], .mini-add-row input[type="time"]{
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fffef9;
+}
+.mini-add-row input[type="text"]{flex:1;}
+.mini-add-row input[type="time"]{max-width:108px;}
+
+/* ---------- PDF 책자 (오프스크린 렌더용, html2canvas가 캡처) ---------- */
+.booklet-page{width:794px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:var(--ink);background:var(--paper);}
+.booklet-cover{
+  min-height:1123px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  background:linear-gradient(165deg,var(--navy) 0%,#2B3652 100%);color:#F3EDDC;padding:60px;
+}
+.booklet-cover h1{font-family:'Noto Serif KR',serif;font-size:38px;margin:14px 0;line-height:1.45;}
+.booklet-cover .sub{font-size:15px;color:#CBC2A8;}
+.booklet-divider{
+  min-height:1123px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  padding:60px;background:var(--paper-deep);
+}
+.booklet-divider h2{font-family:'Noto Serif KR',serif;font-size:30px;color:var(--navy);margin-bottom:10px;}
+.booklet-divider .sub{font-size:14px;color:var(--ink-soft);}
+.booklet-entry{min-height:1123px;padding:80px 64px;background:var(--card);}
+.booklet-entry-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:21px;border-bottom:2px solid var(--gold);padding-bottom:12px;margin-bottom:26px;}
+.booklet-row{margin-bottom:20px;}
+.booklet-row .br-label{font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
+.booklet-row .br-val{font-size:15.5px;line-height:1.95;white-space:pre-wrap;color:var(--ink);}
+.ebook-checks{display:flex;gap:16px;font-size:13px;color:var(--ink);flex-wrap:wrap;}
+.ebook-checks label{display:flex;align-items:center;gap:6px;font-weight:400;}
+
+/* ---------- Modal ---------- */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(33,27,10,0.45);display:none;
+  align-items:center;justify-content:center;z-index:50;padding:16px;
+}
+.modal-backdrop.open{display:flex;}
+.modal{
+  background:var(--paper);border-radius:16px;max-width:560px;width:100%;max-height:88vh;overflow:auto;
+  padding:22px 22px 20px;box-shadow:0 12px 40px rgba(0,0,0,0.25);border:1px solid var(--line);
+}
+.modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.modal-head h3{margin:0;font-size:17px;color:var(--navy);}
+.close-x{border:none;background:transparent;font-size:20px;color:var(--ink-soft);line-height:1;}
+
+/* ---------- Journal list ---------- */
+.journal-entry{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
+.journal-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:14.5px;margin-bottom:8px;}
+.journal-row{margin-bottom:8px;}
+.journal-row .jr-label{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
+.journal-row .jr-val{font-size:13.5px;line-height:1.65;white-space:pre-wrap;color:var(--ink);}
+
+/* ---------- Fellowship ---------- */
+.fel-item{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
+.fel-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.fel-person{font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:15px;}
+.fel-meta{font-size:12px;color:var(--ink-soft);}
+.fel-body{font-size:13.5px;color:var(--ink);line-height:1.7;margin-top:8px;white-space:pre-wrap;}
+.fel-lesson{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--sage);white-space:pre-wrap;line-height:1.7;}
+
+/* ---------- 기도노트 ---------- */
+.prayer-item{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
+.prayer-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;}
+.prayer-title{font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:15px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.prayer-meta{font-size:12px;color:var(--ink-soft);}
+.prayer-body{font-size:13.5px;color:var(--ink);line-height:1.7;margin-top:8px;white-space:pre-wrap;}
+.prayer-text{font-family:'Noto Serif KR',serif;font-size:13.5px;color:var(--navy-soft);line-height:1.85;margin-top:10px;padding:12px 15px;background:var(--paper-deep);border-radius:8px;white-space:pre-wrap;border-left:3px solid var(--gold-soft);}
+.prayer-answer{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--sage);white-space:pre-wrap;line-height:1.7;}
+
+/* ---------- Quotes ---------- */
+.quote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;}
+.quote-card p{font-family:'Noto Serif KR',serif;font-size:14px;line-height:1.75;margin:0 0 8px;color:var(--ink);}
+.quote-card span{font-size:12px;color:var(--gold);font-weight:700;}
+
+/* ---------- Bible text ---------- */
+.notice{
+  background:rgba(184,134,62,0.1);border:1px solid var(--gold-soft);border-radius:10px;
+  padding:12px 15px;font-size:12.5px;color:var(--navy-soft);line-height:1.7;margin-bottom:16px;
+}
+.chapter-block{margin-bottom:14px;}
+.chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
+
+.toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--navy);color:#F3EDDC;padding:10px 20px;border-radius:999px;font-size:13px;
+  box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .25s ease;z-index:80;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ---------- Gamification ---------- */
+.points-chip{
+  display:inline-flex;align-items:center;gap:6px;background:rgba(217,174,110,0.18);
+  border:1px solid rgba(217,174,110,0.4);color:var(--gold-soft);
+  padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;
+}
+.level-chip{
+  display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.18);color:#F3EDDC;
+  padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:700;
+}
+.badge-mini-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+.badge-mini{
+  width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);font-size:17px;
+}
+.badge-mini.locked{opacity:.28;filter:grayscale(1);}
+.badge-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.badge-card{
+  border:1px solid var(--line);background:var(--card);border-radius:12px;padding:15px 16px;
+  display:flex;gap:12px;align-items:flex-start;transition:opacity .2s ease;
+}
+.badge-card.locked{opacity:.5;}
+.badge-icon{
+  width:42px;height:42px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:20px;background:rgba(184,134,62,0.14);
+}
+.badge-card.locked .badge-icon{background:var(--paper-deep);filter:grayscale(1);}
+.badge-name{font-weight:700;color:var(--navy);font-size:14px;font-family:'Noto Serif KR',serif;}
+.badge-desc{font-size:12px;color:var(--ink-soft);margin-top:2px;line-height:1.5;}
+.progress-mini-bg{height:5px;border-radius:999px;background:var(--paper-deep);margin-top:8px;overflow:hidden;}
+.progress-mini-fill{height:100%;background:var(--gold);border-radius:999px;}
+.progress-mini-label{font-size:10.5px;color:var(--ink-soft);margin-top:3px;}
+
+/* Voice recitation */
+.voice-box{margin-top:8px;}
+.rec-dot{width:9px;height:9px;border-radius:50%;background:#fff;display:inline-block;margin-right:6px;animation:pulse-dot 1s infinite;}
+@keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
+.transcript-box{
+  border:1px solid var(--line);border-radius:10px;background:#fffef9;min-height:70px;
+  padding:12px 14px;font-size:13.5px;line-height:1.7;margin:10px 0;color:var(--ink);
+}
+.mode-toggle{display:flex;gap:6px;margin:12px 0;}
+
+/* ---------- Auth screen ---------- */
+.auth-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:var(--paper);
+  background-image:
+    radial-gradient(circle at 15% 8%, rgba(184,134,62,0.09), transparent 40%),
+    radial-gradient(circle at 90% 85%, rgba(91,107,79,0.09), transparent 45%);
+}
+.auth-card{
+  width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+  padding:30px 26px;box-shadow:var(--shadow);
+}
+.auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:20px;justify-content:center;}
+.auth-brand .brand-flame{width:30px;height:30px;}
+.auth-brand-title{font-family:'Noto Serif KR',serif;font-weight:700;font-size:19px;color:var(--navy);}
+.auth-tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper-deep);padding:4px;border-radius:10px;}
+.auth-tab{flex:1;border:none;background:transparent;padding:8px;border-radius:8px;font-size:13px;font-weight:700;color:var(--ink-soft);}
+.auth-tab.active{background:var(--navy);color:#F7F1E1;}
+.auth-error{font-size:12.5px;color:var(--brick);margin-top:8px;min-height:16px;}
+.auth-loading{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft);z-index:100;}
+
+/* ---------- Account tab ---------- */
+.account-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.account-row:last-child{border-bottom:none;}
+.account-row .ar-label{font-size:13.5px;font-weight:600;color:var(--navy);}
+.account-row .ar-desc{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+/* ---------- Coupang products ---------- */
+.coupang-disclosure{
+  font-size:11.5px;color:var(--ink-soft);background:var(--paper-deep);border-radius:8px;
+  padding:9px 12px;margin-bottom:16px;line-height:1.6;
+}
+.product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.product-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;}
+.product-name{font-weight:700;color:var(--navy);font-size:13.5px;font-family:'Noto Serif KR',serif;}
+.product-note{font-size:12px;color:var(--ink-soft);line-height:1.5;flex:1;}
+.product-price{font-size:13px;color:var(--gold);font-weight:700;}
+.product-link{text-align:center;margin-top:4px;}
+
+@media(max-width:600px){
+  .brand-title{font-size:19px;}
+  .hero{padding:22px 18px;}
+  .hero-verse{font-size:17px;}
+}
+</style>
+</head>
+<body>
+<div class="auth-loading" id="authLoading">불을 밝히는 중…</div>
+
+<div class="auth-screen" id="authScreen" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-flame">
+        <svg viewBox="0 0 40 40"><path d="M20 4c-3 6-9 9-9 17a9 9 0 0018 0c0-4-2-6-3-9 0 3-2 5-4 5-3 0-4-3-2-6 1-2 2-4 0-7z" fill="#C08A3E"/><path d="M20 14c-1.5 3-4 4.5-4 8.5A4 4 0 0020 27a4 4 0 004-4.5c0-2-1-3-1.5-4.3.2 1.5-1 2.6-2 2.6-1.4 0-1.8-1.5-.9-2.8.6-1 .8-2 .4-4z" fill="#F3D9A4"/></svg>
+      </div>
+      <div class="auth-brand-title">등불 — 경건의 이르는 훈련</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="authTabLogin">로그인</button>
+      <button class="auth-tab" id="authTabSignup">회원가입</button>
+    </div>
+    <div class="field"><label>이메일</label><input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email"></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="authPw" placeholder="6자 이상" autocomplete="current-password"></div>
+    <button class="btn gold" id="authSubmit" style="width:100%;">로그인</button>
+    <button class="btn ghost small" id="authResetPw" style="width:100%;margin-top:8px;">비밀번호를 잊으셨나요?</button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<div class="app" id="mainApp" style="display:none;">
+
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-flame">
+        <svg viewBox="0 0 40 40"><path d="M20 4c-3 6-9 9-9 17a9 9 0 0018 0c0-4-2-6-3-9 0 3-2 5-4 5-3 0-4-3-2-6 1-2 2-4 0-7z" fill="#C08A3E"/><path d="M20 14c-1.5 3-4 4.5-4 8.5A4 4 0 0020 27a4 4 0 004-4.5c0-2-1-3-1.5-4.3.2 1.5-1 2.6-2 2.6-1.4 0-1.8-1.5-.9-2.8.6-1 .8-2 .4-4z" fill="#F3D9A4"/></svg>
+      </div>
+      <div>
+        <div class="brand-title">등불 — 경건의 이르는 훈련</div>
+        <div class="brand-sub">디모데전서 4:7 · "경건에 이르도록 네 자신을 연단하라"</div>
+      </div>
+    </div>
+    <div class="today-pill" id="todayPill"></div>
+  </header>
+
+  <nav class="tabbar" id="tabbar"></nav>
+
+  <main id="panels"></main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBody"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   Firebase 설정
+   ⚠️ 아래 값을 Firebase 콘솔 > 프로젝트 설정 > 내 앱(웹)에서 발급받은
+   설정값으로 반드시 교체하세요. (README_배포가이드.md 참고)
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBZ7yelMCko_PafHq8ueHolAFtBL-k2SdA",
+  authDomain: "deungbul-app.firebaseapp.com",
+  projectId: "deungbul-app",
+  storageBucket: "deungbul-app.firebasestorage.app",
+  messagingSenderId: "350439394821",
+  appId: "1:350439394821:web:b585d6a0f6195c795a566c",
+  measurementId: "G-BEVFM9KRTS"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let currentUser = null;
+
+/* =========================================================
+   데이터
+   ========================================================= */
+const BOOKS = [
+ ["창세기",50],["출애굽기",40],["레위기",27],["민수기",36],["신명기",34],
+ ["여호수아",24],["사사기",21],["룻기",4],["사무엘상",31],["사무엘하",24],
+ ["열왕기상",22],["열왕기하",25],["역대상",29],["역대하",36],["에스라",10],
+ ["느헤미야",13],["에스더",10],["욥기",42],["시편",150],["잠언",31],
+ ["전도서",12],["아가",8],["이사야",66],["예레미야",52],["예레미야애가",5],
+ ["에스겔",48],["다니엘",12],["호세아",14],["요엘",3],["아모스",9],
+ ["오바댜",1],["요나",4],["미가",7],["나훔",3],["하박국",3],
+ ["스바냐",3],["학개",2],["스가랴",14],["말라기",4]
+];
+const NT_BOOKS = [
+ ["마태복음",28],["마가복음",16],["누가복음",24],["요한복음",21],["사도행전",28],
+ ["로마서",16],["고린도전서",16],["고린도후서",13],["갈라디아서",6],["에베소서",6],
+ ["빌립보서",4],["골로새서",4],["데살로니가전서",5],["데살로니가후서",3],["디모데전서",6],
+ ["디모데후서",4],["디도서",3],["빌레몬서",1],["히브리서",13],["야고보서",5],
+ ["베드로전서",5],["베드로후서",3],["요한1서",5],["요한2서",1],["요한3서",1],
+ ["유다서",1],["요한계시록",22]
+];
+
+const MEM_CATEGORIES = [
+  {id:"five", title:"그리스도와 새 출발 · 확신", sub:"5구절", desc:"처음 믿는 이를 위한 구원의 확신 카드 (5확신)"},
+  {id:"eight", title:"그리스도와 동행 · 생활지침", sub:"8구절", desc:"새신자의 신앙생활 기초를 세우는 카드 (8동행)"},
+  {id:"sixty", title:"주제별 성경암송 (TMS)", sub:"60구절", desc:"5개 주제 · 12구절씩, 신앙 전 영역을 다지는 표준 암송 세트"},
+  {id:"oneEighty", title:"주제별 성경암송 시리즈", sub:"180구절", desc:"TMS를 확장한 심화 암송 시리즈"},
+  {id:"oyo", title:"OYO · 나만의 암송카드", sub:"자유 등록", desc:"내가 은혜받은 구절을 직접 등록해 암송카드로 만드는 코너"}
+];
+
+const QUOTES = [
+ {a:"찰스 스펄전", t:"기도는 방패요 힘이며, 하나님께 이르는 통로이자 원수를 막는 성벽이다."},
+ {a:"찰스 스펄전", t:"작은 믿음이라도 그리스도를 붙잡으면 큰 믿음과 똑같이 구원에 이른다."},
+ {a:"찰스 스펄전", t:"성경을 자주 읽지 않는 그리스도인은 힘없이 싸우는 군사와 같다."},
+ {a:"오스왈드 챔버스", t:"하나님은 우리를 유용하게 쓰시기보다 먼저 그분을 알게 하시려 한다."},
+ {a:"오스왈드 챔버스", t:"신앙은 위기의 순간이 아니라 평범한 하루하루의 순종으로 자란다."},
+ {a:"오스왈드 챔버스", t:"내 최선을 드리는 것이 그분의 최선을 받는 유일한 길이다."},
+ {a:"A.W. 토저", t:"우리가 하나님에 대해 생각하는 것이야말로 우리에 관한 가장 중요한 사실이다."},
+ {a:"A.W. 토저", t:"예배는 갱신되지 않으면 습관이 되고, 습관은 곧 형식으로 굳는다."},
+ {a:"조지 뮬러", t:"기도의 응답이 더딜 때 나의 일은 믿음을 그치는 것이 아니라 더 깊게 하는 것이다."},
+ {a:"앤드류 머레이", t:"겸손은 자신을 낮추는 것이 아니라 자신을 잊고 그분만 높이는 것이다."},
+ {a:"앤드류 머레이", t:"묵상 없는 기도는 뿌리 없는 나무와 같다."},
+ {a:"도슨 트로트맨", t:"성경암송만큼 투자한 시간에 비해 큰 유익을 주는 훈련은 없다."},
+ {a:"D.L. 무디", t:"성경은 죄에서 나를 지켜주거나, 죄가 성경에서 나를 멀어지게 한다."},
+ {a:"짐 엘리엇", t:"영원한 것을 얻기 위해 영원하지 않은 것을 내어놓는 사람은 결코 어리석지 않다."},
+ {a:"허드슨 테일러", t:"하나님의 일은 하나님의 방법으로 행할 때 결코 그분의 공급이 부족하지 않다."},
+ {a:"조나단 에드워즈", t:"결심하라, 살아있는 동안 온 힘을 다해 살기로."},
+ {a:"마틴 로이드 존스", t:"영적 침체의 많은 부분은 진리를 스스로에게 설교하지 않은 데서 온다."},
+ {a:"코리 텐 붐", t:"근심은 내일의 슬픔을 없애지 못하고 오늘의 힘만 빼앗아 간다."},
+];
+
+const TODAY = new Date();
+
+/* =========================================================
+   상태 & 저장
+   ========================================================= */
+let state = {
+  readingProgress: {},
+  memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
+  dailyEntries: {},
+  fellowship: [],
+  prayers: [],
+  timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
+  gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
+};
+let ui = {
+  tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
+  testCat:null, testQueue:[], testIdx:0, testFlipped:false,
+  testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all"
+};
+let recognition = null;
+
+async function loadAllFromFirestore(){
+  if(!currentUser) return;
+  try{
+    const snap = await db.collection("users").doc(currentUser.uid).get();
+    if(snap.exists){
+      const d = snap.data() || {};
+      state = {
+        readingProgress: d.readingProgress || {},
+        memoryCards: d.memoryCards || {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
+        dailyEntries: d.dailyEntries || {},
+        fellowship: d.fellowship || [],
+        prayers: d.prayers || [],
+        timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+        gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
+      };
+    } else {
+      // 최초 로그인: 기본 상태로 문서 생성
+      await db.collection("users").doc(currentUser.uid).set({
+        email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...state
+      });
+    }
+  }catch(e){ showToast("데이터를 불러오지 못했어요. 네트워크를 확인해 주세요."); }
+}
+async function persist(prop){
+  if(!currentUser) return;
+  try{
+    await db.collection("users").doc(currentUser.uid).set({[prop]: state[prop]}, {merge:true});
+  }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+}
+
+/* ---------- 데이터 내보내기 / 가져오기 / 초기화 / 계정 삭제 ---------- */
+function exportData(){
+  const payload = { exportedAt: new Date().toISOString(), email: currentUser?.email, ...state };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = `등불_백업_${dstr(TODAY)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  showToast("데이터를 내보냈어요.");
+}
+async function importDataFromFile(file){
+  try{
+    const text = await file.text();
+    const d = JSON.parse(text);
+    state = {
+      readingProgress: d.readingProgress || {},
+      memoryCards: d.memoryCards || {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
+      dailyEntries: d.dailyEntries || {},
+      fellowship: d.fellowship || [],
+      prayers: d.prayers || [],
+      timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+      gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
+    };
+    await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+    showToast("데이터를 가져왔어요.");
+    renderAll();
+  }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
+}
+async function resetAllData(){
+  state = {
+    readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
+    dailyEntries: {}, fellowship: [], prayers: [], timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
+    gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
+  };
+  await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+  showToast("모든 데이터를 초기화했어요.");
+  renderAll();
+}
+async function deleteAccountAndData(){
+  try{
+    await db.collection("users").doc(currentUser.uid).delete();
+    await currentUser.delete();
+    showToast("계정을 삭제했어요.");
+  }catch(e){
+    if(e.code==="auth/requires-recent-login"){
+      showToast("보안을 위해 재로그인 후 다시 시도해 주세요.");
+      await auth.signOut();
+    } else {
+      showToast("계정 삭제에 실패했어요: "+e.message);
+    }
+  }
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(showToast._tm);
+  showToast._tm = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+/* =========================================================
+   게이미피케이션 — 포인트 & 배지
+   ========================================================= */
+const BADGES = [
+ {id:"read1", title:"첫 걸음", desc:"성경읽기표 1일 체크", icon:"🌱", metric:"readingDays", need:1},
+ {id:"read7", title:"말씀의 새싹", desc:"성경읽기 7일 완료", icon:"🌿", metric:"readingDays", need:7},
+ {id:"read30", title:"한 달의 진심", desc:"성경읽기 30일 완료", icon:"🍃", metric:"readingDays", need:30},
+ {id:"read100", title:"백 일의 정성", desc:"성경읽기 100일 완료", icon:"🌳", metric:"readingDays", need:100},
+ {id:"read365", title:"통독 완주자", desc:"1년 통독표 완주", icon:"🏆", metric:"readingDays", need:365},
+ {id:"mem1", title:"첫 암송", desc:"말씀 1구절 암송 완료", icon:"✨", metric:"memorized", need:1},
+ {id:"mem10", title:"암송 용사", desc:"말씀 10구절 암송 완료", icon:"⚔️", metric:"memorized", need:10},
+ {id:"mem60", title:"TMS 완주", desc:"말씀 60구절 암송 완료", icon:"📜", metric:"memorized", need:60},
+ {id:"mem180", title:"암송의 사람", desc:"말씀 180구절 암송 완료", icon:"👑", metric:"memorized", need:180},
+ {id:"jrn7", title:"묵상 일주일", desc:"묵상노트 7일 작성", icon:"📔", metric:"journalEntries", need:7},
+ {id:"jrn30", title:"은혜의 저장고", desc:"묵상노트 30일 작성", icon:"🗝️", metric:"journalEntries", need:30},
+ {id:"fel5", title:"교제의 사람", desc:"배운 것 5회 기록", icon:"🤝", metric:"fellowshipLessons", need:5},
+ {id:"fel20", title:"네트워크 세우미", desc:"배운 것 20회 기록", icon:"🌉", metric:"fellowshipLessons", need:20},
+ {id:"rev20", title:"복습의 습관", desc:"암송 복습 20회", icon:"🔁", metric:"reviewCount", need:20},
+ {id:"rev50", title:"말씀 되새김", desc:"암송 복습 50회", icon:"🔂", metric:"reviewCount", need:50},
+ {id:"aud1", title:"낭독자", desc:"음성 암송 테스트 1회", icon:"🎙️", metric:"audioTests", need:1},
+ {id:"aud10", title:"암송 낭송가", desc:"음성 암송 테스트 10회", icon:"🎤", metric:"audioTests", need:10},
+ {id:"audgood10", title:"정확한 암송가", desc:"음성 일치도 80%↑ 10회", icon:"🎯", metric:"audioGood", need:10},
+ {id:"todo10", title:"할 일 처리반장", desc:"할 일 10개 완료", icon:"✅", metric:"todosDone", need:10},
+ {id:"todo50", title:"성실한 관리자", desc:"할 일 50개 완료", icon:"🗓️", metric:"todosDone", need:50},
+ {id:"book1", title:"첫 책자 제작", desc:"PDF 책자 1회 제작", icon:"📕", metric:"bookletsMade", need:1},
+ {id:"pr1", title:"첫 기도제목", desc:"기도제목 1개 기록", icon:"🙏", metric:"prayerCount", need:1},
+ {id:"pr20", title:"기도의 사람", desc:"기도제목 20개 기록", icon:"🕊️", metric:"prayerCount", need:20},
+ {id:"ans1", title:"응답의 첫 열매", desc:"기도응답 1회 기록", icon:"🌾", metric:"answeredCount", need:1},
+ {id:"ans10", title:"신실하신 하나님", desc:"기도응답 10회 기록", icon:"⭐", metric:"answeredCount", need:10},
+ {id:"pt500", title:"등불지기", desc:"누적 포인트 500P 달성", icon:"🕯️", metric:"points", need:500},
+ {id:"pt1500", title:"빛의 증인", desc:"누적 포인트 1500P 달성", icon:"💡", metric:"points", need:1500}
+];
+function countMemorized(){
+  return Object.values(state.memoryCards).reduce((s,arr)=>s+arr.filter(c=>c.memorized).length,0);
+}
+function countJournalEntries(){
+  return Object.values(state.dailyEntries).filter(e=>e.grace||e.application||e.thanks).length;
+}
+function countFellowshipLessons(){
+  return state.fellowship.filter(f=>f.lessons && f.lessons.trim()).length;
+}
+function countTodosDone(){
+  return Object.values(state.dailyEntries).reduce((s,e)=> s + ((e.todos||[]).filter(t=>t.status==="done").length), 0);
+}
+function getMetrics(){
+  const m = {
+    readingDays: Object.values(state.readingProgress).filter(Boolean).length,
+    memorized: countMemorized(),
+    journalEntries: countJournalEntries(),
+    fellowshipLessons: countFellowshipLessons(),
+    reviewCount: state.gamifyCounts.reviewCount,
+    audioTests: state.gamifyCounts.audioTests,
+    audioGood: state.gamifyCounts.audioGood,
+    todosDone: countTodosDone(),
+    bookletsMade: state.gamifyCounts.bookletsMade,
+    prayerCount: state.prayers.length,
+    answeredCount: state.prayers.filter(p=>p.status==="answered").length
+  };
+  m.points = m.readingDays*5 + m.memorized*8 + m.journalEntries*10 + m.fellowshipLessons*8 + m.reviewCount*3 + m.audioGood*5 + m.todosDone*2 + m.bookletsMade*15 + m.prayerCount*4 + m.answeredCount*10;
+  return m;
+}
+function earnedBadgeIds(m){ return new Set(BADGES.filter(b=> m[b.metric] >= b.need).map(b=>b.id)); }
+function snapshotGamify(){
+  const m = getMetrics();
+  return { points:m.points, earned:earnedBadgeIds(m) };
+}
+function announceGamify(before, fallbackMsg){
+  const after = snapshotGamify();
+  const diff = after.points - before.points;
+  if(diff>0) showToast(`+${diff}P 획득! (총 ${after.points}P)`);
+  else if(fallbackMsg) showToast(fallbackMsg);
+  const newBadges = [...after.earned].filter(id=>!before.earned.has(id));
+  newBadges.forEach((id,i)=>{
+    const b = BADGES.find(x=>x.id===id);
+    setTimeout(()=>showToast(`🏅 새 배지 획득: ${b.title}`), (diff>0?900:0) + i*1600);
+  });
+}
+function levelInfo(points){
+  const level = 1 + Math.floor(points/150);
+  const inLevel = points % 150;
+  return { level, inLevel, need:150 };
+}
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function dstr(d){ return d.toISOString().slice(0,10); }
+function fmtDateKor(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return `${y}년 ${m}월 ${d}일`;
+}
+
+/* =========================================================
+   읽기표 생성 (66권을 365일에 균등 분배)
+   ========================================================= */
+function flattenBooks(list){
+  const out=[];
+  list.forEach(([name,ch])=>{ for(let i=1;i<=ch;i++) out.push(`${name} ${i}장`); });
+  return out;
+}
+function chunkEvenly(arr, buckets){
+  const res = Array.from({length:buckets},()=>[]);
+  const base = Math.floor(arr.length/buckets);
+  let rem = arr.length % buckets;
+  let idx=0;
+  for(let b=0;b<buckets;b++){
+    let count = base + (b < rem ? 1 : 0);
+    for(let i=0;i<count;i++){ res[b].push(arr[idx++]); }
+  }
+  return res;
+}
+let READING_PLAN = null;
+function buildReadingPlan(){
+  if(READING_PLAN) return READING_PLAN;
+  const otFlat = flattenBooks(BOOKS);
+  const ntFlat = flattenBooks(NT_BOOKS);
+  const DAYS = 365;
+  const otChunks = chunkEvenly(otFlat, DAYS);
+  const ntChunks = chunkEvenly(ntFlat, DAYS);
+  READING_PLAN = otChunks.map((ot,i)=> ot.concat(ntChunks[i]));
+  return READING_PLAN;
+}
+
+/* =========================================================
+   렌더 — 탭바
+   ========================================================= */
+const TABS = [
+  {id:"home", label:"홈"},
+  {id:"bible", label:"성경 본문"},
+  {id:"plan", label:"성경읽기표"},
+  {id:"memory", label:"성경암송"},
+  {id:"calendar", label:"캘린더"},
+  {id:"journal", label:"묵상노트"},
+  {id:"prayer", label:"기도노트"},
+  {id:"fellowship", label:"교제노트"},
+  {id:"ebook", label:"PDF 책자"},
+  {id:"badges", label:"배지·포인트"},
+  {id:"shop", label:"추천 상품"},
+  {id:"quotes", label:"영적 명언"},
+  {id:"account", label:"계정"}
+];
+function renderTabbar(){
+  const bar = document.getElementById("tabbar");
+  bar.innerHTML = TABS.map(t=>`<button class="tab-btn ${ui.tab===t.id?"active":""}" data-tab="${t.id}">${t.label}</button>`).join("");
+  bar.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{ ui.tab=b.dataset.tab; renderAll(); }));
+}
+
+/* =========================================================
+   홈
+   ========================================================= */
+function pickQuote(seedShift=0){
+  const dayIdx = Math.floor(TODAY.getTime()/86400000)+seedShift;
+  return QUOTES[((dayIdx % QUOTES.length)+QUOTES.length)%QUOTES.length];
+}
+let homeQuoteShift = 0;
+function renderHome(){
+  const totalDays = buildReadingPlan().length;
+  const doneDays = Object.values(state.readingProgress).filter(Boolean).length;
+  const memCount = Object.values(state.memoryCards).reduce((s,a)=>s+a.length,0);
+  const memDone = Object.values(state.memoryCards).reduce((s,a)=>s+a.filter(c=>c.memorized).length,0);
+  const thisMonthKey = `${ui.calYear}-${String(ui.calMonth+1).padStart(2,"0")}`;
+  const felThisMonth = state.fellowship.filter(f=>f.date && f.date.startsWith(thisMonthKey)).length;
+  const q = pickQuote(homeQuoteShift);
+  const m = getMetrics();
+  const lv = levelInfo(m.points);
+  const earned = earnedBadgeIds(m);
+  const recentBadges = BADGES.filter(b=>earned.has(b.id)).slice(-6);
+  const nextBadge = BADGES.find(b=>!earned.has(b.id));
+
+  return `
+  <div class="hero">
+    <div class="hero-eyebrow">오늘의 경건 훈련</div>
+    <div class="hero-verse">"육체의 연습은 약간의 유익이 있으나 경건은 범사에 유익하니
+    금생과 내생에 약속이 있느니라"</div>
+    <div class="hero-verse-ref">디모데전서 4:8 · ${fmtDateKor(dstr(TODAY))}</div>
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="level-chip">🕯️ Lv.${lv.level}</span>
+      <span class="points-chip">${m.points}P</span>
+    </div>
+    <div class="stat-row">
+      <div class="stat"><b>${doneDays} / ${totalDays}</b><span>성경읽기 진도(일)</span></div>
+      <div class="stat"><b>${memDone} / ${memCount}</b><span>암송 완료 구절</span></div>
+      <div class="stat"><b>${felThisMonth}</b><span>이번 달 교제 횟수</span></div>
+      <div class="stat"><b>${earned.size} / ${BADGES.length}</b><span>획득한 배지</span></div>
+    </div>
+    ${recentBadges.length?`<div class="badge-mini-row">
+      ${recentBadges.map(b=>`<div class="badge-mini" title="${b.title}">${b.icon}</div>`).join("")}
+    </div>`:""}
+    ${nextBadge?`<div style="font-size:11.5px;color:#CBC2A8;margin-top:10px;">다음 배지: ${nextBadge.icon} ${nextBadge.title} (${Math.min(m[nextBadge.metric],nextBadge.need)}/${nextBadge.need})</div>`:""}
+    <button class="btn ghost small" id="goBadges" style="margin-top:12px;border-color:rgba(255,255,255,0.3);color:#F3EDDC;">배지·포인트 전체 보기</button>
+  </div>
+
+  <div class="grid grid-2" style="margin-top:18px;">
+    <div class="card">
+      <div class="section-title">✍️ 오늘의 묵상 바로가기</div>
+      <p class="section-desc">오늘 받은 은혜와 기도제목을 지금 기록해 보세요.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn gold" id="goJournalToday">오늘 묵상 쓰기</button>
+        <button class="btn outline" id="goCalendar">캘린더 열기</button>
+        <button class="btn outline" id="goFellowship">교제 약속 추가</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="section-title">🕯️ 오늘의 명언</div>
+      <div class="flip-zone">
+        <div class="flip-card" id="homeFlip">
+          <div class="flip-face flip-front">
+            <div class="card-text" style="font-family:'Noto Serif KR',serif;">"${q.t}"</div>
+            <div class="card-author">— ${q.a}</div>
+            <div class="flip-hint">카드를 눌러 뒤집어 보세요</div>
+          </div>
+          <div class="flip-face flip-back">
+            <div class="card-text">신앙의 선진들이 남긴 말씀은 오늘도 우리를 경건의 길로 이끕니다.</div>
+            <div class="flip-hint">다시 눌러 되돌리기</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn ghost small" id="shuffleQuote" style="margin-top:10px;">다른 명언 보기</button>
+    </div>
+  </div>`;
+}
+function bindHome(){
+  const el = document.getElementById("homeFlip");
+  if(el) el.addEventListener("click",()=>el.classList.toggle("flipped"));
+  const sh = document.getElementById("shuffleQuote");
+  if(sh) sh.addEventListener("click",(e)=>{ e.stopPropagation(); homeQuoteShift = Math.floor(Math.random()*1000); renderAll(); });
+  const gj = document.getElementById("goJournalToday");
+  if(gj) gj.addEventListener("click",()=>{ ui.tab="journal"; renderAll(); openDailyModal(dstr(TODAY)); });
+  const gc = document.getElementById("goCalendar");
+  if(gc) gc.addEventListener("click",()=>{ ui.tab="calendar"; renderAll(); });
+  const gf = document.getElementById("goFellowship");
+  if(gf) gf.addEventListener("click",()=>{ ui.tab="fellowship"; renderAll(); openFellowshipModal(); });
+  const gb = document.getElementById("goBadges");
+  if(gb) gb.addEventListener("click",()=>{ ui.tab="badges"; renderAll(); });
+}
+
+/* =========================================================
+   성경 본문 (저작권 안내 + 사용자 입력형 본문 저장)
+   ========================================================= */
+function renderBible(){
+  const chapters = [1,2,3,4,5,6];
+  return `
+  <div class="card">
+    <div class="section-title">📖 디모데전서 — 경건 훈련의 핵심 본문</div>
+    <p class="section-desc">경건의 훈련을 다루는 목회서신, 디모데전서 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다.</p>
+    <div class="notice">
+      <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
+      아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
+    </div>
+    <div id="chapterBlocks"></div>
+    <button class="btn gold" id="saveTimothy">본문 저장하기</button>
+  </div>`;
+}
+function bindBible(){
+  const wrap = document.getElementById("chapterBlocks");
+  if(!wrap) return;
+  wrap.innerHTML = [1,2,3,4,5,6].map(c=>`
+    <div class="chapter-block">
+      <h4>디모데전서 ${c}장</h4>
+      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${state.timothyText[c]||""}</textarea>
+    </div>`).join("");
+  document.getElementById("saveTimothy").addEventListener("click",()=>{
+    wrap.querySelectorAll("textarea").forEach(t=>{ state.timothyText[t.dataset.ch]=t.value; });
+    persist("timothyText");
+    showToast("본문을 저장했어요.");
+  });
+}
+
+/* =========================================================
+   성경읽기표
+   ========================================================= */
+function renderPlan(){
+  const plan = buildReadingPlan();
+  const total = plan.length;
+  const done = Object.values(state.readingProgress).filter(Boolean).length;
+  const pct = Math.round((done/total)*1000)/10;
+  const monthChunks = 12;
+  const perPage = Math.ceil(total/monthChunks);
+  return `
+  <div class="card">
+    <div class="section-title">📅 1년 성경통독표</div>
+    <p class="section-desc">구약 929장 · 신약 260장, 총 1,189장을 365일에 고르게 나눈 통독표예요. 매일 읽은 날짜에 체크해 진도를 확인해 보세요.</p>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      <div class="progress-label"><span>${done} / ${total}일 완료</span><span>${pct}%</span></div>
+    </div>
+    <div class="plan-controls">
+      <span style="font-size:12.5px;color:var(--ink-soft);">구간 보기:</span>
+      ${Array.from({length:monthChunks},(_,i)=>`<button class="btn ${ui.planMonthFilter===i?"":"outline"} small" data-seg="${i}">${i+1}구간</button>`).join("")}
+    </div>
+    <div class="plan-grid" id="planGrid"></div>
+  </div>`;
+}
+function bindPlan(){
+  const plan = buildReadingPlan();
+  const total = plan.length;
+  const monthChunks = 12;
+  const perPage = Math.ceil(total/monthChunks);
+  document.querySelectorAll("[data-seg]").forEach(b=>b.addEventListener("click",()=>{
+    ui.planMonthFilter = Number(b.dataset.seg); renderAll();
+  }));
+  const grid = document.getElementById("planGrid");
+  const start = ui.planMonthFilter*perPage;
+  const end = Math.min(total, start+perPage);
+  let html="";
+  for(let i=start;i<end;i++){
+    const done = !!state.readingProgress[i];
+    html += `<div class="plan-day ${done?"done":""}">
+      <div class="d-num">${i+1}일차</div>
+      <div class="d-refs">${plan[i].join(" · ")}</div>
+      <label><input type="checkbox" data-day="${i}" ${done?"checked":""}/> 읽음</label>
+    </div>`;
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll("[data-day]").forEach(cb=>cb.addEventListener("change",()=>{
+    const before = snapshotGamify();
+    const d = Number(cb.dataset.day);
+    if(cb.checked) state.readingProgress[d]=true; else delete state.readingProgress[d];
+    persist("readingProgress");
+    renderTopStatsOnly();
+    if(cb.checked) announceGamify(before);
+  }));
+}
+function renderTopStatsOnly(){
+  // 진행률 바만 가볍게 갱신 (전체 리렌더 없이)
+  const plan = buildReadingPlan();
+  const total = plan.length;
+  const done = Object.values(state.readingProgress).filter(Boolean).length;
+  const pct = Math.round((done/total)*1000)/10;
+  const fill = document.querySelector(".progress-bar-fill");
+  const label = document.querySelector(".progress-label");
+  if(fill) fill.style.width = pct+"%";
+  if(label) label.innerHTML = `<span>${done} / ${total}일 완료</span><span>${pct}%</span>`;
+}
+
+/* =========================================================
+   성경암송 (네비게이토)
+   ========================================================= */
+function renderMemory(){
+  const cat = MEM_CATEGORIES.find(c=>c.id===ui.memTab);
+  const cards = state.memoryCards[ui.memTab]||[];
+  return `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">🗂️ 네비게이토 성경암송</div>
+    <p class="section-desc">그리스도인의 확신(5구절) → 생활지침(8구절) → 주제별 암송(60구절) → 암송 시리즈(180구절)로 이어지는 네비게이토 암송 훈련 코너예요.
+    저작권 상 구절 본문은 직접 붙여넣어 저장하며, 카드처럼 뒤집어 테스트하거나 아래 테스트 영역에서 음성으로 직접 암송해 채점할 수 있어요. 복습할 때마다 포인트가 쌓여요.</p>
+    <div class="memtabs" id="memTabs">
+      ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
+    </div>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">${cat.desc}</p>
+    <div class="grid" style="grid-template-columns:1fr auto;gap:8px;align-items:end;">
+      <div class="field" style="margin-bottom:0;">
+        <label>구절 참조 (예: 요한복음 3:16)</label>
+        <input type="text" id="newRef" placeholder="구절 참조 입력">
+      </div>
+      <button class="btn gold" id="addCardBtn">카드 추가</button>
+    </div>
+    <div class="field" style="margin-top:8px;">
+      <label>구절 본문 (직접 입력/붙여넣기)</label>
+      <textarea id="newText" placeholder="암송할 본문을 입력하세요"></textarea>
+    </div>
+    <div class="mem-list" id="memList"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">🎯 암송 테스트</div>
+    <p class="section-desc">카드 앞면(참조)만 보고 외운 뒤 눌러서 확인하거나, 직접 타이핑해 채점해 보세요.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+      ${MEM_CATEGORIES.map(c=>`<button class="btn outline small" data-teststart="${c.id}">${c.title} 테스트</button>`).join("")}
+    </div>
+    <div id="testArea"></div>
+  </div>`;
+}
+function bindMemory(){
+  document.getElementById("memTabs").querySelectorAll("[data-mc]").forEach(b=>b.addEventListener("click",()=>{
+    ui.memTab=b.dataset.mc; renderAll();
+  }));
+  document.getElementById("addCardBtn").addEventListener("click",()=>{
+    const ref=document.getElementById("newRef").value.trim();
+    const text=document.getElementById("newText").value.trim();
+    if(!ref){ showToast("구절 참조를 입력해 주세요."); return; }
+    state.memoryCards[ui.memTab].push({id:uid(), ref, text, memorized:false, added:dstr(TODAY)});
+    persist("memoryCards");
+    showToast("암송카드를 추가했어요.");
+    renderAll();
+  });
+  renderMemList();
+  document.querySelectorAll("[data-teststart]").forEach(b=>b.addEventListener("click",()=>{
+    startTest(b.dataset.teststart);
+  }));
+  if(ui.testCat) renderTestArea();
+}
+function renderMemList(){
+  const list = document.getElementById("memList");
+  const cards = state.memoryCards[ui.memTab]||[];
+  if(!cards.length){ list.innerHTML = `<div class="empty">아직 등록된 카드가 없어요. 위에서 첫 구절을 추가해 보세요.</div>`; return; }
+  list.innerHTML = cards.map(c=>`
+    <div class="mem-item ${c.memorized?"mem-done":""}">
+      <div>
+        <div class="mi-ref">${c.ref} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
+        ${c.text?`<div class="mi-text">${escapeHtml(c.text)}</div>`:""}
+      </div>
+      <div class="mem-actions">
+        <button class="icon-btn" data-tog="${c.id}" title="암송완료 체크">${c.memorized?"↺":"✓"}</button>
+        <button class="icon-btn" data-del="${c.id}" title="삭제">✕</button>
+      </div>
+    </div>`).join("");
+  list.querySelectorAll("[data-tog]").forEach(b=>b.addEventListener("click",()=>{
+    const before = snapshotGamify();
+    const c = state.memoryCards[ui.memTab].find(x=>x.id===b.dataset.tog);
+    const becameMemorized = !c.memorized;
+    c.memorized = !c.memorized; persist("memoryCards"); renderAll();
+    if(becameMemorized) announceGamify(before);
+  }));
+  list.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    state.memoryCards[ui.memTab] = state.memoryCards[ui.memTab].filter(x=>x.id!==b.dataset.del);
+    persist("memoryCards"); renderAll();
+  }));
+}
+function escapeHtml(s){ return s.replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m])); }
+
+function startTest(catId){
+  const cards = state.memoryCards[catId]||[];
+  if(!cards.length){ showToast("이 카테고리에 등록된 카드가 없어요."); return; }
+  ui.testCat = catId; ui.testQueue = [...cards].sort(()=>Math.random()-0.5); ui.testIdx=0; ui.testFlipped=false;
+  renderTestArea();
+}
+function renderTestArea(){
+  const area = document.getElementById("testArea");
+  if(!area) return;
+  if(!ui.testCat || !ui.testQueue.length){ area.innerHTML=""; return; }
+  const cat = MEM_CATEGORIES.find(c=>c.id===ui.testCat);
+  const card = ui.testQueue[ui.testIdx];
+  if(!card){
+    stopVoiceTest();
+    area.innerHTML = `<div class="empty">🎉 이 세트의 테스트를 모두 마쳤어요. 다른 세트를 골라보세요.</div>`;
+    return;
+  }
+  area.innerHTML = `
+    <div class="test-stage">
+      <div class="test-progress">${ui.testIdx+1} / ${ui.testQueue.length}</div>
+      <div class="flip-zone">
+        <div class="flip-card ${ui.testFlipped?"flipped":""}" id="testFlipCard">
+          <div class="flip-face flip-front">
+            <div class="card-ref">${card.ref}</div>
+            <div class="flip-hint">눌러서 정답 확인</div>
+          </div>
+          <div class="flip-face flip-back">
+            <div class="card-text">${card.text?escapeHtml(card.text):"(등록된 본문이 없어요)"}</div>
+            <div class="flip-hint">다시 눌러 되돌리기</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-toggle">
+        <button class="btn small ${ui.testMode==="text"?"":"outline"}" id="modeTextBtn">✍️ 텍스트로 채점</button>
+        <button class="btn small ${ui.testMode==="audio"?"":"outline"}" id="modeAudioBtn">🎙️ 음성으로 암송</button>
+      </div>
+
+      ${ui.testMode==="text" ? `
+        <div class="field">
+          <label>암송한 내용을 직접 입력해 채점해 보세요</label>
+          <textarea id="testInput" placeholder="기억나는 대로 입력해 보세요"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn sage small" id="gradeBtn">채점하기</button>
+          <button class="btn outline small" id="nextBtn">다음 카드 →</button>
+        </div>
+        <div id="gradeResult"></div>
+      ` : `
+        <div class="voice-box">
+          <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;">
+            "${cat.title}" → "${card.ref}" → 본문 순서로 소리내어 암송하고 녹음해 보세요.
+            (Chrome 브라우저 · https 환경 · 마이크 권한 필요)
+          </p>
+          <button class="btn ${ui.recording?"danger":"sage"} small" id="recBtn">
+            ${ui.recording?'<span class="rec-dot"></span>녹음 중지':"🎙️ 녹음 시작"}
+          </button>
+          <div class="transcript-box" id="transcriptBox">${
+            ui.transcriptFinal||ui.transcriptInterim
+              ? escapeHtml(ui.transcriptFinal)+'<span style="color:var(--ink-soft)">'+escapeHtml(ui.transcriptInterim)+'</span>'
+              : '<span style="color:var(--ink-soft)">여기에 인식된 음성이 표시돼요…</span>'
+          }</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn sage small" id="gradeAudioBtn" ${!ui.transcriptFinal?"disabled":""}>채점하기</button>
+            <button class="btn outline small" id="nextBtnAudio">다음 카드 →</button>
+          </div>
+          <div id="audioGradeResult"></div>
+        </div>
+      `}
+    </div>`;
+
+  document.getElementById("testFlipCard").addEventListener("click",()=>{ ui.testFlipped=!ui.testFlipped; renderTestArea(); });
+  document.getElementById("modeTextBtn").addEventListener("click",()=>{ stopVoiceTest(); ui.testMode="text"; renderTestArea(); });
+  document.getElementById("modeAudioBtn").addEventListener("click",()=>{ ui.testMode="audio"; ui.transcriptFinal=""; ui.transcriptInterim=""; renderTestArea(); });
+
+  if(ui.testMode==="text"){
+    document.getElementById("nextBtn").addEventListener("click",()=>{ ui.testIdx++; ui.testFlipped=false; renderTestArea(); });
+    document.getElementById("gradeBtn").addEventListener("click",()=>{
+      const val = document.getElementById("testInput").value;
+      const res = document.getElementById("gradeResult");
+      if(!card.text){ res.innerHTML = `<div class="diff-box">등록된 본문이 없어 채점할 수 없어요. 카드 관리에서 본문을 먼저 입력해 주세요.</div>`; return; }
+      const before = snapshotGamify();
+      const {pct, html} = diffScore(card.text, val);
+      res.innerHTML = `<div class="diff-box"><span class="score-tag" style="color:${pct>=85?"var(--sage)":pct>=50?"var(--gold)":"var(--brick)"}">일치도 ${pct}%</span><br><br>${html}</div>`;
+      state.gamifyCounts.reviewCount++;
+      persist("gamifyCounts");
+      announceGamify(before);
+    });
+  } else {
+    document.getElementById("recBtn").addEventListener("click",()=>{
+      if(ui.recording) stopVoiceTest(); else startVoiceTest();
+    });
+    document.getElementById("nextBtnAudio").addEventListener("click",()=>{
+      stopVoiceTest(); ui.testIdx++; ui.testFlipped=false; ui.transcriptFinal=""; ui.transcriptInterim=""; renderTestArea();
+    });
+    document.getElementById("gradeAudioBtn").addEventListener("click",()=>{
+      const res = document.getElementById("audioGradeResult");
+      if(!card.text){ res.innerHTML = `<div class="diff-box">등록된 본문이 없어 채점할 수 없어요. 카드 관리에서 본문을 먼저 입력해 주세요.</div>`; return; }
+      const before = snapshotGamify();
+      const expected = `${cat.title} ${card.ref} ${card.text}`;
+      const {pct, html} = diffScore(expected, ui.transcriptFinal);
+      res.innerHTML = `<div class="diff-box"><span class="score-tag" style="color:${pct>=85?"var(--sage)":pct>=50?"var(--gold)":"var(--brick)"}">일치도 ${pct}%</span><br><br>${html}</div>`;
+      state.gamifyCounts.reviewCount++;
+      state.gamifyCounts.audioTests++;
+      if(pct>=80) state.gamifyCounts.audioGood++;
+      persist("gamifyCounts");
+      announceGamify(before);
+    });
+  }
+}
+
+/* ---------- 음성 인식 (Web Speech API) ---------- */
+function startVoiceTest(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ showToast("이 브라우저는 음성 인식을 지원하지 않아요. Chrome에서 열어주세요."); return; }
+  ui.recording = true; ui.transcriptFinal=""; ui.transcriptInterim="";
+  renderTestArea();
+  try{
+    recognition = new SR();
+    recognition.lang = "ko-KR";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (e)=>{
+      let interim="";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const t = e.results[i][0].transcript;
+        if(e.results[i].isFinal) ui.transcriptFinal += t; else interim += t;
+      }
+      ui.transcriptInterim = interim;
+      const box = document.getElementById("transcriptBox");
+      if(box) box.innerHTML = escapeHtml(ui.transcriptFinal)+'<span style="color:var(--ink-soft)">'+escapeHtml(ui.transcriptInterim)+'</span>';
+      const gb = document.getElementById("gradeAudioBtn");
+      if(gb) gb.disabled = !ui.transcriptFinal;
+    };
+    recognition.onerror = (e)=>{ showToast("음성 인식 오류: "+e.error); };
+    recognition.onend = ()=>{ if(ui.recording){ try{ recognition.start(); }catch(e){} } };
+    recognition.start();
+  }catch(e){
+    showToast("마이크를 사용할 수 없어요.");
+    ui.recording = false; renderTestArea();
+  }
+}
+function stopVoiceTest(){
+  ui.recording = false;
+  if(recognition){ try{ recognition.onend=null; recognition.stop(); }catch(e){} }
+}
+function diffScore(original, typed){
+  const oWords = original.trim().split(/\s+/).filter(Boolean);
+  const tWords = typed.trim().split(/\s+/).filter(Boolean);
+  // LCS 기반 단어 매칭
+  const m=oWords.length, n=tWords.length;
+  const dp = Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    dp[i][j] = oWords[i-1]===tWords[j-1] ? dp[i-1][j-1]+1 : Math.max(dp[i-1][j],dp[i][j-1]);
+  }
+  const matched = dp[m][n];
+  const pct = oWords.length ? Math.round((matched/oWords.length)*100) : 0;
+  // 원문 기준으로 일치/누락 표시
+  let i=m,j=n; const marks = new Array(m).fill("miss");
+  while(i>0&&j>0){
+    if(oWords[i-1]===tWords[j-1]){ marks[i-1]="hit"; i--; j--; }
+    else if(dp[i-1][j]>=dp[i][j-1]) i--; else j--;
+  }
+  const html = oWords.map((w,idx)=>`<span class="${marks[idx]}">${escapeHtml(w)}</span>`).join(" ");
+  return {pct, html};
+}
+
+/* =========================================================
+   캘린더 (일정 / 할일 포함)
+   ========================================================= */
+function ensureEntry(dateKey){
+  if(!state.dailyEntries[dateKey]) state.dailyEntries[dateKey]={qt:"",verse:"",prayer:"",grace:"",application:"",thanks:"",events:[],todos:[]};
+  const e = state.dailyEntries[dateKey];
+  if(!e.events) e.events=[];
+  if(!e.todos) e.todos=[];
+  return e;
+}
+function statusMeta(status){
+  if(status==="done") return {icon:"✅", label:"완료", cls:"status-done"};
+  if(status==="doing") return {icon:"◐", label:"진행 중", cls:"status-doing"};
+  return {icon:"○", label:"대기", cls:"status-todo"};
+}
+function nextStatus(s){ return s==="todo" ? "doing" : s==="doing" ? "done" : "todo"; }
+function getWeekRange(dateStr){
+  const d = new Date(dateStr+"T00:00:00");
+  const day = d.getDay();
+  const start = new Date(d); start.setDate(d.getDate()-day);
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  return { start, end };
+}
+function shiftListRef(delta){
+  const d = new Date(ui.listRefDate+"T00:00:00");
+  if(ui.listMode==="week") d.setDate(d.getDate()+delta*7);
+  else d.setDate(d.getDate()+delta);
+  ui.listRefDate = dstr(d);
+}
+function listRangeLabel(){
+  if(ui.listMode==="day") return fmtDateKor(ui.listRefDate);
+  if(ui.listMode==="week"){
+    const {start,end} = getWeekRange(ui.listRefDate);
+    return `${fmtDateKor(dstr(start))} ~ ${fmtDateKor(dstr(end))}`;
+  }
+  return `${ui.calYear}년 ${ui.calMonth+1}월 전체`;
+}
+function renderDayTodoBlock(dateKey){
+  const e = state.dailyEntries[dateKey];
+  const todos = (e && e.todos) || [];
+  return `<div class="todo-day-block">
+    <div class="todo-day-header">${fmtDateKor(dateKey)}${dateKey===dstr(TODAY)?' <span class="badge gold">오늘</span>':""}</div>
+    ${todos.length ? todos.map(t=>{
+      const sm = statusMeta(t.status);
+      return `<div class="todo-row"><button class="status-btn ${sm.cls}" data-lcyc="${dateKey}|${t.id}">${sm.icon} ${sm.label}</button><span class="todo-title ${t.status==="done"?"todo-done-text":""}">${escapeHtml(t.title)}</span></div>`;
+    }).join("") : `<div class="empty" style="padding:8px;font-size:12px;">할 일 없음</div>`}
+  </div>`;
+}
+function renderTodoListView(){
+  if(ui.listMode==="day") return renderDayTodoBlock(ui.listRefDate);
+  if(ui.listMode==="week"){
+    const {start} = getWeekRange(ui.listRefDate);
+    let html="";
+    for(let i=0;i<7;i++){
+      const d = new Date(start); d.setDate(start.getDate()+i);
+      html += renderDayTodoBlock(dstr(d));
+    }
+    return html;
+  }
+  // month
+  const prefix = `${ui.calYear}-${String(ui.calMonth+1).padStart(2,"0")}`;
+  const daysInMonth = new Date(ui.calYear, ui.calMonth+1, 0).getDate();
+  let blocks=[];
+  for(let d=1; d<=daysInMonth; d++){
+    const key = `${prefix}-${String(d).padStart(2,"0")}`;
+    const e = state.dailyEntries[key];
+    if(e && e.todos && e.todos.length) blocks.push(renderDayTodoBlock(key));
+  }
+  return blocks.length ? blocks.join("") : `<div class="empty">이번 달에 등록된 할 일이 없어요.</div>`;
+}
+function renderCalendar(){
+  return `
+  <div class="card">
+    <div class="cal-head">
+      <div class="cal-nav">
+        <button class="icon-btn" id="prevMonth">‹</button>
+        <div class="cal-month">${ui.calYear}년 ${ui.calMonth+1}월</div>
+        <button class="icon-btn" id="nextMonth">›</button>
+      </div>
+      <button class="btn outline small" id="todayBtn">오늘</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div style="display:flex;gap:16px;margin-top:14px;font-size:11.5px;color:var(--ink-soft);flex-wrap:wrap;">
+      <span><span class="cal-dot dot-qt" style="display:inline-block;margin-right:4px;"></span>QT/암송/기도</span>
+      <span><span class="cal-dot dot-grace" style="display:inline-block;margin-right:4px;"></span>묵상노트</span>
+      <span><span class="cal-dot dot-event" style="display:inline-block;margin-right:4px;"></span>일정</span>
+      <span><span class="cal-dot dot-todo" style="display:inline-block;margin-right:4px;"></span>할 일</span>
+      <span><span class="cal-dot dot-fel" style="display:inline-block;margin-right:4px;"></span>교제 약속</span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="section-title">📋 할 일 리스트</div>
+    <p class="section-desc">일간·주간·월간으로 할 일을 모아 보고, 상태 버튼을 눌러 대기 → 진행 중 → 완료로 바꿔보세요.</p>
+    <div class="mode-toggle">
+      <button class="btn small ${ui.listMode==="day"?"":"outline"}" data-lm="day">일간</button>
+      <button class="btn small ${ui.listMode==="week"?"":"outline"}" data-lm="week">주간</button>
+      <button class="btn small ${ui.listMode==="month"?"":"outline"}" data-lm="month">월간</button>
+    </div>
+    <div class="list-nav">
+      <button class="icon-btn" id="listPrev" ${ui.listMode==="month"?"disabled":""}>‹</button>
+      <span>${listRangeLabel()}</span>
+      <button class="icon-btn" id="listNext" ${ui.listMode==="month"?"disabled":""}>›</button>
+    </div>
+    <div id="todoListView">${renderTodoListView()}</div>
+  </div>`;
+}
+function bindCalendar(){
+  document.getElementById("prevMonth").addEventListener("click",()=>{
+    ui.calMonth--; if(ui.calMonth<0){ ui.calMonth=11; ui.calYear--; } renderAll();
+  });
+  document.getElementById("nextMonth").addEventListener("click",()=>{
+    ui.calMonth++; if(ui.calMonth>11){ ui.calMonth=0; ui.calYear++; } renderAll();
+  });
+  document.getElementById("todayBtn").addEventListener("click",()=>{
+    ui.calYear=TODAY.getFullYear(); ui.calMonth=TODAY.getMonth(); renderAll();
+  });
+  const grid = document.getElementById("calGrid");
+  const first = new Date(ui.calYear, ui.calMonth, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(ui.calYear, ui.calMonth+1, 0).getDate();
+  const dows = ["일","월","화","수","목","금","토"];
+  let html = dows.map(d=>`<div class="cal-dow">${d}</div>`).join("");
+  for(let i=0;i<startDow;i++) html += `<div class="cal-cell empty"></div>`;
+  for(let d=1; d<=daysInMonth; d++){
+    const dateKey = `${ui.calYear}-${String(ui.calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    const isToday = dateKey===dstr(TODAY);
+    const entry = state.dailyEntries[dateKey];
+    const hasQt = entry && (entry.qt||entry.verse||entry.prayer);
+    const hasGrace = entry && (entry.grace||entry.application||entry.thanks);
+    const hasEvent = entry && entry.events && entry.events.length;
+    const hasTodo = entry && entry.todos && entry.todos.length;
+    const hasFel = state.fellowship.some(f=>f.date===dateKey);
+    html += `<div class="cal-cell ${isToday?"today":""}" data-date="${dateKey}">
+      <div class="cd-num">${d}</div>
+      <div class="cal-dots">
+        ${hasQt?'<span class="cal-dot dot-qt"></span>':""}
+        ${hasGrace?'<span class="cal-dot dot-grace"></span>':""}
+        ${hasEvent?'<span class="cal-dot dot-event"></span>':""}
+        ${hasTodo?'<span class="cal-dot dot-todo"></span>':""}
+        ${hasFel?'<span class="cal-dot dot-fel"></span>':""}
+      </div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+  grid.querySelectorAll("[data-date]").forEach(c=>c.addEventListener("click",()=>openDailyModal(c.dataset.date)));
+
+  document.querySelectorAll("[data-lm]").forEach(b=>b.addEventListener("click",()=>{ ui.listMode=b.dataset.lm; renderAll(); }));
+  const lp = document.getElementById("listPrev"), ln = document.getElementById("listNext");
+  if(lp) lp.addEventListener("click",()=>{ if(ui.listMode==="month") return; shiftListRef(-1); renderAll(); });
+  if(ln) ln.addEventListener("click",()=>{ if(ui.listMode==="month") return; shiftListRef(1); renderAll(); });
+  document.querySelectorAll("[data-lcyc]").forEach(b=>b.addEventListener("click",()=>{
+    const [dateKey,id] = b.dataset.lcyc.split("|");
+    const before = snapshotGamify();
+    const e = ensureEntry(dateKey);
+    const t = e.todos.find(x=>x.id===id);
+    t.status = nextStatus(t.status);
+    persist("dailyEntries");
+    renderAll();
+    announceGamify(before);
+  }));
+}
+function renderEventItems(dateKey){
+  const e = ensureEntry(dateKey);
+  if(!e.events.length) return `<div class="empty" style="padding:10px;font-size:12px;">등록된 일정이 없어요.</div>`;
+  return e.events.slice().sort((a,b)=>(a.time||"").localeCompare(b.time||"")).map(ev=>`
+    <div class="todo-row">
+      <span class="todo-time">${ev.time?escapeHtml(ev.time):""}</span>
+      <span class="todo-title">${escapeHtml(ev.title)}</span>
+      <button class="icon-btn" data-delev="${ev.id}">✕</button>
+    </div>`).join("");
+}
+function renderTodoItems(dateKey){
+  const e = ensureEntry(dateKey);
+  if(!e.todos.length) return `<div class="empty" style="padding:10px;font-size:12px;">등록된 할 일이 없어요.</div>`;
+  return e.todos.map(t=>{
+    const sm = statusMeta(t.status);
+    return `<div class="todo-row">
+      <button class="status-btn ${sm.cls}" data-cyc="${t.id}">${sm.icon} ${sm.label}</button>
+      <span class="todo-title ${t.status==="done"?"todo-done-text":""}">${escapeHtml(t.title)}</span>
+      <button class="icon-btn" data-deltd="${t.id}">✕</button>
+    </div>`;
+  }).join("");
+}
+function refreshEventTodoLists(dateKey){
+  const evBox = document.getElementById("eventList");
+  const tdBox = document.getElementById("todoList");
+  if(evBox) evBox.innerHTML = renderEventItems(dateKey);
+  if(tdBox) tdBox.innerHTML = renderTodoItems(dateKey);
+  bindEventTodoLists(dateKey);
+}
+function bindEventTodoLists(dateKey){
+  document.querySelectorAll("[data-delev]").forEach(b=>b.addEventListener("click",()=>{
+    const e = ensureEntry(dateKey);
+    e.events = e.events.filter(x=>x.id!==b.dataset.delev);
+    persist("dailyEntries");
+    refreshEventTodoLists(dateKey);
+  }));
+  document.querySelectorAll("[data-cyc]").forEach(b=>b.addEventListener("click",()=>{
+    const before = snapshotGamify();
+    const e = ensureEntry(dateKey);
+    const t = e.todos.find(x=>x.id===b.dataset.cyc);
+    t.status = nextStatus(t.status);
+    persist("dailyEntries");
+    refreshEventTodoLists(dateKey);
+    announceGamify(before);
+  }));
+  document.querySelectorAll("[data-deltd]").forEach(b=>b.addEventListener("click",()=>{
+    const e = ensureEntry(dateKey);
+    e.todos = e.todos.filter(x=>x.id!==b.dataset.deltd);
+    persist("dailyEntries");
+    refreshEventTodoLists(dateKey);
+  }));
+}
+function openDailyModal(dateKey){
+  const entry = ensureEntry(dateKey);
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>${fmtDateKor(dateKey)} · 일일 경건 스케줄</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
+    <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
+    <div class="field"><label>기도제목</label><textarea id="m_prayer" placeholder="오늘의 기도제목">${entry.prayer||""}</textarea></div>
+
+    <div class="subsection-title">🗓️ 일정</div>
+    <div id="eventList">${renderEventItems(dateKey)}</div>
+    <div class="mini-add-row">
+      <input type="time" id="ev_time">
+      <input type="text" id="ev_title" placeholder="일정 제목 (예: 청년부 예배)">
+      <button class="btn gold small" id="addEventBtn">추가</button>
+    </div>
+
+    <div class="subsection-title">✅ 할 일</div>
+    <div id="todoList">${renderTodoItems(dateKey)}</div>
+    <div class="mini-add-row">
+      <input type="text" id="td_title" placeholder="할 일 입력">
+      <button class="btn gold small" id="addTodoBtn">추가</button>
+    </div>
+
+    <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
+    <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜">${entry.grace||""}</textarea></div>
+    <div class="field"><label>삶의 적용</label><textarea id="m_app" placeholder="오늘 실천할 적용점">${entry.application||""}</textarea></div>
+    <div class="field"><label>감사 제목</label><textarea id="m_thanks" placeholder="오늘의 감사">${entry.thanks||""}</textarea></div>
+    <button class="btn gold" id="saveDaily">저장하기</button>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  bindEventTodoLists(dateKey);
+  document.getElementById("addEventBtn").addEventListener("click",()=>{
+    const time = document.getElementById("ev_time").value;
+    const title = document.getElementById("ev_title").value.trim();
+    if(!title){ showToast("일정 제목을 입력해 주세요."); return; }
+    const e = ensureEntry(dateKey);
+    e.events.push({id:uid(), time, title});
+    persist("dailyEntries");
+    document.getElementById("ev_time").value=""; document.getElementById("ev_title").value="";
+    refreshEventTodoLists(dateKey);
+  });
+  document.getElementById("addTodoBtn").addEventListener("click",()=>{
+    const title = document.getElementById("td_title").value.trim();
+    if(!title){ showToast("할 일을 입력해 주세요."); return; }
+    const e = ensureEntry(dateKey);
+    e.todos.push({id:uid(), title, status:"todo"});
+    persist("dailyEntries");
+    document.getElementById("td_title").value="";
+    refreshEventTodoLists(dateKey);
+  });
+  document.getElementById("saveDaily").addEventListener("click",()=>{
+    const before = snapshotGamify();
+    const existing = ensureEntry(dateKey);
+    state.dailyEntries[dateKey] = {
+      ...existing,
+      qt: document.getElementById("m_qt").value,
+      verse: document.getElementById("m_verse").value,
+      prayer: document.getElementById("m_prayer").value,
+      grace: document.getElementById("m_grace").value,
+      application: document.getElementById("m_app").value,
+      thanks: document.getElementById("m_thanks").value
+    };
+    persist("dailyEntries");
+    closeModal(); renderAll();
+    announceGamify(before, "일일 기록을 저장했어요.");
+  });
+}
+function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
+function openModal(){ document.getElementById("modalBackdrop").classList.add("open"); }
+function closeModal(){ document.getElementById("modalBackdrop").classList.remove("open"); }
+
+/* =========================================================
+   묵상노트 (연대기 저널 뷰)
+   ========================================================= */
+function renderJournal(){
+  const entries = Object.entries(state.dailyEntries)
+    .filter(([k,v])=> v.grace||v.application||v.thanks||v.qt||v.verse||v.prayer)
+    .sort((a,b)=> b[0].localeCompare(a[0]));
+  return `
+  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="section-title" style="margin-bottom:2px;">📝 묵상 메모</div>
+      <p class="section-desc" style="margin-bottom:0;">그날 받은 은혜, 적용점, 감사제목을 기록하는 코너예요.</p>
+    </div>
+    <button class="btn gold" id="newJournalBtn">오늘 묵상 쓰기</button>
+  </div>
+  <div id="journalList">
+    ${entries.length? entries.map(([date,e])=>`
+      <div class="journal-entry">
+        <div class="journal-date">${fmtDateKor(date)} <button class="icon-btn" data-edit="${date}" style="float:right;">편집</button></div>
+        ${e.qt||e.verse?`<div class="journal-row"><div class="jr-label">QT / 암송</div><div class="jr-val">${[e.qt,e.verse].filter(Boolean).join(" · ")}</div></div>`:""}
+        ${e.grace?`<div class="journal-row"><div class="jr-label">받은 은혜</div><div class="jr-val">${escapeHtml(e.grace)}</div></div>`:""}
+        ${e.application?`<div class="journal-row"><div class="jr-label">삶의 적용</div><div class="jr-val">${escapeHtml(e.application)}</div></div>`:""}
+        ${e.thanks?`<div class="journal-row"><div class="jr-label">감사 제목</div><div class="jr-val">${escapeHtml(e.thanks)}</div></div>`:""}
+        ${e.prayer?`<div class="journal-row"><div class="jr-label">기도제목</div><div class="jr-val">${escapeHtml(e.prayer)}</div></div>`:""}
+      </div>`).join("") : `<div class="empty">아직 작성된 묵상 노트가 없어요. 오늘의 은혜부터 기록해 보세요.</div>`}
+  </div>`;
+}
+function bindJournal(){
+  document.getElementById("newJournalBtn").addEventListener("click",()=>openDailyModal(dstr(TODAY)));
+  document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openDailyModal(b.dataset.edit); }));
+}
+
+/* =========================================================
+   기도노트
+   ========================================================= */
+function renderPrayerCard(p){
+  const statusBadge = p.status==="answered" ? '<span class="badge">응답됨</span>' : '<span class="badge gold">기도 중</span>';
+  return `
+  <div class="prayer-item">
+    <div class="prayer-top">
+      <div class="prayer-title">🙏 ${escapeHtml(p.title||"제목 없음")} ${statusBadge}</div>
+      <div class="prayer-meta">${p.date?fmtDateKor(p.date):"날짜 미정"}</div>
+    </div>
+    ${p.request?`<div class="prayer-body">${escapeHtml(p.request)}</div>`:""}
+    ${p.prayerText?`<div class="prayer-text">"${escapeHtml(p.prayerText)}"</div>`:""}
+    ${p.status==="answered" && p.answer?`<div class="prayer-answer">🌾 응답: ${escapeHtml(p.answer)}${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div>`:""}
+    <div style="margin-top:10px;display:flex;gap:6px;">
+      <button class="btn ghost small" data-predit="${p.id}">편집</button>
+      <button class="btn danger small" data-predel="${p.id}">삭제</button>
+    </div>
+  </div>`;
+}
+function renderPrayer(){
+  const filtered = state.prayers.filter(p=> ui.prayerFilter==="all" ? true : p.status===ui.prayerFilter);
+  const sorted = [...filtered].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  const praying = state.prayers.filter(p=>p.status!=="answered").length;
+  const answered = state.prayers.filter(p=>p.status==="answered").length;
+  return `
+  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="section-title" style="margin-bottom:2px;">🙏 기도노트</div>
+      <p class="section-desc" style="margin-bottom:0;">날짜와 기도제목, 응답을 기록하고 자유롭게 기도문을 적어보는 공간이에요.</p>
+    </div>
+    <button class="btn gold" id="newPrayerBtn">기도제목 추가</button>
+  </div>
+  <div class="memtabs">
+    <button class="memtab ${ui.prayerFilter==="all"?"active":""}" data-pf="all">전체 ${state.prayers.length}</button>
+    <button class="memtab ${ui.prayerFilter==="praying"?"active":""}" data-pf="praying">기도 중 ${praying}</button>
+    <button class="memtab ${ui.prayerFilter==="answered"?"active":""}" data-pf="answered">응답됨 ${answered}</button>
+  </div>
+  <div id="prayerList">
+    ${sorted.length ? sorted.map(renderPrayerCard).join("") : `<div class="empty">아직 기록된 기도제목이 없어요. 오늘의 기도부터 적어보세요.</div>`}
+  </div>`;
+}
+function bindPrayer(){
+  document.getElementById("newPrayerBtn").addEventListener("click",()=>openPrayerModal());
+  document.querySelectorAll("[data-pf]").forEach(b=>b.addEventListener("click",()=>{ ui.prayerFilter=b.dataset.pf; renderAll(); }));
+  document.querySelectorAll("[data-predit]").forEach(b=>b.addEventListener("click",()=>openPrayerModal(b.dataset.predit)));
+  document.querySelectorAll("[data-predel]").forEach(b=>b.addEventListener("click",()=>{
+    state.prayers = state.prayers.filter(p=>p.id!==b.dataset.predel);
+    persist("prayers"); renderAll();
+  }));
+}
+function openPrayerModal(id){
+  const existing = id ? state.prayers.find(p=>p.id===id) : null;
+  const p = existing || {id:uid(), date:dstr(TODAY), title:"", request:"", prayerText:"", status:"praying", answer:"", answeredDate:""};
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>${existing?"기도노트 편집":"기도제목 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="date" id="p_date" value="${p.date||""}"></div>
+    <div class="field"><label>기도제목</label><input type="text" id="p_title" value="${escapeAttr(p.title)}" placeholder="예: 가족의 건강을 위하여"></div>
+    <div class="field"><label>기도 내용 (선택)</label><textarea id="p_request" placeholder="구체적인 기도 배경이나 내용을 적어보세요">${p.request||""}</textarea></div>
+    <div class="field"><label>기도문 (자유롭게 작성)</label><textarea id="p_prayertext" placeholder="하나님께 올려드리는 기도를 자유롭게 적어보세요" style="min-height:130px;">${p.prayerText||""}</textarea></div>
+    <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
+    <div class="field">
+      <label>응답 여부</label>
+      <div class="ebook-checks">
+        <label><input type="radio" name="p_status" value="praying" ${p.status!=="answered"?"checked":""}> 기도 중</label>
+        <label><input type="radio" name="p_status" value="answered" ${p.status==="answered"?"checked":""}> 응답됨</label>
+      </div>
+    </div>
+    <div class="field"><label>응답 날짜</label><input type="date" id="p_answerdate" value="${p.answeredDate||""}"></div>
+    <div class="field"><label>기도 응답 내용</label><textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${p.answer||""}</textarea></div>
+    <button class="btn gold" id="savePrayer">저장하기</button>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("savePrayer").addEventListener("click",()=>{
+    const title = document.getElementById("p_title").value.trim();
+    if(!title){ showToast("기도제목을 입력해 주세요."); return; }
+    const before = snapshotGamify();
+    const status = document.querySelector('input[name="p_status"]:checked').value;
+    const record = {
+      id: p.id,
+      date: document.getElementById("p_date").value,
+      title,
+      request: document.getElementById("p_request").value,
+      prayerText: document.getElementById("p_prayertext").value,
+      status,
+      answer: document.getElementById("p_answer").value,
+      answeredDate: document.getElementById("p_answerdate").value
+    };
+    const idx = state.prayers.findIndex(x=>x.id===p.id);
+    if(idx>=0) state.prayers[idx]=record; else state.prayers.push(record);
+    persist("prayers");
+    closeModal(); renderAll();
+    announceGamify(before, "기도노트를 저장했어요.");
+  });
+}
+
+/* =========================================================
+   교제노트
+   ========================================================= */
+function renderFellowship(){
+  const list = [...state.fellowship].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+  return `
+  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="section-title" style="margin-bottom:2px;">🤝 교제 약속 & 배운 것</div>
+      <p class="section-desc" style="margin-bottom:0;">교제 약속을 기록하고, 나눔을 통해 배운 것을 정리하는 코너예요.</p>
+    </div>
+    <button class="btn gold" id="newFelBtn">교제 약속 추가</button>
+  </div>
+  <div id="felList">
+    ${list.length? list.map(f=>`
+      <div class="fel-item">
+        <div class="fel-top">
+          <div class="fel-person">${escapeHtml(f.person||"이름 미정")}</div>
+          <div class="fel-meta">${f.date?fmtDateKor(f.date):"날짜 미정"} ${f.place?" · "+escapeHtml(f.place):""}</div>
+        </div>
+        ${f.content?`<div class="fel-body">${escapeHtml(f.content)}</div>`:""}
+        ${f.lessons?`<div class="fel-lesson">💡 배운 것: ${escapeHtml(f.lessons)}</div>`:""}
+        <div style="margin-top:10px;display:flex;gap:6px;">
+          <button class="btn ghost small" data-feledit="${f.id}">편집</button>
+          <button class="btn danger small" data-feldel="${f.id}">삭제</button>
+        </div>
+      </div>`).join("") : `<div class="empty">아직 등록된 교제 약속이 없어요.</div>`}
+  </div>`;
+}
+function bindFellowship(){
+  document.getElementById("newFelBtn").addEventListener("click",()=>openFellowshipModal());
+  document.querySelectorAll("[data-feledit]").forEach(b=>b.addEventListener("click",()=>openFellowshipModal(b.dataset.feledit)));
+  document.querySelectorAll("[data-feldel]").forEach(b=>b.addEventListener("click",()=>{
+    state.fellowship = state.fellowship.filter(f=>f.id!==b.dataset.feldel);
+    persist("fellowship"); renderAll();
+  }));
+}
+function openFellowshipModal(id){
+  const existing = id ? state.fellowship.find(f=>f.id===id) : null;
+  const f = existing || {id:uid(), date:dstr(TODAY), person:"", place:"", content:"", lessons:""};
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>${existing?"교제 약속 편집":"교제 약속 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="date" id="f_date" value="${f.date||""}"></div>
+    <div class="field"><label>만난 사람 / 모임</label><input type="text" id="f_person" value="${escapeAttr(f.person)}" placeholder="예: 청년부 순모임"></div>
+    <div class="field"><label>장소</label><input type="text" id="f_place" value="${escapeAttr(f.place)}" placeholder="예: 교회 카페"></div>
+    <div class="field"><label>나눈 내용</label><textarea id="f_content" placeholder="나눈 이야기, 기도제목 등">${f.content||""}</textarea></div>
+    <div class="field"><label>교제를 통해 배운 것</label><textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${f.lessons||""}</textarea></div>
+    <button class="btn gold" id="saveFel">저장하기</button>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("saveFel").addEventListener("click",()=>{
+    const before = snapshotGamify();
+    const record = {
+      id: f.id,
+      date: document.getElementById("f_date").value,
+      person: document.getElementById("f_person").value,
+      place: document.getElementById("f_place").value,
+      content: document.getElementById("f_content").value,
+      lessons: document.getElementById("f_lessons").value
+    };
+    const idx = state.fellowship.findIndex(x=>x.id===f.id);
+    if(idx>=0) state.fellowship[idx]=record; else state.fellowship.push(record);
+    persist("fellowship");
+    closeModal(); renderAll();
+    announceGamify(before, "교제 노트를 저장했어요.");
+  });
+}
+
+/* =========================================================
+   PDF 책자 (묵상노트 + 교제 배운 것 → 전자책 PDF)
+   ========================================================= */
+function inRangeDate(dateKey, opts){
+  if(opts.range==="month"){
+    const prefix = `${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,"0")}`;
+    return dateKey.startsWith(prefix);
+  }
+  if(opts.range==="custom"){
+    if(opts.start && dateKey < opts.start) return false;
+    if(opts.end && dateKey > opts.end) return false;
+    return true;
+  }
+  return true; // all
+}
+function getBookletEntries(opts){
+  const journal = Object.entries(state.dailyEntries)
+    .filter(([k,v])=> (v.grace||v.application||v.thanks) && inRangeDate(k,opts))
+    .sort((a,b)=> a[0].localeCompare(b[0]));
+  const fellowship = state.fellowship
+    .filter(f=> f.lessons && f.lessons.trim() && f.date && inRangeDate(f.date,opts))
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  const prayers = state.prayers
+    .filter(p=> p.title && p.date && inRangeDate(p.date,opts))
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  return { journal, fellowship, prayers };
+}
+function collectBookletOptions(){
+  const rangeEl = document.getElementById("ebk_range");
+  return {
+    title: document.getElementById("ebk_title").value.trim() || "은혜의 기록",
+    subtitle: document.getElementById("ebk_sub").value.trim(),
+    incJournal: document.getElementById("ebk_incJournal").checked,
+    incFel: document.getElementById("ebk_incFel").checked,
+    incPrayer: document.getElementById("ebk_incPrayer").checked,
+    range: rangeEl.value,
+    start: document.getElementById("ebk_start").value,
+    end: document.getElementById("ebk_end").value
+  };
+}
+function updateEbookPreview(){
+  const opts = collectBookletOptions();
+  const {journal, fellowship, prayers} = getBookletEntries(opts);
+  const jn = opts.incJournal ? journal.length : 0;
+  const fn = opts.incFel ? fellowship.length : 0;
+  const pn = opts.incPrayer ? prayers.length : 0;
+  const el = document.getElementById("ebk_preview");
+  el.innerHTML = (jn+fn+pn)>0
+    ? `선택한 조건에 <b>묵상노트 ${jn}건</b>, <b>기도노트 ${pn}건</b>, <b>교제 기록 ${fn}건</b>이 포함돼요. (표지·구분면 포함 총 ${jn+fn+pn+2+(jn?1:0)+(fn?1:0)+(pn?1:0)}쪽 내외)`
+    : `선택한 조건에 해당하는 기록이 없어요. 조건을 조정해 보세요.`;
+}
+function renderEbook(){
+  const now = TODAY;
+  return `
+  <div class="card">
+    <div class="section-title">📕 PDF 책자로 만들기</div>
+    <p class="section-desc">묵상노트, 기도노트, 교제를 통해 배운 것들을 모아 한 권의 전자책(PDF)으로 엮어드려요. 인쇄해서 실물 책자로 만들어도 좋아요.</p>
+
+    <div class="field"><label>책 제목</label><input type="text" id="ebk_title" value="은혜의 기록"></div>
+    <div class="field"><label>부제 (선택)</label><input type="text" id="ebk_sub" placeholder="예: 2026년의 은혜를 기록하다"></div>
+
+    <div class="field">
+      <label>포함할 내용</label>
+      <div class="ebook-checks">
+        <label><input type="checkbox" id="ebk_incJournal" checked> 묵상노트</label>
+        <label><input type="checkbox" id="ebk_incPrayer" checked> 기도노트</label>
+        <label><input type="checkbox" id="ebk_incFel" checked> 교제 · 배운 것</label>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>기간</label>
+      <select id="ebk_range">
+        <option value="all">전체 기간</option>
+        <option value="month">이번 달 (${now.getFullYear()}년 ${now.getMonth()+1}월)</option>
+        <option value="custom">직접 지정</option>
+      </select>
+    </div>
+    <div class="grid grid-2" id="ebk_customRange" style="display:none;">
+      <div class="field"><label>시작일</label><input type="date" id="ebk_start"></div>
+      <div class="field"><label>종료일</label><input type="date" id="ebk_end"></div>
+    </div>
+
+    <div class="empty" id="ebk_preview" style="text-align:left;"></div>
+
+    <button class="btn gold" id="ebk_genBtn" style="margin-top:12px;">📖 PDF 책자 생성하기</button>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;line-height:1.6;">기록이 많으면 생성에 시간이 조금 걸릴 수 있어요. 생성 중 창을 닫지 마세요.</p>
+  </div>`;
+}
+function bindEbook(){
+  ["ebk_title","ebk_sub","ebk_incJournal","ebk_incPrayer","ebk_incFel","ebk_start","ebk_end"].forEach(id=>{
+    document.getElementById(id).addEventListener("input", updateEbookPreview);
+  });
+  document.getElementById("ebk_range").addEventListener("change",(e)=>{
+    document.getElementById("ebk_customRange").style.display = e.target.value==="custom" ? "grid" : "none";
+    updateEbookPreview();
+  });
+  updateEbookPreview();
+  document.getElementById("ebk_genBtn").addEventListener("click", handleGeneratePdf);
+}
+
+function journalEntryHTML(dateKey, e){
+  return `
+    <div class="booklet-entry-date">${fmtDateKor(dateKey)}</div>
+    ${(e.qt||e.verse)?`<div class="booklet-row"><div class="br-label">QT · 암송</div><div class="br-val">${escapeHtml([e.qt,e.verse].filter(Boolean).join(" · "))}</div></div>`:""}
+    ${e.grace?`<div class="booklet-row"><div class="br-label">받은 은혜</div><div class="br-val">${escapeHtml(e.grace)}</div></div>`:""}
+    ${e.application?`<div class="booklet-row"><div class="br-label">삶의 적용</div><div class="br-val">${escapeHtml(e.application)}</div></div>`:""}
+    ${e.thanks?`<div class="booklet-row"><div class="br-label">감사 제목</div><div class="br-val">${escapeHtml(e.thanks)}</div></div>`:""}
+  `;
+}
+function fellowshipEntryHTML(f){
+  return `
+    <div class="booklet-entry-date">${f.date?fmtDateKor(f.date):"날짜 미정"}</div>
+    <div class="booklet-row"><div class="br-label">만난 사람 · 장소</div><div class="br-val">${escapeHtml(f.person||"")}${f.place?" · "+escapeHtml(f.place):""}</div></div>
+    ${f.content?`<div class="booklet-row"><div class="br-label">나눈 내용</div><div class="br-val">${escapeHtml(f.content)}</div></div>`:""}
+    <div class="booklet-row"><div class="br-label">배운 것</div><div class="br-val">${escapeHtml(f.lessons)}</div></div>
+  `;
+}
+function prayerEntryHTML(p){
+  return `
+    <div class="booklet-entry-date">${p.date?fmtDateKor(p.date):"날짜 미정"} ${p.status==="answered"?'<span style="font-size:11px;color:var(--sage);font-weight:700;">· 응답됨</span>':""}</div>
+    <div class="booklet-row"><div class="br-label">기도제목</div><div class="br-val">${escapeHtml(p.title||"")}</div></div>
+    ${p.request?`<div class="booklet-row"><div class="br-label">기도 내용</div><div class="br-val">${escapeHtml(p.request)}</div></div>`:""}
+    ${p.prayerText?`<div class="booklet-row"><div class="br-label">기도문</div><div class="br-val">${escapeHtml(p.prayerText)}</div></div>`:""}
+    ${p.status==="answered" && p.answer?`<div class="booklet-row"><div class="br-label">기도 응답${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div><div class="br-val">${escapeHtml(p.answer)}</div></div>`:""}
+  `;
+}
+function makeBookletNode(className, innerHtml){
+  const div = document.createElement("div");
+  div.className = "booklet-page "+className;
+  div.innerHTML = innerHtml;
+  div.style.position = "fixed";
+  div.style.left = "-9999px";
+  div.style.top = "0";
+  return div;
+}
+function makeCoverNode(opts, jCount, fCount, pCount){
+  return makeBookletNode("booklet-cover", `
+    <div style="font-size:13px;letter-spacing:3px;color:#CBB88A;text-transform:uppercase;">등불 · 경건훈련 플래너</div>
+    <h1>${escapeHtml(opts.title||"은혜의 기록")}</h1>
+    ${opts.subtitle?`<div class="sub">${escapeHtml(opts.subtitle)}</div>`:""}
+    <div class="sub" style="margin-top:30px;">${fmtDateKor(dstr(TODAY))} 엮음</div>
+    <div class="sub" style="margin-top:60px;font-size:13px;">묵상 ${jCount}편 · 기도 ${pCount}편 · 교제 기록 ${fCount}편</div>
+  `);
+}
+function makeDividerNode(title, sub){
+  return makeBookletNode("booklet-divider", `<h2>${escapeHtml(title)}</h2><div class="sub">${escapeHtml(sub)}</div>`);
+}
+function makeClosingNode(){
+  return makeBookletNode("booklet-cover", `
+    <h1 style="font-size:26px;">경건에 이르도록<br>네 자신을 연단하라</h1>
+    <div class="sub">디모데전서 4:7</div>
+  `);
+}
+async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onProgress){
+  if(!window.html2canvas || !window.jspdf){ throw new Error("PDF 라이브러리를 불러오지 못했어요."); }
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({unit:"pt", format:"a4"});
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let first = true;
+  const total = 2 + journal.length + fellowship.length + prayers.length
+    + (journal.length?1:0) + (fellowship.length?1:0) + (prayers.length?1:0);
+  let done = 0;
+
+  async function addNode(node){
+    document.body.appendChild(node);
+    const canvas = await html2canvas(node, {scale:2, backgroundColor:"#ffffff", useCORS:true});
+    node.remove();
+    const imgWidth = pageWidth;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    let heightLeft = imgHeight, position = 0;
+    if(!first) pdf.addPage();
+    first = false;
+    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+    done++; if(onProgress) onProgress(done, total);
+  }
+
+  await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length));
+  if(journal.length){
+    await addNode(makeDividerNode("묵상노트", "그날 받은 은혜와 삶의 적용, 감사의 기록"));
+    for(const [dateKey, e] of journal) await addNode(makeBookletNode("booklet-entry", journalEntryHTML(dateKey, e)));
+  }
+  if(prayers.length){
+    await addNode(makeDividerNode("기도노트", "드린 기도와 그 응답의 기록"));
+    for(const p of prayers) await addNode(makeBookletNode("booklet-entry", prayerEntryHTML(p)));
+  }
+  if(fellowship.length){
+    await addNode(makeDividerNode("교제와 배운 것", "만남을 통해 나누고 깨달은 것들"));
+    for(const f of fellowship) await addNode(makeBookletNode("booklet-entry", fellowshipEntryHTML(f)));
+  }
+  await addNode(makeClosingNode());
+
+  const safeTitle = (opts.title||"은혜의 기록").replace(/[\\/:*?"<>|]/g,"");
+  pdf.save(`${safeTitle}_${dstr(TODAY)}.pdf`);
+}
+async function handleGeneratePdf(){
+  const opts = collectBookletOptions();
+  const {journal, fellowship, prayers} = getBookletEntries(opts);
+  const jn = opts.incJournal ? journal : [];
+  const fn = opts.incFel ? fellowship : [];
+  const pn = opts.incPrayer ? prayers : [];
+  if(jn.length===0 && fn.length===0 && pn.length===0){ showToast("포함할 기록이 없어요. 조건을 확인해 주세요."); return; }
+  if(jn.length+fn.length+pn.length > 60){
+    if(!confirm(`기록이 총 ${jn.length+fn.length+pn.length}건으로 많아 생성에 시간이 걸릴 수 있어요. 계속할까요?`)) return;
+  }
+  const btn = document.getElementById("ebk_genBtn");
+  const origText = btn.textContent;
+  btn.disabled = true;
+  try{
+    const before = snapshotGamify();
+    await buildAndDownloadBooklet(opts, jn, fn, pn, (done,total)=>{ btn.textContent = `생성 중… (${done}/${total})`; });
+    state.gamifyCounts.bookletsMade = (state.gamifyCounts.bookletsMade||0)+1;
+    persist("gamifyCounts");
+    showToast("PDF 책자를 만들었어요!");
+    announceGamify(before);
+  }catch(e){
+    showToast("PDF 생성에 실패했어요. 인터넷 연결을 확인하고 다시 시도해 주세요.");
+  }finally{
+    btn.disabled = false; btn.textContent = origText;
+  }
+}
+
+/* =========================================================
+   배지 · 포인트
+   ========================================================= */
+function renderBadges(){
+  const m = getMetrics();
+  const lv = levelInfo(m.points);
+  const earned = earnedBadgeIds(m);
+  return `
+  <div class="hero" style="margin-bottom:18px;">
+    <div class="hero-eyebrow">경건 훈련 리포트</div>
+    <div class="hero-verse" style="font-size:17px;">성경읽기·묵상·암송복습·교제를 실천할 때마다 포인트가 쌓이고 배지를 얻어요.</div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="level-chip">🕯️ Lv.${lv.level}</span>
+      <span class="points-chip">${m.points}P 누적</span>
+      <span class="points-chip">다음 레벨까지 ${lv.need-lv.inLevel}P</span>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">📊 포인트 획득 기준</div>
+    <p class="section-desc" style="margin-bottom:0;">성경읽기 체크 +5P · 묵상노트 작성 +10P · 암송 완료 +8P · 암송 복습(테스트/음성) +3P · 음성암송 고득점(80%↑) +5P · 교제 노트(배운 것) +8P · 할 일 완료 +2P · 기도제목 기록 +4P · 기도응답 기록 +10P · PDF 책자 제작 +15P</p>
+  </div>
+  <div class="badge-grid">
+    ${BADGES.map(b=>{
+      const done = earned.has(b.id);
+      const cur = Math.min(m[b.metric], b.need);
+      const pct = Math.round((cur/b.need)*100);
+      return `<div class="badge-card ${done?"":"locked"}">
+        <div class="badge-icon">${b.icon}</div>
+        <div style="flex:1;">
+          <div class="badge-name">${b.title} ${done?'<span class="badge gold">달성</span>':""}</div>
+          <div class="badge-desc">${b.desc}</div>
+          <div class="progress-mini-bg"><div class="progress-mini-fill" style="width:${pct}%"></div></div>
+          <div class="progress-mini-label">${cur} / ${b.need}</div>
+        </div>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+/* =========================================================
+   추천 상품 (쿠팡 파트너스)
+   ⚠️ 관리자 안내: 아래 COUPANG_PRODUCTS 배열은 예시입니다.
+   partners.coupang.com 에서 발급받은 실제 파트너스 링크로 name/note/price/link를 교체해 주세요.
+   쿠팡 파트너스 정책상 고지문구(coupang-disclosure)는 반드시 유지해야 합니다.
+   ========================================================= */
+const COUPANG_PRODUCTS = [
+  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:""},
+  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:""},
+  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:""},
+  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:""},
+  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:""},
+  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:""}
+];
+function renderShop(){
+  return `
+  <div class="card">
+    <div class="section-title">🛍️ 경건 훈련에 도움이 되는 상품</div>
+    <p class="section-desc">다이어리, 필사노트, 암송카드, 문구류 등 경건 훈련에 쓰기 좋은 상품을 모아두는 코너예요.</p>
+    <div class="coupang-disclosure">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
+    <div class="product-grid">
+      ${COUPANG_PRODUCTS.map(p=>`
+        <div class="product-card">
+          <div class="product-name">${escapeHtml(p.name)}</div>
+          <div class="product-note">${escapeHtml(p.note)}</div>
+          ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
+          <div class="product-link">
+            ${p.link ? `<a class="btn gold small" href="${p.link}" target="_blank" rel="noopener nofollow sponsored" style="text-decoration:none;">쿠팡에서 보기</a>`
+                     : `<button class="btn ghost small" disabled>링크 준비 중</button>`}
+          </div>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   계정
+   ========================================================= */
+function renderAccount(){
+  return `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">👤 내 계정</div>
+    <div class="account-row">
+      <div><div class="ar-label">로그인 이메일</div><div class="ar-desc">${escapeHtml(currentUser?.email||"")}</div></div>
+      <button class="btn outline small" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">🗂️ 데이터 관리</div>
+    <div class="account-row">
+      <div><div class="ar-label">데이터 내보내기</div><div class="ar-desc">모든 기록을 JSON 파일로 내려받아요.</div></div>
+      <button class="btn gold small" id="exportBtn">내보내기</button>
+    </div>
+    <div class="account-row">
+      <div><div class="ar-label">데이터 가져오기</div><div class="ar-desc">내보낸 JSON 파일을 불러와 복원해요.</div></div>
+      <label class="btn outline small" style="cursor:pointer;">파일 선택<input type="file" id="importFile" accept="application/json" style="display:none;"></label>
+    </div>
+    <div class="account-row">
+      <div><div class="ar-label">전체 데이터 초기화</div><div class="ar-desc">읽기 진도·암송카드·묵상·교제 기록을 모두 지워요.</div></div>
+      <button class="btn danger small" id="resetBtn">초기화</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="section-title">⚠️ 위험 구역</div>
+    <div class="account-row">
+      <div><div class="ar-label">회원 탈퇴</div><div class="ar-desc">계정과 모든 데이터를 영구히 삭제해요. 되돌릴 수 없어요.</div></div>
+      <button class="btn danger small" id="deleteAccBtn">회원 탈퇴</button>
+    </div>
+  </div>`;
+}
+function bindAccount(){
+  document.getElementById("logoutBtn").addEventListener("click",()=> auth.signOut());
+  document.getElementById("exportBtn").addEventListener("click", exportData);
+  document.getElementById("importFile").addEventListener("change",(e)=>{
+    const f = e.target.files[0]; if(f) importDataFromFile(f);
+  });
+  document.getElementById("resetBtn").addEventListener("click",()=>{
+    if(confirm("정말 모든 데이터를 초기화할까요? 이 작업은 되돌릴 수 없어요.")) resetAllData();
+  });
+  document.getElementById("deleteAccBtn").addEventListener("click",()=>{
+    if(confirm("정말 회원 탈퇴하시겠어요? 계정과 모든 데이터가 영구히 삭제돼요.")){
+      if(confirm("마지막 확인이에요. 되돌릴 수 없어요. 계속할까요?")) deleteAccountAndData();
+    }
+  });
+}
+
+/* =========================================================
+   명언
+   ========================================================= */
+function renderQuotes(){
+  return `
+  <div class="card">
+    <div class="section-title">🕯️ 영적 명언 모음</div>
+    <p class="section-desc">신앙의 선진들이 남긴 짧은 말씀을 카드로 만나보세요. 홈 화면에는 매일 다른 명언이 랜덤으로 나타나요.</p>
+    <div class="quote-grid">
+      ${QUOTES.map(q=>`<div class="quote-card"><p>"${q.t}"</p><span>— ${q.a}</span></div>`).join("")}
+    </div>
+  </div>`;
+}
+
+/* =========================================================
+   렌더 오케스트레이션
+   ========================================================= */
+function renderAll(){
+  renderTabbar();
+  document.getElementById("todayPill").textContent = fmtDateKor(dstr(TODAY));
+  const panels = document.getElementById("panels");
+  let html="";
+  switch(ui.tab){
+    case "home": html = renderHome(); break;
+    case "bible": html = renderBible(); break;
+    case "plan": html = renderPlan(); break;
+    case "memory": html = renderMemory(); break;
+    case "calendar": html = renderCalendar(); break;
+    case "journal": html = renderJournal(); break;
+    case "prayer": html = renderPrayer(); break;
+    case "fellowship": html = renderFellowship(); break;
+    case "ebook": html = renderEbook(); break;
+    case "badges": html = renderBadges(); break;
+    case "shop": html = renderShop(); break;
+    case "quotes": html = renderQuotes(); break;
+    case "account": html = renderAccount(); break;
+  }
+  panels.innerHTML = `<div class="panel active">${html}</div>`;
+  switch(ui.tab){
+    case "home": bindHome(); break;
+    case "bible": bindBible(); break;
+    case "plan": bindPlan(); break;
+    case "memory": bindMemory(); break;
+    case "calendar": bindCalendar(); break;
+    case "journal": bindJournal(); break;
+    case "prayer": bindPrayer(); break;
+    case "fellowship": bindFellowship(); break;
+    case "ebook": bindEbook(); break;
+    case "account": bindAccount(); break;
+  }
+}
+
+document.getElementById("modalBackdrop").addEventListener("click",(e)=>{
+  if(e.target.id==="modalBackdrop") closeModal();
+});
+
+/* =========================================================
+   인증 화면 (로그인 / 회원가입)
+   ========================================================= */
+let authMode = "login";
+function setAuthMode(mode){
+  authMode = mode;
+  document.getElementById("authTabLogin").classList.toggle("active", mode==="login");
+  document.getElementById("authTabSignup").classList.toggle("active", mode==="signup");
+  document.getElementById("authSubmit").textContent = mode==="login" ? "로그인" : "회원가입";
+  document.getElementById("authError").textContent = "";
+}
+function authErrorMessage(code){
+  const map = {
+    "auth/invalid-email":"이메일 형식이 올바르지 않아요.",
+    "auth/user-not-found":"등록되지 않은 이메일이에요.",
+    "auth/wrong-password":"비밀번호가 일치하지 않아요.",
+    "auth/invalid-credential":"이메일 또는 비밀번호가 올바르지 않아요.",
+    "auth/email-already-in-use":"이미 가입된 이메일이에요. 로그인해 주세요.",
+    "auth/weak-password":"비밀번호는 6자 이상이어야 해요.",
+    "auth/too-many-requests":"시도가 너무 많아요. 잠시 후 다시 시도해 주세요."
+  };
+  return map[code] || "문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+}
+function bindAuthScreen(){
+  document.getElementById("authTabLogin").addEventListener("click",()=>setAuthMode("login"));
+  document.getElementById("authTabSignup").addEventListener("click",()=>setAuthMode("signup"));
+  document.getElementById("authSubmit").addEventListener("click", async ()=>{
+    const email = document.getElementById("authEmail").value.trim();
+    const pw = document.getElementById("authPw").value;
+    const errEl = document.getElementById("authError");
+    errEl.textContent = "";
+    if(!email || !pw){ errEl.textContent = "이메일과 비밀번호를 입력해 주세요."; return; }
+    try{
+      if(authMode==="login"){
+        await auth.signInWithEmailAndPassword(email, pw);
+      } else {
+        await auth.createUserWithEmailAndPassword(email, pw);
+      }
+    }catch(e){ errEl.textContent = authErrorMessage(e.code); }
+  });
+  document.getElementById("authResetPw").addEventListener("click", async ()=>{
+    const email = document.getElementById("authEmail").value.trim();
+    const errEl = document.getElementById("authError");
+    if(!email){ errEl.textContent = "비밀번호를 재설정할 이메일을 입력해 주세요."; return; }
+    try{
+      await auth.sendPasswordResetEmail(email);
+      errEl.style.color = "var(--sage)";
+      errEl.textContent = "재설정 메일을 보냈어요. 받은편지함을 확인해 주세요.";
+    }catch(e){ errEl.style.color=""; errEl.textContent = authErrorMessage(e.code); }
+  });
+}
+
+/* =========================================================
+   부트스트랩
+   ========================================================= */
+bindAuthScreen();
+auth.onAuthStateChanged(async (user)=>{
+  document.getElementById("authLoading").style.display = "none";
+  if(user){
+    currentUser = user;
+    document.getElementById("authScreen").style.display = "none";
+    document.getElementById("mainApp").style.display = "block";
+    await loadAllFromFirestore();
+    renderAll();
+  } else {
+    currentUser = null;
+    document.getElementById("mainApp").style.display = "none";
+    document.getElementById("authScreen").style.display = "flex";
+  }
+});
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+
+</script>
+</body>
+</html>
