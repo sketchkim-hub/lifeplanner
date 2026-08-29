@@ -368,6 +368,46 @@ input,textarea,select{font-family:inherit;}
 .chapter-block{margin-bottom:14px;}
 .chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
 
+.bible-search{
+  width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:14px;
+  font-size:13.5px;background:#fffef9;color:var(--ink);
+}
+.bible-search:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
+.bible-group{margin-bottom:12px;}
+.bible-group-head{
+  width:100%;display:flex;justify-content:space-between;align-items:center;
+  background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;
+  padding:11px 14px;font-family:'Noto Serif KR',serif;font-weight:700;font-size:14.5px;color:var(--navy);
+  margin-bottom:8px;
+}
+.bible-group-head .bg-sub{font-family:'Noto Sans KR',sans-serif;font-weight:400;font-size:12px;color:var(--ink-soft);margin-left:6px;}
+.bible-group-head .chev{color:var(--gold);font-size:12px;}
+.bible-book-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+.bible-book{
+  border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden;
+  grid-column:span 1;
+}
+.bible-book.open{grid-column:1/-1;border-color:var(--gold-soft);}
+.bible-book-head{
+  width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  background:transparent;border:none;padding:10px 12px;font-size:13px;color:var(--ink);
+  text-align:left;
+}
+.bible-book-head .bb-name{font-weight:700;color:var(--navy-soft);}
+.bible-book-head .bb-meta{font-size:11px;color:var(--ink-soft);flex:1;text-align:right;margin-right:4px;}
+.bible-book-head .chev{color:var(--gold);font-size:11px;flex:none;}
+.bible-book-body{padding:0 12px 14px;border-top:1px dashed var(--line);}
+.bible-chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;max-height:180px;overflow-y:auto;padding:2px;}
+.bible-chip{
+  width:30px;height:30px;flex:none;border:1px solid var(--line);background:var(--paper-deep);
+  border-radius:7px;font-size:11.5px;color:var(--ink-soft);position:relative;
+}
+.bible-chip.filled::after{
+  content:"";position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sage);
+}
+.bible-chip.active{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:700;}
+.bible-chip.active.filled::after{background:#fff;}
+
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
   background:var(--navy);color:#F3EDDC;padding:10px 20px;border-radius:999px;font-size:13px;
@@ -633,13 +673,15 @@ let state = {
   fellowship: [],
   prayers: [],
   timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
+  bibleText: {},
   gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
 };
 let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all"
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all",
+  bibleGroupOpen:{ot:true, nt:true}, bibleOpenBook:null, bibleActiveChapter:{}, bibleLoading:{}
 };
 let recognition = null;
 
@@ -656,12 +698,14 @@ async function loadAllFromFirestore(){
         fellowship: d.fellowship || [],
         prayers: d.prayers || [],
         timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+        bibleText: {},
         gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
       };
     } else {
       // 최초 로그인: 기본 상태로 문서 생성
+      const { bibleText, ...seed } = state;
       await db.collection("users").doc(currentUser.uid).set({
-        email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...state
+        email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...seed
       });
     }
   }catch(e){ showToast("데이터를 불러오지 못했어요. 네트워크를 확인해 주세요."); }
@@ -671,6 +715,43 @@ async function persist(prop){
   try{
     await db.collection("users").doc(currentUser.uid).set({[prop]: state[prop]}, {merge:true});
   }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+}
+
+/* =========================================================
+   성경 본문 (66권 · 책 단위 서브컬렉션으로 지연 로딩)
+   문서 하나(users/{uid})에 성경 전체를 다 담으면 Firestore 문서
+   용량 제한(1MB)에 걸릴 수 있어, 책마다 별도 문서
+   users/{uid}/bibleText/{책이름} 에 나눠 저장합니다.
+   ========================================================= */
+async function loadBookText(bookName){
+  if(!currentUser) return;
+  try{
+    const doc = await db.collection("users").doc(currentUser.uid)
+      .collection("bibleText").doc(bookName).get();
+    state.bibleText[bookName] = doc.exists ? (doc.data().chapters || {}) : {};
+  }catch(e){
+    state.bibleText[bookName] = state.bibleText[bookName] || {};
+    showToast("본문을 불러오지 못했어요. 네트워크를 확인해 주세요.");
+  }
+}
+async function saveBookText(bookName){
+  if(!currentUser) return;
+  await db.collection("users").doc(currentUser.uid)
+    .collection("bibleText").doc(bookName)
+    .set({chapters: state.bibleText[bookName] || {}}, {merge:true});
+}
+async function migrateTimothyTextIfNeeded(){
+  const hasOldText = Object.values(state.timothyText||{}).some(v=>v && v.trim());
+  if(!hasOldText) return;
+  try{
+    const doc = await db.collection("users").doc(currentUser.uid)
+      .collection("bibleText").doc("디모데전서").get();
+    if(!doc.exists){
+      await db.collection("users").doc(currentUser.uid)
+        .collection("bibleText").doc("디모데전서")
+        .set({chapters: state.timothyText});
+    }
+  }catch(e){ /* 마이그레이션 실패 시 조용히 건너뜀 — 기존 화면(구버전 필드)은 그대로 남아있음 */ }
 }
 
 /* =========================================================
@@ -709,14 +790,15 @@ async function deleteQuote(id){
 
 /* ---------- 데이터 내보내기 / 가져오기 / 초기화 / 계정 삭제 ---------- */
 function exportData(){
-  const payload = { exportedAt: new Date().toISOString(), email: currentUser?.email, ...state };
+  const { bibleText, ...backupState } = state;
+  const payload = { exportedAt: new Date().toISOString(), email: currentUser?.email, ...backupState };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url; a.download = `등불_백업_${dstr(TODAY)}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
-  showToast("데이터를 내보냈어요.");
+  showToast("데이터를 내보냈어요. (66권 성경 본문은 용량이 커서 이 백업에 포함되지 않아요)");
 }
 async function importDataFromFile(file){
   try{
@@ -729,20 +811,29 @@ async function importDataFromFile(file){
       fellowship: d.fellowship || [],
       prayers: d.prayers || [],
       timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+      bibleText: {},
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
-    showToast("데이터를 가져왔어요.");
+    showToast("데이터를 가져왔어요. (66권 성경 본문은 이 백업에 포함되지 않았어요)");
     renderAll();
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
 }
 async function resetAllData(){
-  state = {
+  const resetState = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
     dailyEntries: {}, fellowship: [], prayers: [], timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
-  await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+  state = { ...resetState, bibleText: {} };
+  await db.collection("users").doc(currentUser.uid).set(resetState, {merge:true});
+  try{
+    const snap = await db.collection("users").doc(currentUser.uid).collection("bibleText").get();
+    const batch = db.batch();
+    snap.docs.forEach(d=>batch.delete(d.ref));
+    await batch.commit();
+  }catch(e){ /* 성경 본문 서브컬렉션 삭제 실패 시에도 나머지 초기화는 이미 반영됨 */ }
+  ui.bibleOpenBook = null; ui.bibleActiveChapter = {};
   showToast("모든 데이터를 초기화했어요.");
   renderAll();
 }
@@ -1005,31 +1096,116 @@ function bindHome(){
    성경 본문 (저작권 안내 + 사용자 입력형 본문 저장)
    ========================================================= */
 function renderBible(){
-  const chapters = [1,2,3,4,5,6];
+  const groups = [
+    { id:"ot", label:"구약", sub:"39권", books:BOOKS },
+    { id:"nt", label:"신약", sub:"27권", books:NT_BOOKS }
+  ];
   return `
   <div class="card">
-    <div class="section-title">📖 디모데전서 — 경건 훈련의 핵심 본문</div>
-    <p class="section-desc">경건의 훈련을 다루는 목회서신, 디모데전서 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다.</p>
+    <div class="section-title">📖 성경 본문 — 나만의 통본문 보관함</div>
+    <p class="section-desc">경건의 훈련을 다루는 목회서신뿐 아니라, 성경 66권 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다. 책을 펼쳐 원하는 장을 고른 뒤 본문을 붙여넣어 저장해 보세요.</p>
     <div class="notice">
       <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
-      아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
+      아래에서 책과 장을 펼쳐 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
     </div>
-    <div id="chapterBlocks"></div>
-    <button class="btn gold" id="saveTimothy">본문 저장하기</button>
+    <input type="text" id="bibleSearch" class="bible-search" placeholder="책 이름으로 찾기 (예: 시편, 로마서)">
+    <div id="bibleGroups">
+      ${groups.map(g=>`
+        <div class="bible-group">
+          <button class="bible-group-head" data-grp="${g.id}">
+            <span>${g.label} <span class="bg-sub">${g.sub}</span></span>
+            <span class="chev">${ui.bibleGroupOpen[g.id]?"▾":"▸"}</span>
+          </button>
+          <div class="bible-book-list" style="display:${ui.bibleGroupOpen[g.id]?"grid":"none"}">
+            ${g.books.map(([name,chCount])=>renderBookRow(name,chCount)).join("")}
+          </div>
+        </div>`).join("")}
+    </div>
+  </div>`;
+}
+function renderBookRow(name, chCount){
+  const isOpen = ui.bibleOpenBook === name;
+  const loaded = !!state.bibleText[name];
+  const doneCount = loaded ? Object.values(state.bibleText[name]).filter(t=>t && t.trim()).length : null;
+  return `
+  <div class="bible-book ${isOpen?"open":""}" data-bookname="${escapeAttr(name)}">
+    <button class="bible-book-head" data-book="${escapeAttr(name)}">
+      <span class="bb-name">${name}</span>
+      <span class="bb-meta">${loaded ? doneCount+" / "+chCount+"장" : chCount+"장"}</span>
+      <span class="chev">${isOpen?"▾":"▸"}</span>
+    </button>
+    ${isOpen ? renderBookBody(name, chCount) : ""}
+  </div>`;
+}
+function renderBookBody(name, chCount){
+  if(ui.bibleLoading[name]){
+    return `<div class="bible-book-body"><div class="empty">불러오는 중…</div></div>`;
+  }
+  const chapters = state.bibleText[name] || {};
+  const active = ui.bibleActiveChapter[name] || 1;
+  const chips = Array.from({length:chCount}, (_,i)=>i+1);
+  return `
+  <div class="bible-book-body">
+    <div class="bible-chip-row">
+      ${chips.map(c=>`<button class="bible-chip ${c===active?"active":""} ${chapters[c]&&chapters[c].trim()?"filled":""}" data-ch="${c}" data-book="${escapeAttr(name)}">${c}</button>`).join("")}
+    </div>
+    <div class="field" style="margin-top:10px;margin-bottom:0;">
+      <label>${name} ${active}장</label>
+      <textarea class="bible-chapter-ta" data-ch="${active}" placeholder="${active}장 본문을 붙여넣어 주세요…">${escapeHtml(chapters[active]||"")}</textarea>
+    </div>
+    <div style="margin-top:8px;text-align:right;">
+      <button class="btn gold small" data-savebook="${escapeAttr(name)}">이 장 저장하기</button>
+    </div>
   </div>`;
 }
 function bindBible(){
-  const wrap = document.getElementById("chapterBlocks");
-  if(!wrap) return;
-  wrap.innerHTML = [1,2,3,4,5,6].map(c=>`
-    <div class="chapter-block">
-      <h4>디모데전서 ${c}장</h4>
-      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${state.timothyText[c]||""}</textarea>
-    </div>`).join("");
-  document.getElementById("saveTimothy").addEventListener("click",()=>{
-    wrap.querySelectorAll("textarea").forEach(t=>{ state.timothyText[t.dataset.ch]=t.value; });
-    persist("timothyText");
-    showToast("본문을 저장했어요.");
+  const searchEl = document.getElementById("bibleSearch");
+  searchEl.addEventListener("input", ()=> filterBibleBooks(searchEl.value.trim()));
+
+  document.querySelectorAll("[data-grp]").forEach(b=>b.addEventListener("click",()=>{
+    ui.bibleGroupOpen[b.dataset.grp] = !ui.bibleGroupOpen[b.dataset.grp];
+    renderAll();
+  }));
+
+  document.querySelectorAll(".bible-book-head").forEach(b=>b.addEventListener("click", async ()=>{
+    const name = b.dataset.book;
+    if(ui.bibleOpenBook === name){ ui.bibleOpenBook = null; renderAll(); return; }
+    ui.bibleOpenBook = name;
+    if(!state.bibleText[name]){
+      ui.bibleLoading[name] = true;
+      renderAll();
+      await loadBookText(name);
+      ui.bibleLoading[name] = false;
+    }
+    renderAll();
+  }));
+
+  document.querySelectorAll(".bible-chip").forEach(b=>b.addEventListener("click",()=>{
+    ui.bibleActiveChapter[b.dataset.book] = Number(b.dataset.ch);
+    renderAll();
+  }));
+
+  document.querySelectorAll("[data-savebook]").forEach(b=>b.addEventListener("click", async ()=>{
+    const name = b.dataset.savebook;
+    const ta = document.querySelector(".bible-chapter-ta");
+    const ch = Number(ta.dataset.ch);
+    if(!state.bibleText[name]) state.bibleText[name] = {};
+    state.bibleText[name][ch] = ta.value;
+    try{
+      await saveBookText(name);
+      showToast(`${name} ${ch}장을 저장했어요.`);
+    }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+    renderAll();
+  }));
+}
+function filterBibleBooks(term){
+  document.querySelectorAll(".bible-book").forEach(el=>{
+    const name = el.dataset.bookname || "";
+    el.style.display = (!term || name.includes(term)) ? "" : "none";
+  });
+  document.querySelectorAll(".bible-group").forEach(g=>{
+    const anyVisible = [...g.querySelectorAll(".bible-book")].some(b=>b.style.display!=="none");
+    g.style.display = anyVisible ? "" : "none";
   });
 }
 
@@ -2374,6 +2550,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
     await loadQuotes();
+    await migrateTimothyTextIfNeeded();
     renderAll();
   } else {
     currentUser = null;
