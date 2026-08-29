@@ -196,6 +196,7 @@ input,textarea,select{font-family:inherit;}
 }
 .flip-hint{position:absolute;bottom:8px;right:12px;font-size:10.5px;color:var(--ink-soft);opacity:.65;}
 .flip-back .flip-hint{color:#CBC2A8;}
+.card-title{font-family:'Noto Serif KR',serif;font-weight:700;font-size:19px;color:var(--gold-soft);padding-left:16px;margin-bottom:4px;}
 .card-ref{font-family:'Noto Serif KR',serif;font-weight:700;font-size:16px;color:var(--navy);padding-left:16px;}
 .card-cat{padding-left:16px;margin-top:6px;}
 .card-text{font-size:14.5px;line-height:1.75;}
@@ -230,7 +231,8 @@ input,textarea,select{font-family:inherit;}
   display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
 }
 .mem-item.mem-done{border-color:var(--sage-soft);background:rgba(91,107,79,0.06);}
-.mem-item .mi-ref{font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:14.5px;}
+.mem-item .mi-title{font-weight:700;color:var(--gold);font-family:'Noto Serif KR',serif;font-size:16px;margin-bottom:2px;}
+.mem-item .mi-ref{font-weight:600;color:var(--navy-soft);font-family:'Noto Serif KR',serif;font-size:13px;}
 .mem-item .mi-text{font-size:13px;color:var(--ink-soft);margin-top:4px;line-height:1.6;white-space:pre-wrap;}
 .mem-actions{display:flex;gap:6px;flex:none;}
 .icon-btn{border:1px solid var(--line);background:transparent;border-radius:7px;width:30px;height:30px;font-size:14px;color:var(--ink-soft);}
@@ -352,9 +354,11 @@ input,textarea,select{font-family:inherit;}
 
 /* ---------- Quotes ---------- */
 .quote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
-.quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;}
+.quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;position:relative;}
 .quote-card p{font-family:'Noto Serif KR',serif;font-size:14px;line-height:1.75;margin:0 0 8px;color:var(--ink);}
 .quote-card span{font-size:12px;color:var(--gold);font-weight:700;}
+.quote-del{position:absolute;top:8px;right:8px;width:24px;height:24px;font-size:12px;}
+.admin-tag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--brick);background:rgba(139,74,66,0.1);border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;}
 
 /* ---------- Bible text ---------- */
 .notice{
@@ -449,6 +453,12 @@ input,textarea,select{font-family:inherit;}
 }
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
 .product-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;}
+.product-thumb{
+  aspect-ratio:1/1;border-radius:9px;overflow:hidden;background:var(--paper-deep);
+  display:flex;align-items:center;justify-content:center;margin-bottom:2px;
+}
+.product-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.product-thumb .ph-icon{font-size:26px;color:var(--ink-soft);opacity:.5;}
 .product-name{font-weight:700;color:var(--navy);font-size:13.5px;font-family:'Noto Serif KR',serif;}
 .product-note{font-size:12px;color:var(--ink-soft);line-height:1.5;flex:1;}
 .product-price{font-size:13px;color:var(--gold);font-weight:700;}
@@ -530,6 +540,34 @@ const db = firebase.firestore();
 let currentUser = null;
 
 /* =========================================================
+   관리자 계정
+   ⚠️ 영적 명언 추가/삭제는 이 이메일로 로그인한 계정만 화면에 노출됩니다.
+   실제 데이터 보호는 이 화면단 체크가 아니라 Firestore 보안 규칙이
+   담당합니다 — 아래 loadQuotes()/addQuote()/deleteQuote() 근처 주석과
+   README를 참고해 quotes 컬렉션 쓰기 권한을 이 이메일로만 제한하세요.
+   ========================================================= */
+const ADMIN_EMAIL = "kimsketch@naver.com";
+function isAdmin(){ return !!currentUser && currentUser.email === ADMIN_EMAIL; }
+/*
+  Firebase 콘솔 > Firestore Database > 규칙에 아래 내용을 반영해 주세요.
+  (화면단 isAdmin() 체크만으로는 실제 데이터가 보호되지 않습니다.)
+
+  rules_version = '2';
+  service cloud.firestore {
+    match /databases/{database}/documents {
+      match /users/{uid} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+      match /quotes/{quoteId} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && request.auth.token.email == "kimsketch@naver.com";
+      }
+    }
+  }
+*/
+
+/* =========================================================
    데이터
    ========================================================= */
 const BOOKS = [
@@ -559,7 +597,10 @@ const MEM_CATEGORIES = [
   {id:"oyo", title:"OYO · 나만의 암송카드", sub:"자유 등록", desc:"내가 은혜받은 구절을 직접 등록해 암송카드로 만드는 코너"}
 ];
 
-const QUOTES = [
+/* 아래 배열은 오프라인/최초 실행 시 사용하는 시드(fallback) 데이터입니다.
+   실제 화면에는 Firestore "quotes" 컬렉션의 데이터가 로드되어 표시되며,
+   최초 로그인 시 이 배열이 자동으로 컬렉션에 씨딩됩니다. (loadQuotes() 참고) */
+let QUOTES = [
  {a:"찰스 스펄전", t:"기도는 방패요 힘이며, 하나님께 이르는 통로이자 원수를 막는 성벽이다."},
  {a:"찰스 스펄전", t:"작은 믿음이라도 그리스도를 붙잡으면 큰 믿음과 똑같이 구원에 이른다."},
  {a:"찰스 스펄전", t:"성경을 자주 읽지 않는 그리스도인은 힘없이 싸우는 군사와 같다."},
@@ -630,6 +671,40 @@ async function persist(prop){
   try{
     await db.collection("users").doc(currentUser.uid).set({[prop]: state[prop]}, {merge:true});
   }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+}
+
+/* =========================================================
+   영적 명언 (전 회원 공용 · Firestore "quotes" 컬렉션)
+   ========================================================= */
+async function loadQuotes(){
+  try{
+    const snap = await db.collection("quotes").orderBy("createdAt","asc").get();
+    if(snap.empty){
+      // 최초 실행: 하드코딩 시드를 공용 컬렉션에 한 번만 저장
+      const batch = db.batch();
+      QUOTES.forEach(q=>{
+        const ref = db.collection("quotes").doc();
+        batch.set(ref, {text:q.t, author:q.a, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      });
+      await batch.commit();
+      const snap2 = await db.collection("quotes").orderBy("createdAt","asc").get();
+      QUOTES = snap2.docs.map(d=>({id:d.id, t:d.data().text, a:d.data().author}));
+    } else {
+      QUOTES = snap.docs.map(d=>({id:d.id, t:d.data().text, a:d.data().author}));
+    }
+  }catch(e){
+    // 오프라인 등으로 실패하면 기존 시드 배열을 그대로 사용
+  }
+}
+async function addQuote(text, author){
+  await db.collection("quotes").add({
+    text, author, createdAt:firebase.firestore.FieldValue.serverTimestamp(), createdBy: currentUser.email
+  });
+  await loadQuotes();
+}
+async function deleteQuote(id){
+  await db.collection("quotes").doc(id).delete();
+  await loadQuotes();
 }
 
 /* ---------- 데이터 내보내기 / 가져오기 / 초기화 / 계정 삭제 ---------- */
@@ -1040,6 +1115,10 @@ function renderMemory(){
       ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
     </div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">${cat.desc}</p>
+    <div class="field">
+      <label style="font-size:13.5px;color:var(--gold);">✦ 제목 <span style="font-weight:400;color:var(--ink-soft);">— 이 구절을 대표하는 한 줄 제목</span></label>
+      <input type="text" id="newTitle" placeholder="예: 하나님의 사랑 / 구원의 확신" style="font-weight:700;">
+    </div>
     <div class="grid" style="grid-template-columns:1fr auto;gap:8px;align-items:end;">
       <div class="field" style="margin-bottom:0;">
         <label>구절 참조 (예: 요한복음 3:16)</label>
@@ -1068,10 +1147,12 @@ function bindMemory(){
     ui.memTab=b.dataset.mc; renderAll();
   }));
   document.getElementById("addCardBtn").addEventListener("click",()=>{
+    const title=document.getElementById("newTitle").value.trim();
     const ref=document.getElementById("newRef").value.trim();
     const text=document.getElementById("newText").value.trim();
+    if(!title){ showToast("제목을 입력해 주세요."); return; }
     if(!ref){ showToast("구절 참조를 입력해 주세요."); return; }
-    state.memoryCards[ui.memTab].push({id:uid(), ref, text, memorized:false, added:dstr(TODAY)});
+    state.memoryCards[ui.memTab].push({id:uid(), title, ref, text, memorized:false, added:dstr(TODAY)});
     persist("memoryCards");
     showToast("암송카드를 추가했어요.");
     renderAll();
@@ -1089,7 +1170,8 @@ function renderMemList(){
   list.innerHTML = cards.map(c=>`
     <div class="mem-item ${c.memorized?"mem-done":""}">
       <div>
-        <div class="mi-ref">${c.ref} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
+        <div class="mi-title">${escapeHtml(c.title||"(제목 없음)")} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
+        <div class="mi-ref">${c.ref}</div>
         ${c.text?`<div class="mi-text">${escapeHtml(c.text)}</div>`:""}
       </div>
       <div class="mem-actions">
@@ -1134,10 +1216,12 @@ function renderTestArea(){
       <div class="flip-zone">
         <div class="flip-card ${ui.testFlipped?"flipped":""}" id="testFlipCard">
           <div class="flip-face flip-front">
+            <div class="card-title">${escapeHtml(card.title||"(제목 없음)")}</div>
             <div class="card-ref">${card.ref}</div>
             <div class="flip-hint">눌러서 정답 확인</div>
           </div>
           <div class="flip-face flip-back">
+            <div class="card-title">${escapeHtml(card.title||"(제목 없음)")}</div>
             <div class="card-text">${card.text?escapeHtml(card.text):"(등록된 본문이 없어요)"}</div>
             <div class="flip-hint">다시 눌러 되돌리기</div>
           </div>
@@ -2033,15 +2117,18 @@ function renderBadges(){
    추천 상품 (쿠팡 파트너스)
    ⚠️ 관리자 안내: 아래 COUPANG_PRODUCTS 배열은 예시입니다.
    partners.coupang.com 에서 발급받은 실제 파트너스 링크로 name/note/price/link를 교체해 주세요.
+   img에는 쿠팡 파트너스 "이미지형 링크 만들기"에서 함께 발급되는 상품 이미지 URL을
+   붙여넣으면 썸네일로 표시됩니다 (직접 상품 페이지를 스크래핑해 자동으로 가져올 수는
+   없어서, 링크 만들 때 같이 나오는 이미지 주소를 복사해 넣는 방식입니다).
    쿠팡 파트너스 정책상 고지문구(coupang-disclosure)는 반드시 유지해야 합니다.
    ========================================================= */
 const COUPANG_PRODUCTS = [
-  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:""},
-  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:""},
-  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:""},
-  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:""},
-  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:""},
-  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:""}
+  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:"", img:""},
+  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:"", img:""},
+  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:"", img:""},
+  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:"", img:""},
+  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:"", img:""},
+  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:"", img:""}
 ];
 function renderShop(){
   return `
@@ -2052,6 +2139,9 @@ function renderShop(){
     <div class="product-grid">
       ${COUPANG_PRODUCTS.map(p=>`
         <div class="product-card">
+          <div class="product-thumb">
+            ${p.img ? `<img src="${p.img}" alt="${escapeHtml(p.name)}" loading="lazy">` : `<span class="ph-icon">🖼️</span>`}
+          </div>
           <div class="product-name">${escapeHtml(p.name)}</div>
           <div class="product-note">${escapeHtml(p.note)}</div>
           ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
@@ -2121,12 +2211,60 @@ function bindAccount(){
 function renderQuotes(){
   return `
   <div class="card">
-    <div class="section-title">🕯️ 영적 명언 모음</div>
+    <div class="section-title">🕯️ 영적 명언 모음 ${isAdmin()?'<span class="admin-tag">관리자</span>':""}</div>
     <p class="section-desc">신앙의 선진들이 남긴 짧은 말씀을 카드로 만나보세요. 홈 화면에는 매일 다른 명언이 랜덤으로 나타나요.</p>
-    <div class="quote-grid">
-      ${QUOTES.map(q=>`<div class="quote-card"><p>"${q.t}"</p><span>— ${q.a}</span></div>`).join("")}
-    </div>
+    ${isAdmin() ? `
+    <div class="grid grid-2" style="align-items:end;margin-bottom:16px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>명언 본문</label>
+        <textarea id="newQuoteText" placeholder="명언 본문을 입력하세요" style="min-height:44px;"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;align-items:end;">
+        <div class="field" style="margin-bottom:0;flex:1;">
+          <label>출처 / 인물</label>
+          <input type="text" id="newQuoteAuthor" placeholder="예: 찰스 스펄전">
+        </div>
+        <button class="btn gold" id="addQuoteBtn">추가</button>
+      </div>
+    </div>` : ``}
+    <div class="quote-grid" id="quoteGrid"></div>
   </div>`;
+}
+function bindQuotes(){
+  renderQuoteGrid();
+  if(!isAdmin()) return;
+  document.getElementById("addQuoteBtn").addEventListener("click", async ()=>{
+    const text = document.getElementById("newQuoteText").value.trim();
+    const author = document.getElementById("newQuoteAuthor").value.trim();
+    if(!text || !author){ showToast("명언 본문과 출처를 모두 입력해 주세요."); return; }
+    try{
+      await addQuote(text, author);
+      showToast("명언을 추가했어요. 모든 회원 화면에 반영돼요.");
+      renderQuoteGrid();
+      document.getElementById("newQuoteText").value="";
+      document.getElementById("newQuoteAuthor").value="";
+    }catch(e){ showToast("추가에 실패했어요. 잠시 후 다시 시도해 주세요."); }
+  });
+}
+function renderQuoteGrid(){
+  const grid = document.getElementById("quoteGrid");
+  if(!grid) return;
+  if(!QUOTES.length){ grid.innerHTML = `<div class="empty">등록된 명언이 없어요.</div>`; return; }
+  grid.innerHTML = QUOTES.map(q=>`
+    <div class="quote-card">
+      <p>"${escapeHtml(q.t)}"</p>
+      <span>— ${escapeHtml(q.a)}</span>
+      ${isAdmin() && q.id ? `<button class="icon-btn quote-del" data-qid="${q.id}" title="삭제">✕</button>` : ``}
+    </div>`).join("");
+  if(!isAdmin()) return;
+  grid.querySelectorAll("[data-qid]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(!confirm("이 명언을 삭제할까요? 모든 회원 화면에서 사라져요.")) return;
+    try{
+      await deleteQuote(b.dataset.qid);
+      showToast("명언을 삭제했어요.");
+      renderQuoteGrid();
+    }catch(e){ showToast("삭제에 실패했어요."); }
+  }));
 }
 
 /* =========================================================
@@ -2163,6 +2301,7 @@ function renderAll(){
     case "prayer": bindPrayer(); break;
     case "fellowship": bindFellowship(); break;
     case "ebook": bindEbook(); break;
+    case "quotes": bindQuotes(); break;
     case "account": bindAccount(); break;
   }
 }
@@ -2234,6 +2373,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("authScreen").style.display = "none";
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
+    await loadQuotes();
     renderAll();
   } else {
     currentUser = null;
