@@ -372,6 +372,19 @@ input,textarea,select{font-family:inherit;}
 .chapter-block{margin-bottom:14px;}
 .chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
 .bible-chapters-scroll{max-height:560px;overflow-y:auto;padding-right:6px;}
+.book-select-box{
+  margin:16px 0 14px;padding:16px;border-radius:12px;
+  background:rgba(184,134,62,0.08);border:1.5px solid var(--gold);
+}
+.book-select-box label{
+  display:block;font-size:15px;font-weight:700;color:var(--navy);margin-bottom:9px;
+}
+.book-select-box select{
+  width:100%;padding:14px 16px;font-size:17px;font-weight:700;
+  border:2px solid var(--gold);border-radius:10px;background:#fffef9;color:var(--navy);
+  cursor:pointer;
+}
+.book-select-box select:focus{outline:2px solid var(--gold-soft);outline-offset:2px;}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -1012,8 +1025,8 @@ function renderBible(){
       <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
       아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
     </div>
-    <div class="field">
-      <label>책 선택</label>
+    <div class="book-select-box">
+      <label for="bibleBookSelect">📚 어느 책을 읽으시겠어요?</label>
       <select id="bibleBookSelect">
         <optgroup label="구약">
           ${BOOKS.map(([name])=>`<option value="${escapeAttr(name)}">${name}</option>`).join("")}
