@@ -2347,9 +2347,15 @@ function authErrorMessage(code){
     "auth/invalid-credential":"이메일 또는 비밀번호가 올바르지 않아요.",
     "auth/email-already-in-use":"이미 가입된 이메일이에요. 로그인해 주세요.",
     "auth/weak-password":"비밀번호는 6자 이상이어야 해요.",
-    "auth/too-many-requests":"시도가 너무 많아요. 잠시 후 다시 시도해 주세요."
+    "auth/too-many-requests":"시도가 너무 많아요. 잠시 후 다시 시도해 주세요.",
+    "auth/operation-not-allowed":"이메일/비밀번호 로그인이 아직 꺼져 있어요. Firebase 콘솔의 Authentication > 로그인 방법에서 켜주세요.",
+    "auth/unauthorized-domain":"이 웹 주소가 Firebase에 등록되어 있지 않아요. Authentication > Settings > 승인된 도메인에 이 주소를 추가해 주세요.",
+    "auth/invalid-api-key":"firebaseConfig의 apiKey 값이 올바르지 않아요. Firebase 콘솔 값과 다시 대조해 주세요.",
+    "auth/api-key-not-valid.-please-pass-a-valid-api-key.":"firebaseConfig의 apiKey 값이 올바르지 않아요. Firebase 콘솔 값과 다시 대조해 주세요.",
+    "auth/network-request-failed":"네트워크 연결을 확인해 주세요.",
+    "auth/configuration-not-found":"Authentication에서 이메일/비밀번호 로그인 방법이 켜져 있는지 확인해 주세요."
   };
-  return map[code] || "문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
+  return map[code] || `문제가 발생했어요${code?` (${code})`:""}. 잠시 후 다시 시도해 주세요.`;
 }
 function bindAuthScreen(){
   document.getElementById("authTabLogin").addEventListener("click",()=>setAuthMode("login"));
