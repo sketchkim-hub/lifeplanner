@@ -269,19 +269,46 @@ input,textarea,select{font-family:inherit;}
 /* ---------- 일정 / 할일 ---------- */
 .list-nav{display:flex;align-items:center;gap:10px;margin:10px 0 14px;}
 .list-nav span{font-size:12.5px;font-weight:700;color:var(--navy);flex:1;text-align:center;}
-.todo-day-block{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:12px 14px;margin-bottom:10px;}
-.todo-day-header{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:13px;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.todo-day-block{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px 16px;margin-bottom:10px;}
+.todo-day-header{
+  font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:13px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.todo-day-count{font-size:11.5px;font-weight:800;color:var(--sage);background:rgba(91,107,79,0.12);padding:2px 9px;border-radius:999px;}
+.day-progress-bg{height:6px;border-radius:999px;background:var(--paper-deep);overflow:hidden;margin:9px 0 11px;}
+.day-progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--sage));border-radius:999px;transition:width .3s ease;}
 .todo-row{display:flex;align-items:center;gap:9px;padding:5px 0;font-size:13px;}
 .todo-time{font-size:11px;color:var(--ink-soft);min-width:44px;flex:none;}
 .todo-title{flex:1;color:var(--ink);}
 .todo-done-text{text-decoration:line-through;color:var(--ink-soft);}
-.status-btn{
-  border:1px solid var(--line);background:#fff;border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;
-  flex:none;white-space:nowrap;
+
+/* 체크리스트형 할 일 표시 (동그란 상태 표시등) */
+.todo-row2{display:flex;align-items:center;gap:11px;padding:7px 1px;font-size:13.5px;}
+.todo-title2{flex:1;color:var(--ink);}
+.done-text2{text-decoration:line-through;color:var(--ink-soft);}
+.doing-tag{
+  flex:none;font-size:10.5px;font-weight:800;color:#fff;background:var(--gold);
+  padding:2px 9px;border-radius:999px;letter-spacing:.2px;
 }
-.status-btn.status-todo{color:var(--ink-soft);}
-.status-btn.status-doing{color:var(--gold);border-color:var(--gold-soft);background:rgba(184,134,62,0.08);}
-.status-btn.status-done{color:var(--sage);border-color:var(--sage-soft);background:rgba(91,107,79,0.08);}
+.todo-dot{
+  width:25px;height:25px;flex:none;border-radius:50%;position:relative;cursor:pointer;
+  border:2.5px solid #D8CEB4;background:#fff;transition:transform .15s ease, border-color .2s ease, background .2s ease;
+}
+.todo-dot:active{transform:scale(0.88);}
+.todo-dot.state-todo{border-color:#D8CEB4;background:#fff;}
+.todo-dot.state-doing{
+  border-color:var(--gold);
+  background:conic-gradient(var(--gold) 0deg 180deg, transparent 180deg 360deg);
+  box-shadow:0 0 0 3px rgba(184,134,62,0.14);
+}
+.todo-dot.state-doing::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#fffef9;}
+.todo-dot.state-done{
+  border-color:var(--sage);background:var(--sage);box-shadow:0 0 0 3px rgba(91,107,79,0.16);
+}
+.todo-dot.state-done::after{
+  content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:13px;font-weight:900;
+}
 .subsection-title{font-size:13px;font-weight:700;color:var(--navy);margin:16px 0 8px;display:flex;align-items:center;gap:6px;}
 .mini-add-row{display:flex;gap:6px;margin-top:8px;}
 .mini-add-row input[type="text"], .mini-add-row input[type="time"]{
@@ -1465,11 +1492,21 @@ function listRangeLabel(){
 function renderDayTodoBlock(dateKey){
   const e = state.dailyEntries[dateKey];
   const todos = (e && e.todos) || [];
+  const done = todos.filter(t=>t.status==="done").length;
+  const pct = todos.length ? Math.round((done/todos.length)*100) : 0;
   return `<div class="todo-day-block">
-    <div class="todo-day-header">${fmtDateKor(dateKey)}${dateKey===dstr(TODAY)?' <span class="badge gold">오늘</span>':""}</div>
+    <div class="todo-day-header">
+      <span>${fmtDateKor(dateKey)}${dateKey===dstr(TODAY)?' <span class="badge gold">오늘</span>':""}</span>
+      ${todos.length?`<span class="todo-day-count">${done}/${todos.length}</span>`:""}
+    </div>
+    ${todos.length?`<div class="day-progress-bg"><div class="day-progress-fill" style="width:${pct}%"></div></div>`:""}
     ${todos.length ? todos.map(t=>{
       const sm = statusMeta(t.status);
-      return `<div class="todo-row"><button class="status-btn ${sm.cls}" data-lcyc="${dateKey}|${t.id}">${sm.icon} ${sm.label}</button><span class="todo-title ${t.status==="done"?"todo-done-text":""}">${escapeHtml(t.title)}</span></div>`;
+      return `<div class="todo-row2">
+        <button class="todo-dot state-${t.status}" data-lcyc="${dateKey}|${t.id}" title="${sm.label} · 눌러서 상태 변경"></button>
+        <span class="todo-title2 ${t.status==="done"?"done-text2":""}">${escapeHtml(t.title)}</span>
+        ${t.status==="doing"?'<span class="doing-tag">진행 중</span>':""}
+      </div>`;
     }).join("") : `<div class="empty" style="padding:8px;font-size:12px;">할 일 없음</div>`}
   </div>`;
 }
@@ -1603,9 +1640,10 @@ function renderTodoItems(dateKey){
   if(!e.todos.length) return `<div class="empty" style="padding:10px;font-size:12px;">등록된 할 일이 없어요.</div>`;
   return e.todos.map(t=>{
     const sm = statusMeta(t.status);
-    return `<div class="todo-row">
-      <button class="status-btn ${sm.cls}" data-cyc="${t.id}">${sm.icon} ${sm.label}</button>
-      <span class="todo-title ${t.status==="done"?"todo-done-text":""}">${escapeHtml(t.title)}</span>
+    return `<div class="todo-row2">
+      <button class="todo-dot state-${t.status}" data-cyc="${t.id}" title="${sm.label} · 눌러서 상태 변경"></button>
+      <span class="todo-title2 ${t.status==="done"?"done-text2":""}">${escapeHtml(t.title)}</span>
+      ${t.status==="doing"?'<span class="doing-tag">진행 중</span>':""}
       <button class="icon-btn" data-edittd="${t.id}">✎</button>
       <button class="icon-btn" data-deltd="${t.id}">✕</button>
     </div>`;
