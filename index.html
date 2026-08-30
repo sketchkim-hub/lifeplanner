@@ -685,7 +685,7 @@ let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서"
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null
 };
 let recognition = null;
 
@@ -1148,6 +1148,7 @@ function renderTopStatsOnly(){
 function renderMemory(){
   const cat = MEM_CATEGORIES.find(c=>c.id===ui.memTab);
   const cards = state.memoryCards[ui.memTab]||[];
+  const editCard = ui.editingCardId ? cards.find(c=>c.id===ui.editingCardId) : null;
   return `
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">🗂️ 네비게이토 성경암송</div>
@@ -1157,19 +1158,25 @@ function renderMemory(){
       ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
     </div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">${cat.desc}</p>
-    <div class="field">
-      <label>제목 (주제)</label>
-      <input type="text" id="newTitle" placeholder="예: 구원의 확신">
+    <div id="cardFormBox">
+      ${editCard?`<div class="notice">✎ "${escapeHtml(editCard.ref)}" 카드를 수정하고 있어요. 마침표·기호 등을 고쳐서 저장해 주세요.</div>`:""}
+      <div class="field">
+        <label>제목 (주제)</label>
+        <input type="text" id="newTitle" placeholder="예: 구원의 확신" value="${escapeAttr(editCard?.title||"")}">
+      </div>
+      <div class="field">
+        <label>장절</label>
+        <input type="text" id="newRef" placeholder="예: 요한복음 3:16" value="${escapeAttr(editCard?.ref||"")}">
+      </div>
+      <div class="field">
+        <label>본문 (직접 입력/붙여넣기)</label>
+        <textarea id="newText" placeholder="암송할 본문을 입력하세요">${escapeHtml(editCard?.text||"")}</textarea>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn gold" id="addCardBtn">${editCard?"수정 저장":"카드 추가"}</button>
+        ${editCard?'<button class="btn ghost" id="cancelEditBtn">취소</button>':""}
+      </div>
     </div>
-    <div class="field">
-      <label>장절</label>
-      <input type="text" id="newRef" placeholder="예: 요한복음 3:16">
-    </div>
-    <div class="field">
-      <label>본문 (직접 입력/붙여넣기)</label>
-      <textarea id="newText" placeholder="암송할 본문을 입력하세요"></textarea>
-    </div>
-    <button class="btn gold" id="addCardBtn">카드 추가</button>
     <div class="mem-list" id="memList" style="margin-top:14px;"></div>
   </div>
 
@@ -1184,18 +1191,28 @@ function renderMemory(){
 }
 function bindMemory(){
   document.getElementById("memTabs").querySelectorAll("[data-mc]").forEach(b=>b.addEventListener("click",()=>{
-    ui.memTab=b.dataset.mc; renderAll();
+    ui.memTab=b.dataset.mc; ui.editingCardId=null; renderAll();
   }));
   document.getElementById("addCardBtn").addEventListener("click",()=>{
     const title=document.getElementById("newTitle").value.trim();
     const ref=document.getElementById("newRef").value.trim();
     const text=document.getElementById("newText").value.trim();
     if(!ref){ showToast("장절을 입력해 주세요."); return; }
-    state.memoryCards[ui.memTab].push({id:uid(), title, ref, text, memorized:false, added:dstr(TODAY)});
-    persist("memoryCards");
-    showToast("암송카드를 추가했어요.");
+    if(ui.editingCardId){
+      const c = state.memoryCards[ui.memTab].find(x=>x.id===ui.editingCardId);
+      if(c){ c.title=title; c.ref=ref; c.text=text; }
+      ui.editingCardId = null;
+      persist("memoryCards");
+      showToast("암송카드를 수정했어요.");
+    } else {
+      state.memoryCards[ui.memTab].push({id:uid(), title, ref, text, memorized:false, added:dstr(TODAY)});
+      persist("memoryCards");
+      showToast("암송카드를 추가했어요.");
+    }
     renderAll();
   });
+  const cancelBtn = document.getElementById("cancelEditBtn");
+  if(cancelBtn) cancelBtn.addEventListener("click",()=>{ ui.editingCardId=null; renderAll(); });
   renderMemList();
   document.querySelectorAll("[data-teststart]").forEach(b=>b.addEventListener("click",()=>{
     startTest(b.dataset.teststart);
@@ -1214,10 +1231,17 @@ function renderMemList(){
         ${c.text?`<div class="mi-text">${escapeHtml(c.text)}</div>`:""}
       </div>
       <div class="mem-actions">
+        <button class="icon-btn" data-editcard="${c.id}" title="수정">✎</button>
         <button class="icon-btn" data-tog="${c.id}" title="암송완료 체크">${c.memorized?"↺":"✓"}</button>
         <button class="icon-btn" data-del="${c.id}" title="삭제">✕</button>
       </div>
     </div>`).join("");
+  list.querySelectorAll("[data-editcard]").forEach(b=>b.addEventListener("click",()=>{
+    ui.editingCardId = b.dataset.editcard;
+    renderAll();
+    const box = document.getElementById("cardFormBox");
+    if(box) box.scrollIntoView({behavior:"smooth", block:"start"});
+  }));
   list.querySelectorAll("[data-tog]").forEach(b=>b.addEventListener("click",()=>{
     const before = snapshotGamify();
     const c = state.memoryCards[ui.memTab].find(x=>x.id===b.dataset.tog);
@@ -1226,6 +1250,7 @@ function renderMemList(){
     if(becameMemorized) announceGamify(before);
   }));
   list.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    if(ui.editingCardId===b.dataset.del) ui.editingCardId=null;
     state.memoryCards[ui.memTab] = state.memoryCards[ui.memTab].filter(x=>x.id!==b.dataset.del);
     persist("memoryCards"); renderAll();
   }));
