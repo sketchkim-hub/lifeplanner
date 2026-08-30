@@ -314,7 +314,11 @@ input,textarea,select{font-family:inherit;}
 .booklet-row .br-label{font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
 .booklet-row .br-val{font-size:15.5px;line-height:1.95;white-space:pre-wrap;color:var(--ink);}
 .ebook-checks{display:flex;gap:16px;font-size:13px;color:var(--ink);flex-wrap:wrap;}
-.ebook-checks label{display:flex;align-items:center;gap:6px;font-weight:400;}
+.ebook-checks label{display:flex;align-items:center;gap:6px;font-weight:400;white-space:nowrap;}
+.ebook-checks input[type="checkbox"],
+.ebook-checks input[type="radio"]{
+  width:auto;height:auto;padding:0;border:none;background:transparent;flex:none;accent-color:var(--gold);
+}
 
 /* ---------- Modal ---------- */
 .modal-backdrop{
@@ -367,6 +371,7 @@ input,textarea,select{font-family:inherit;}
 }
 .chapter-block{margin-bottom:14px;}
 .chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
+.bible-chapters-scroll{max-height:560px;overflow-y:auto;padding-right:6px;}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -660,14 +665,14 @@ let state = {
   dailyEntries: {},
   fellowship: [],
   prayers: [],
-  timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
+  bibleText: {},
   gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
 };
 let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all"
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서"
 };
 let recognition = null;
 
@@ -683,7 +688,7 @@ async function loadAllFromFirestore(){
         dailyEntries: d.dailyEntries || {},
         fellowship: d.fellowship || [],
         prayers: d.prayers || [],
-        timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+        bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
         gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
       };
     } else {
@@ -722,7 +727,7 @@ async function importDataFromFile(file){
       dailyEntries: d.dailyEntries || {},
       fellowship: d.fellowship || [],
       prayers: d.prayers || [],
-      timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
+      bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
@@ -733,7 +738,7 @@ async function importDataFromFile(file){
 async function resetAllData(){
   state = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
-    dailyEntries: {}, fellowship: [], prayers: [], timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
+    dailyEntries: {}, fellowship: [], prayers: [], bibleText: {},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
   await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
@@ -999,31 +1004,61 @@ function bindHome(){
    성경 본문 (저작권 안내 + 사용자 입력형 본문 저장)
    ========================================================= */
 function renderBible(){
-  const chapters = [1,2,3,4,5,6];
   return `
   <div class="card">
-    <div class="section-title">📖 디모데전서 — 경건 훈련의 핵심 본문</div>
-    <p class="section-desc">경건의 훈련을 다루는 목회서신, 디모데전서 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다.</p>
+    <div class="section-title">📖 성경 본문</div>
+    <p class="section-desc">평소 곁에 두고 읽고 싶은 본문을 골라 담아두는 공간이에요. 책을 고르면 그 책의 모든 장이 나타나요.</p>
     <div class="notice">
       <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
       아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
     </div>
-    <div id="chapterBlocks"></div>
-    <button class="btn gold" id="saveTimothy">본문 저장하기</button>
+    <div class="field">
+      <label>책 선택</label>
+      <select id="bibleBookSelect">
+        <optgroup label="구약">
+          ${BOOKS.map(([name])=>`<option value="${escapeAttr(name)}">${name}</option>`).join("")}
+        </optgroup>
+        <optgroup label="신약">
+          ${NT_BOOKS.map(([name])=>`<option value="${escapeAttr(name)}">${name}</option>`).join("")}
+        </optgroup>
+      </select>
+    </div>
+    <div id="bibleBookProgress" class="progress-label" style="margin-bottom:10px;"></div>
+    <div id="chapterBlocks" class="bible-chapters-scroll"></div>
+    <button class="btn gold" id="saveBibleBtn" style="margin-top:12px;">본문 저장하기</button>
   </div>`;
 }
-function bindBible(){
+function getBookChapterCount(name){
+  const found = [...BOOKS, ...NT_BOOKS].find(b=>b[0]===name);
+  return found ? found[1] : 1;
+}
+function renderBibleChapters(){
   const wrap = document.getElementById("chapterBlocks");
-  if(!wrap) return;
-  wrap.innerHTML = [1,2,3,4,5,6].map(c=>`
+  const bookName = ui.bibleBook;
+  const chCount = getBookChapterCount(bookName);
+  const data = state.bibleText[bookName] || {};
+  wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>`
     <div class="chapter-block">
-      <h4>디모데전서 ${c}장</h4>
-      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${state.timothyText[c]||""}</textarea>
+      <h4>${bookName} ${c}장</h4>
+      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${escapeHtml(data[c]||"")}</textarea>
     </div>`).join("");
-  document.getElementById("saveTimothy").addEventListener("click",()=>{
-    wrap.querySelectorAll("textarea").forEach(t=>{ state.timothyText[t.dataset.ch]=t.value; });
-    persist("timothyText");
+  const filled = Object.values(data).filter(v=>v && v.trim()).length;
+  const prog = document.getElementById("bibleBookProgress");
+  if(prog) prog.textContent = `${bookName} — ${filled} / ${chCount}장 저장됨`;
+}
+function bindBible(){
+  const sel = document.getElementById("bibleBookSelect");
+  sel.value = ui.bibleBook;
+  sel.addEventListener("change",()=>{ ui.bibleBook = sel.value; renderBibleChapters(); });
+  renderBibleChapters();
+  document.getElementById("saveBibleBtn").addEventListener("click",()=>{
+    const bookName = ui.bibleBook;
+    if(!state.bibleText[bookName]) state.bibleText[bookName] = {};
+    const data = state.bibleText[bookName];
+    document.querySelectorAll("#chapterBlocks textarea").forEach(t=>{ data[t.dataset.ch]=t.value; });
+    persist("bibleText");
     showToast("본문을 저장했어요.");
+    renderBibleChapters();
   });
 }
 
