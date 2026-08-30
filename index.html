@@ -428,8 +428,15 @@ input,textarea,select{font-family:inherit;}
   background:rgba(184,134,62,0.1);border:1px solid var(--gold-soft);border-radius:10px;
   padding:12px 15px;font-size:12.5px;color:var(--navy-soft);line-height:1.7;margin-bottom:16px;
 }
-.chapter-block{margin-bottom:14px;}
-.chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
+.chapter-block{margin-bottom:16px;}
+.chapter-block-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px;cursor:pointer;}
+.chapter-block-head h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0;}
+.chapter-block textarea{
+  display:block;width:100%;min-height:130px;padding:12px 14px;border:1px solid var(--line);border-radius:9px;
+  font-size:14px;line-height:1.8;background:#fffef9;color:var(--ink);resize:vertical;box-sizing:border-box;
+}
+.chapter-block textarea:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
+.chapter-modal-textarea, textarea.chapter-modal-textarea{min-height:56vh;width:100%;font-size:15.5px;line-height:1.9;}
 .bible-chapters-scroll{max-height:560px;overflow-y:auto;padding-right:6px;}
 .book-select-box{
   margin:16px 0 14px;padding:16px;border-radius:12px;
@@ -1118,12 +1125,39 @@ function renderBibleChapters(){
   const data = state.bibleText[bookName] || {};
   wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>`
     <div class="chapter-block">
-      <h4>${bookName} ${c}장</h4>
+      <div class="chapter-block-head" data-expandch="${c}">
+        <h4>${bookName} ${c}장</h4>
+        <button class="btn outline small" data-expandch="${c}">⤢ 크게 편집</button>
+      </div>
       <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${escapeHtml(data[c]||"")}</textarea>
     </div>`).join("");
   const filled = Object.values(data).filter(v=>v && v.trim()).length;
   const prog = document.getElementById("bibleBookProgress");
   if(prog) prog.textContent = `${bookName} — ${filled} / ${chCount}장 저장됨`;
+  wrap.querySelectorAll("[data-expandch]").forEach(el=>el.addEventListener("click",()=>{
+    openChapterEditModal(bookName, Number(el.dataset.expandch));
+  }));
+}
+function openChapterEditModal(bookName, chapterNum){
+  const data = state.bibleText[bookName] || {};
+  const current = data[chapterNum] || "";
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>📖 ${bookName} ${chapterNum}장</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field">
+      <label>본문</label>
+      <textarea id="chEditArea" class="chapter-modal-textarea" placeholder="${chapterNum}장 본문을 붙여넣어 주세요…">${escapeHtml(current)}</textarea>
+    </div>
+    <button class="btn gold" id="saveChEdit" style="width:100%;">저장하기</button>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("saveChEdit").addEventListener("click",()=>{
+    if(!state.bibleText[bookName]) state.bibleText[bookName] = {};
+    state.bibleText[bookName][chapterNum] = document.getElementById("chEditArea").value;
+    persist("bibleText");
+    showToast(`${bookName} ${chapterNum}장을 저장했어요.`);
+    closeModal();
+    renderBibleChapters();
+  });
 }
 function bindBible(){
   const sel = document.getElementById("bibleBookSelect");
