@@ -197,7 +197,7 @@ input,textarea,select{font-family:inherit;}
 .flip-hint{position:absolute;bottom:8px;right:12px;font-size:10.5px;color:var(--ink-soft);opacity:.65;}
 .flip-back .flip-hint{color:#CBC2A8;}
 .card-ref{font-family:'Noto Serif KR',serif;font-weight:700;font-size:16px;color:var(--navy);padding-left:16px;}
-.card-cat{padding-left:16px;margin-top:6px;}
+.card-cat{padding-left:16px;margin-bottom:6px;font-size:12px;font-weight:700;color:var(--gold);letter-spacing:.3px;}
 .card-text{font-size:14.5px;line-height:1.75;}
 .card-author{font-size:12px;color:var(--gold-soft);margin-top:10px;font-weight:600;}
 
@@ -1157,18 +1157,20 @@ function renderMemory(){
       ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
     </div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">${cat.desc}</p>
-    <div class="grid" style="grid-template-columns:1fr auto;gap:8px;align-items:end;">
-      <div class="field" style="margin-bottom:0;">
-        <label>구절 참조 (예: 요한복음 3:16)</label>
-        <input type="text" id="newRef" placeholder="구절 참조 입력">
-      </div>
-      <button class="btn gold" id="addCardBtn">카드 추가</button>
+    <div class="field">
+      <label>제목 (주제)</label>
+      <input type="text" id="newTitle" placeholder="예: 구원의 확신">
     </div>
-    <div class="field" style="margin-top:8px;">
-      <label>구절 본문 (직접 입력/붙여넣기)</label>
+    <div class="field">
+      <label>장절</label>
+      <input type="text" id="newRef" placeholder="예: 요한복음 3:16">
+    </div>
+    <div class="field">
+      <label>본문 (직접 입력/붙여넣기)</label>
       <textarea id="newText" placeholder="암송할 본문을 입력하세요"></textarea>
     </div>
-    <div class="mem-list" id="memList"></div>
+    <button class="btn gold" id="addCardBtn">카드 추가</button>
+    <div class="mem-list" id="memList" style="margin-top:14px;"></div>
   </div>
 
   <div class="card">
@@ -1185,10 +1187,11 @@ function bindMemory(){
     ui.memTab=b.dataset.mc; renderAll();
   }));
   document.getElementById("addCardBtn").addEventListener("click",()=>{
+    const title=document.getElementById("newTitle").value.trim();
     const ref=document.getElementById("newRef").value.trim();
     const text=document.getElementById("newText").value.trim();
-    if(!ref){ showToast("구절 참조를 입력해 주세요."); return; }
-    state.memoryCards[ui.memTab].push({id:uid(), ref, text, memorized:false, added:dstr(TODAY)});
+    if(!ref){ showToast("장절을 입력해 주세요."); return; }
+    state.memoryCards[ui.memTab].push({id:uid(), title, ref, text, memorized:false, added:dstr(TODAY)});
     persist("memoryCards");
     showToast("암송카드를 추가했어요.");
     renderAll();
@@ -1206,6 +1209,7 @@ function renderMemList(){
   list.innerHTML = cards.map(c=>`
     <div class="mem-item ${c.memorized?"mem-done":""}">
       <div>
+        ${c.title?`<div style="font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:13.5px;">${escapeHtml(c.title)}</div>`:""}
         <div class="mi-ref">${c.ref} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
         ${c.text?`<div class="mi-text">${escapeHtml(c.text)}</div>`:""}
       </div>
@@ -1251,6 +1255,7 @@ function renderTestArea(){
       <div class="flip-zone">
         <div class="flip-card ${ui.testFlipped?"flipped":""}" id="testFlipCard">
           <div class="flip-face flip-front">
+            ${card.title?`<div class="card-cat">${escapeHtml(card.title)}</div>`:""}
             <div class="card-ref">${card.ref}</div>
             <div class="flip-hint">눌러서 정답 확인</div>
           </div>
@@ -1279,7 +1284,7 @@ function renderTestArea(){
       ` : `
         <div class="voice-box">
           <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;">
-            "${cat.title}" → "${card.ref}" → 본문 순서로 소리내어 암송하고 녹음해 보세요.
+            "${card.title||cat.title}" → "${card.ref}" → 본문 순서로 소리내어 암송하고 녹음해 보세요.
             (Chrome 브라우저 · https 환경 · 마이크 권한 필요)
           </p>
           <button class="btn ${ui.recording?"danger":"sage"} small" id="recBtn">
@@ -1327,7 +1332,7 @@ function renderTestArea(){
       const res = document.getElementById("audioGradeResult");
       if(!card.text){ res.innerHTML = `<div class="diff-box">등록된 본문이 없어 채점할 수 없어요. 카드 관리에서 본문을 먼저 입력해 주세요.</div>`; return; }
       const before = snapshotGamify();
-      const expected = `${cat.title} ${card.ref} ${card.text}`;
+      const expected = `${card.title||cat.title} ${card.ref} ${card.text}`;
       const {pct, html} = diffScore(expected, ui.transcriptFinal);
       res.innerHTML = `<div class="diff-box"><span class="score-tag" style="color:${pct>=85?"var(--sage)":pct>=50?"var(--gold)":"var(--brick)"}">일치도 ${pct}%</span><br><br>${html}</div>`;
       state.gamifyCounts.reviewCount++;
@@ -1740,9 +1745,8 @@ function openQtModal(dateKey){
     <div class="modal-head"><h3>📝 ${fmtDateKor(dateKey)} · QT·묵상</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
-    <div class="field"><label>기도제목</label><textarea id="m_prayer" placeholder="오늘의 기도제목">${entry.prayer||""}</textarea></div>
-    <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜">${entry.grace||""}</textarea></div>
-    <div class="field"><label>삶의 적용</label><textarea id="m_app" placeholder="오늘 실천할 적용점">${entry.application||""}</textarea></div>
+    <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${entry.grace||""}</textarea></div>
+    <div class="field"><label>삶의 적용</label><textarea id="m_app" placeholder="오늘 실천할 적용점" style="min-height:140px;">${entry.application||""}</textarea></div>
     <div class="field"><label>감사 제목</label><textarea id="m_thanks" placeholder="오늘의 감사">${entry.thanks||""}</textarea></div>
     <button class="btn gold" id="saveDaily">저장하기</button>`;
   openModal();
@@ -1754,7 +1758,6 @@ function openQtModal(dateKey){
       ...existing,
       qt: document.getElementById("m_qt").value,
       verse: document.getElementById("m_verse").value,
-      prayer: document.getElementById("m_prayer").value,
       grace: document.getElementById("m_grace").value,
       application: document.getElementById("m_app").value,
       thanks: document.getElementById("m_thanks").value
