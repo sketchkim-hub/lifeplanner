@@ -1,4 +1,4 @@
-const CACHE_NAME = "deungbul-cache-v1";
+const CACHE_NAME = "deungbul-cache-v2";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -23,7 +23,8 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// 앱 셸은 캐시 우선, 그 외(Firebase API 등)는 네트워크 우선 후 실패 시 캐시로 대체
+// 항상 네트워크에서 최신 파일을 먼저 가져오고, 오프라인일 때만 캐시로 대체
+// (배포한 파일을 새로 올렸을 때 사용자가 예전 버전을 계속 보게 되는 문제 방지)
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
@@ -31,14 +32,11 @@ self.addEventListener("fetch", (e) => {
 
   if (isSameOrigin) {
     e.respondWith(
-      caches.match(e.request).then((cached) => {
-        if (cached) return cached;
-        return fetch(e.request).then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
-          return res;
-        });
-      }).catch(() => caches.match("./index.html"))
+      fetch(e.request).then((res) => {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+        return res;
+      }).catch(() => caches.match(e.request).then((cached) => cached || caches.match("./index.html")))
     );
   } else {
     e.respondWith(
