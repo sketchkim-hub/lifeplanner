@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>등불 · 경건의 이르는 훈련</title>
+<title>라이프플래너 - 경건에 이르는 훈련</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
@@ -196,7 +196,6 @@ input,textarea,select{font-family:inherit;}
 }
 .flip-hint{position:absolute;bottom:8px;right:12px;font-size:10.5px;color:var(--ink-soft);opacity:.65;}
 .flip-back .flip-hint{color:#CBC2A8;}
-.card-title{font-family:'Noto Serif KR',serif;font-weight:700;font-size:19px;color:var(--gold-soft);padding-left:16px;margin-bottom:4px;}
 .card-ref{font-family:'Noto Serif KR',serif;font-weight:700;font-size:16px;color:var(--navy);padding-left:16px;}
 .card-cat{padding-left:16px;margin-top:6px;}
 .card-text{font-size:14.5px;line-height:1.75;}
@@ -231,8 +230,7 @@ input,textarea,select{font-family:inherit;}
   display:flex;justify-content:space-between;gap:12px;align-items:flex-start;
 }
 .mem-item.mem-done{border-color:var(--sage-soft);background:rgba(91,107,79,0.06);}
-.mem-item .mi-title{font-weight:700;color:var(--gold);font-family:'Noto Serif KR',serif;font-size:16px;margin-bottom:2px;}
-.mem-item .mi-ref{font-weight:600;color:var(--navy-soft);font-family:'Noto Serif KR',serif;font-size:13px;}
+.mem-item .mi-ref{font-weight:700;color:var(--navy);font-family:'Noto Serif KR',serif;font-size:14.5px;}
 .mem-item .mi-text{font-size:13px;color:var(--ink-soft);margin-top:4px;line-height:1.6;white-space:pre-wrap;}
 .mem-actions{display:flex;gap:6px;flex:none;}
 .icon-btn{border:1px solid var(--line);background:transparent;border-radius:7px;width:30px;height:30px;font-size:14px;color:var(--ink-soft);}
@@ -291,6 +289,10 @@ input,textarea,select{font-family:inherit;}
 }
 .mini-add-row input[type="text"]{flex:1;}
 .mini-add-row input[type="time"]{max-width:108px;}
+.day-section{padding:14px 0;border-bottom:1px solid var(--line);}
+.day-section:first-child{padding-top:2px;}
+.day-section:last-child{border-bottom:none;}
+.day-section-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;}
 
 /* ---------- PDF 책자 (오프스크린 렌더용, html2canvas가 캡처) ---------- */
 .booklet-page{width:794px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:var(--ink);background:var(--paper);}
@@ -354,11 +356,9 @@ input,textarea,select{font-family:inherit;}
 
 /* ---------- Quotes ---------- */
 .quote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
-.quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;position:relative;}
+.quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;}
 .quote-card p{font-family:'Noto Serif KR',serif;font-size:14px;line-height:1.75;margin:0 0 8px;color:var(--ink);}
 .quote-card span{font-size:12px;color:var(--gold);font-weight:700;}
-.quote-del{position:absolute;top:8px;right:8px;width:24px;height:24px;font-size:12px;}
-.admin-tag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--brick);background:rgba(139,74,66,0.1);border-radius:999px;padding:2px 9px;margin-left:8px;vertical-align:middle;}
 
 /* ---------- Bible text ---------- */
 .notice{
@@ -367,46 +367,6 @@ input,textarea,select{font-family:inherit;}
 }
 .chapter-block{margin-bottom:14px;}
 .chapter-block h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0 0 6px;}
-
-.bible-search{
-  width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin-bottom:14px;
-  font-size:13.5px;background:#fffef9;color:var(--ink);
-}
-.bible-search:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
-.bible-group{margin-bottom:12px;}
-.bible-group-head{
-  width:100%;display:flex;justify-content:space-between;align-items:center;
-  background:var(--paper-deep);border:1px solid var(--line);border-radius:10px;
-  padding:11px 14px;font-family:'Noto Serif KR',serif;font-weight:700;font-size:14.5px;color:var(--navy);
-  margin-bottom:8px;
-}
-.bible-group-head .bg-sub{font-family:'Noto Sans KR',sans-serif;font-weight:400;font-size:12px;color:var(--ink-soft);margin-left:6px;}
-.bible-group-head .chev{color:var(--gold);font-size:12px;}
-.bible-book-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
-.bible-book{
-  border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden;
-  grid-column:span 1;
-}
-.bible-book.open{grid-column:1/-1;border-color:var(--gold-soft);}
-.bible-book-head{
-  width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
-  background:transparent;border:none;padding:10px 12px;font-size:13px;color:var(--ink);
-  text-align:left;
-}
-.bible-book-head .bb-name{font-weight:700;color:var(--navy-soft);}
-.bible-book-head .bb-meta{font-size:11px;color:var(--ink-soft);flex:1;text-align:right;margin-right:4px;}
-.bible-book-head .chev{color:var(--gold);font-size:11px;flex:none;}
-.bible-book-body{padding:0 12px 14px;border-top:1px dashed var(--line);}
-.bible-chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:12px;max-height:180px;overflow-y:auto;padding:2px;}
-.bible-chip{
-  width:30px;height:30px;flex:none;border:1px solid var(--line);background:var(--paper-deep);
-  border-radius:7px;font-size:11.5px;color:var(--ink-soft);position:relative;
-}
-.bible-chip.filled::after{
-  content:"";position:absolute;top:3px;right:3px;width:5px;height:5px;border-radius:50%;background:var(--sage);
-}
-.bible-chip.active{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:700;}
-.bible-chip.active.filled::after{background:#fff;}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -493,21 +453,81 @@ input,textarea,select{font-family:inherit;}
 }
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
 .product-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;}
-.product-thumb{
-  aspect-ratio:1/1;border-radius:9px;overflow:hidden;background:var(--paper-deep);
-  display:flex;align-items:center;justify-content:center;margin-bottom:2px;
-}
-.product-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
-.product-thumb .ph-icon{font-size:26px;color:var(--ink-soft);opacity:.5;}
 .product-name{font-weight:700;color:var(--navy);font-size:13.5px;font-family:'Noto Serif KR',serif;}
 .product-note{font-size:12px;color:var(--ink-soft);line-height:1.5;flex:1;}
 .product-price{font-size:13px;color:var(--gold);font-weight:700;}
 .product-link{text-align:center;margin-top:4px;}
 
+/* ---------- 모바일 반응형 ---------- */
 @media(max-width:600px){
-  .brand-title{font-size:19px;}
-  .hero{padding:22px 18px;}
-  .hero-verse{font-size:17px;}
+  .app{padding:14px 12px 90px;}
+  .app-header{padding:4px 2px 16px;margin-bottom:14px;gap:8px;}
+  .brand{gap:9px;}
+  .brand-flame{width:28px;height:28px;}
+  .brand-title{font-size:16.5px;line-height:1.3;}
+  .brand-sub{font-size:11px;}
+  .today-pill{font-size:11px;padding:6px 11px;}
+
+  .tabbar{
+    position:sticky;top:0;z-index:15;background:var(--paper);
+    margin:0 -12px 14px;padding:8px 12px 8px;
+    box-shadow:0 4px 10px -6px rgba(33,27,10,0.15);
+  }
+  .tab-btn{font-size:13px;padding:8px 12px;}
+
+  .card{padding:15px;border-radius:12px;}
+  .hero{padding:20px 16px;border-radius:14px;}
+  .hero-eyebrow{font-size:11px;}
+  .hero-verse{font-size:16px;line-height:1.6;}
+  .hero-verse-ref{font-size:12px;}
+  .stat-row{gap:8px;margin-top:16px;}
+  .stat{min-width:0;flex:1 1 calc(50% - 8px);padding:10px 12px;}
+  .stat b{font-size:19px;}
+
+  .section-title{font-size:16.5px;}
+  .section-desc{font-size:12.5px;}
+
+  /* iOS 자동 확대 방지: 입력 요소 글자 크기 16px 이상 유지 */
+  .field input, .field textarea, .field select,
+  .mini-add-row input, input[type="date"], input[type="time"], input[type="email"], input[type="password"]{
+    font-size:16px;
+  }
+  .field label{font-size:12px;}
+
+  .btn{padding:10px 15px;}
+  .btn.small{padding:8px 12px;font-size:12.5px;}
+  .icon-btn{width:34px;height:34px;font-size:15px;}
+
+  .modal{padding:18px 16px 18px;border-radius:14px;max-height:92vh;}
+  .modal-head h3{font-size:15.5px;}
+
+  .cal-grid{gap:4px;}
+  .cal-cell{min-height:58px;padding:5px 5px;font-size:10.5px;border-radius:7px;}
+  .cal-dow{font-size:10px;}
+  .cal-dots{gap:2px;bottom:4px;left:5px;}
+  .cal-dot{width:4px;height:4px;}
+  .cal-month{font-size:16.5px;min-width:0;}
+  .cal-nav{gap:4px;}
+
+  .memtabs{gap:5px;}
+  .memtab{font-size:11.5px;padding:6px 11px;}
+  .plan-controls{gap:6px;}
+  .plan-grid{grid-template-columns:repeat(auto-fill,minmax(128px,1fr));max-height:440px;}
+
+  .day-section{padding:12px 0;}
+  .day-section-head{flex-wrap:wrap;}
+  .todo-row{font-size:12.5px;gap:7px;}
+
+  .quiz-card, .quote-grid, .product-grid, .badge-grid{gap:10px;}
+  .badge-card{padding:13px 14px;}
+
+  .flip-card{min-height:130px;}
+}
+
+@media(max-width:380px){
+  .stat{flex:1 1 100%;}
+  .cal-cell{min-height:50px;}
+  .brand-sub{display:none;}
 }
 </style>
 </head>
@@ -520,7 +540,7 @@ input,textarea,select{font-family:inherit;}
       <div class="brand-flame">
         <svg viewBox="0 0 40 40"><path d="M20 4c-3 6-9 9-9 17a9 9 0 0018 0c0-4-2-6-3-9 0 3-2 5-4 5-3 0-4-3-2-6 1-2 2-4 0-7z" fill="#C08A3E"/><path d="M20 14c-1.5 3-4 4.5-4 8.5A4 4 0 0020 27a4 4 0 004-4.5c0-2-1-3-1.5-4.3.2 1.5-1 2.6-2 2.6-1.4 0-1.8-1.5-.9-2.8.6-1 .8-2 .4-4z" fill="#F3D9A4"/></svg>
       </div>
-      <div class="auth-brand-title">등불 — 경건의 이르는 훈련</div>
+      <div class="auth-brand-title">라이프플래너 - 경건에 이르는 훈련</div>
     </div>
     <div class="auth-tabs">
       <button class="auth-tab active" id="authTabLogin">로그인</button>
@@ -542,7 +562,7 @@ input,textarea,select{font-family:inherit;}
         <svg viewBox="0 0 40 40"><path d="M20 4c-3 6-9 9-9 17a9 9 0 0018 0c0-4-2-6-3-9 0 3-2 5-4 5-3 0-4-3-2-6 1-2 2-4 0-7z" fill="#C08A3E"/><path d="M20 14c-1.5 3-4 4.5-4 8.5A4 4 0 0020 27a4 4 0 004-4.5c0-2-1-3-1.5-4.3.2 1.5-1 2.6-2 2.6-1.4 0-1.8-1.5-.9-2.8.6-1 .8-2 .4-4z" fill="#F3D9A4"/></svg>
       </div>
       <div>
-        <div class="brand-title">등불 — 경건의 이르는 훈련</div>
+        <div class="brand-title">라이프플래너 - 경건에 이르는 훈련</div>
         <div class="brand-sub">디모데전서 4:7 · "경건에 이르도록 네 자신을 연단하라"</div>
       </div>
     </div>
@@ -566,46 +586,17 @@ input,textarea,select{font-family:inherit;}
    설정값으로 반드시 교체하세요. (README_배포가이드.md 참고)
    ========================================================= */
 const firebaseConfig = {
-  apiKey: "AIzaSyBZ7yelMCko_PafHq8ueHolAFtBL-k2SdA",
-  authDomain: "deungbul-app.firebaseapp.com",
-  projectId: "deungbul-app",
-  storageBucket: "deungbul-app.firebasestorage.app",
-  messagingSenderId: "350439394821",
-  appId: "1:350439394821:web:b585d6a0f6195c795a566c",
-  measurementId: "G-BEVFM9KRTS"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-
-/* =========================================================
-   관리자 계정
-   ⚠️ 영적 명언 추가/삭제는 이 이메일로 로그인한 계정만 화면에 노출됩니다.
-   실제 데이터 보호는 이 화면단 체크가 아니라 Firestore 보안 규칙이
-   담당합니다 — 아래 loadQuotes()/addQuote()/deleteQuote() 근처 주석과
-   README를 참고해 quotes 컬렉션 쓰기 권한을 이 이메일로만 제한하세요.
-   ========================================================= */
-const ADMIN_EMAIL = "kimsketch@naver.com";
-function isAdmin(){ return !!currentUser && currentUser.email === ADMIN_EMAIL; }
-/*
-  Firebase 콘솔 > Firestore Database > 규칙에 아래 내용을 반영해 주세요.
-  (화면단 isAdmin() 체크만으로는 실제 데이터가 보호되지 않습니다.)
-
-  rules_version = '2';
-  service cloud.firestore {
-    match /databases/{database}/documents {
-      match /users/{uid} {
-        allow read, write: if request.auth != null && request.auth.uid == uid;
-      }
-      match /quotes/{quoteId} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null
-          && request.auth.token.email == "kimsketch@naver.com";
-      }
-    }
-  }
-*/
 
 /* =========================================================
    데이터
@@ -637,10 +628,7 @@ const MEM_CATEGORIES = [
   {id:"oyo", title:"OYO · 나만의 암송카드", sub:"자유 등록", desc:"내가 은혜받은 구절을 직접 등록해 암송카드로 만드는 코너"}
 ];
 
-/* 아래 배열은 오프라인/최초 실행 시 사용하는 시드(fallback) 데이터입니다.
-   실제 화면에는 Firestore "quotes" 컬렉션의 데이터가 로드되어 표시되며,
-   최초 로그인 시 이 배열이 자동으로 컬렉션에 씨딩됩니다. (loadQuotes() 참고) */
-let QUOTES = [
+const QUOTES = [
  {a:"찰스 스펄전", t:"기도는 방패요 힘이며, 하나님께 이르는 통로이자 원수를 막는 성벽이다."},
  {a:"찰스 스펄전", t:"작은 믿음이라도 그리스도를 붙잡으면 큰 믿음과 똑같이 구원에 이른다."},
  {a:"찰스 스펄전", t:"성경을 자주 읽지 않는 그리스도인은 힘없이 싸우는 군사와 같다."},
@@ -673,15 +661,13 @@ let state = {
   fellowship: [],
   prayers: [],
   timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
-  bibleText: {},
   gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
 };
 let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all",
-  bibleGroupOpen:{ot:true, nt:true}, bibleOpenBook:null, bibleActiveChapter:{}, bibleLoading:{}
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all"
 };
 let recognition = null;
 
@@ -698,14 +684,12 @@ async function loadAllFromFirestore(){
         fellowship: d.fellowship || [],
         prayers: d.prayers || [],
         timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
-        bibleText: {},
         gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
       };
     } else {
       // 최초 로그인: 기본 상태로 문서 생성
-      const { bibleText, ...seed } = state;
       await db.collection("users").doc(currentUser.uid).set({
-        email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...seed
+        email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...state
       });
     }
   }catch(e){ showToast("데이터를 불러오지 못했어요. 네트워크를 확인해 주세요."); }
@@ -717,88 +701,16 @@ async function persist(prop){
   }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
 }
 
-/* =========================================================
-   성경 본문 (66권 · 책 단위 서브컬렉션으로 지연 로딩)
-   문서 하나(users/{uid})에 성경 전체를 다 담으면 Firestore 문서
-   용량 제한(1MB)에 걸릴 수 있어, 책마다 별도 문서
-   users/{uid}/bibleText/{책이름} 에 나눠 저장합니다.
-   ========================================================= */
-async function loadBookText(bookName){
-  if(!currentUser) return;
-  try{
-    const doc = await db.collection("users").doc(currentUser.uid)
-      .collection("bibleText").doc(bookName).get();
-    state.bibleText[bookName] = doc.exists ? (doc.data().chapters || {}) : {};
-  }catch(e){
-    state.bibleText[bookName] = state.bibleText[bookName] || {};
-    showToast("본문을 불러오지 못했어요. 네트워크를 확인해 주세요.");
-  }
-}
-async function saveBookText(bookName){
-  if(!currentUser) return;
-  await db.collection("users").doc(currentUser.uid)
-    .collection("bibleText").doc(bookName)
-    .set({chapters: state.bibleText[bookName] || {}}, {merge:true});
-}
-async function migrateTimothyTextIfNeeded(){
-  const hasOldText = Object.values(state.timothyText||{}).some(v=>v && v.trim());
-  if(!hasOldText) return;
-  try{
-    const doc = await db.collection("users").doc(currentUser.uid)
-      .collection("bibleText").doc("디모데전서").get();
-    if(!doc.exists){
-      await db.collection("users").doc(currentUser.uid)
-        .collection("bibleText").doc("디모데전서")
-        .set({chapters: state.timothyText});
-    }
-  }catch(e){ /* 마이그레이션 실패 시 조용히 건너뜀 — 기존 화면(구버전 필드)은 그대로 남아있음 */ }
-}
-
-/* =========================================================
-   영적 명언 (전 회원 공용 · Firestore "quotes" 컬렉션)
-   ========================================================= */
-async function loadQuotes(){
-  try{
-    const snap = await db.collection("quotes").orderBy("createdAt","asc").get();
-    if(snap.empty){
-      // 최초 실행: 하드코딩 시드를 공용 컬렉션에 한 번만 저장
-      const batch = db.batch();
-      QUOTES.forEach(q=>{
-        const ref = db.collection("quotes").doc();
-        batch.set(ref, {text:q.t, author:q.a, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-      });
-      await batch.commit();
-      const snap2 = await db.collection("quotes").orderBy("createdAt","asc").get();
-      QUOTES = snap2.docs.map(d=>({id:d.id, t:d.data().text, a:d.data().author}));
-    } else {
-      QUOTES = snap.docs.map(d=>({id:d.id, t:d.data().text, a:d.data().author}));
-    }
-  }catch(e){
-    // 오프라인 등으로 실패하면 기존 시드 배열을 그대로 사용
-  }
-}
-async function addQuote(text, author){
-  await db.collection("quotes").add({
-    text, author, createdAt:firebase.firestore.FieldValue.serverTimestamp(), createdBy: currentUser.email
-  });
-  await loadQuotes();
-}
-async function deleteQuote(id){
-  await db.collection("quotes").doc(id).delete();
-  await loadQuotes();
-}
-
 /* ---------- 데이터 내보내기 / 가져오기 / 초기화 / 계정 삭제 ---------- */
 function exportData(){
-  const { bibleText, ...backupState } = state;
-  const payload = { exportedAt: new Date().toISOString(), email: currentUser?.email, ...backupState };
+  const payload = { exportedAt: new Date().toISOString(), email: currentUser?.email, ...state };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = `등불_백업_${dstr(TODAY)}.json`;
+  a.href = url; a.download = `라이프플래너_백업_${dstr(TODAY)}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
-  showToast("데이터를 내보냈어요. (66권 성경 본문은 용량이 커서 이 백업에 포함되지 않아요)");
+  showToast("데이터를 내보냈어요.");
 }
 async function importDataFromFile(file){
   try{
@@ -811,29 +723,20 @@ async function importDataFromFile(file){
       fellowship: d.fellowship || [],
       prayers: d.prayers || [],
       timothyText: d.timothyText || {1:"",2:"",3:"",4:"",5:"",6:""},
-      bibleText: {},
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
-    showToast("데이터를 가져왔어요. (66권 성경 본문은 이 백업에 포함되지 않았어요)");
+    showToast("데이터를 가져왔어요.");
     renderAll();
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
 }
 async function resetAllData(){
-  const resetState = {
+  state = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
     dailyEntries: {}, fellowship: [], prayers: [], timothyText: {1:"",2:"",3:"",4:"",5:"",6:""},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
-  state = { ...resetState, bibleText: {} };
-  await db.collection("users").doc(currentUser.uid).set(resetState, {merge:true});
-  try{
-    const snap = await db.collection("users").doc(currentUser.uid).collection("bibleText").get();
-    const batch = db.batch();
-    snap.docs.forEach(d=>batch.delete(d.ref));
-    await batch.commit();
-  }catch(e){ /* 성경 본문 서브컬렉션 삭제 실패 시에도 나머지 초기화는 이미 반영됨 */ }
-  ui.bibleOpenBook = null; ui.bibleActiveChapter = {};
+  await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
   showToast("모든 데이터를 초기화했어요.");
   renderAll();
 }
@@ -887,7 +790,7 @@ const BADGES = [
  {id:"pr20", title:"기도의 사람", desc:"기도제목 20개 기록", icon:"🕊️", metric:"prayerCount", need:20},
  {id:"ans1", title:"응답의 첫 열매", desc:"기도응답 1회 기록", icon:"🌾", metric:"answeredCount", need:1},
  {id:"ans10", title:"신실하신 하나님", desc:"기도응답 10회 기록", icon:"⭐", metric:"answeredCount", need:10},
- {id:"pt500", title:"등불지기", desc:"누적 포인트 500P 달성", icon:"🕯️", metric:"points", need:500},
+ {id:"pt500", title:"말씀 지킴이", desc:"누적 포인트 500P 달성", icon:"🕯️", metric:"points", need:500},
  {id:"pt1500", title:"빛의 증인", desc:"누적 포인트 1500P 달성", icon:"💡", metric:"points", need:1500}
 ];
 function countMemorized(){
@@ -1083,7 +986,7 @@ function bindHome(){
   const sh = document.getElementById("shuffleQuote");
   if(sh) sh.addEventListener("click",(e)=>{ e.stopPropagation(); homeQuoteShift = Math.floor(Math.random()*1000); renderAll(); });
   const gj = document.getElementById("goJournalToday");
-  if(gj) gj.addEventListener("click",()=>{ ui.tab="journal"; renderAll(); openDailyModal(dstr(TODAY)); });
+  if(gj) gj.addEventListener("click",()=>{ ui.tab="journal"; renderAll(); openQtModal(dstr(TODAY)); });
   const gc = document.getElementById("goCalendar");
   if(gc) gc.addEventListener("click",()=>{ ui.tab="calendar"; renderAll(); });
   const gf = document.getElementById("goFellowship");
@@ -1096,116 +999,31 @@ function bindHome(){
    성경 본문 (저작권 안내 + 사용자 입력형 본문 저장)
    ========================================================= */
 function renderBible(){
-  const groups = [
-    { id:"ot", label:"구약", sub:"39권", books:BOOKS },
-    { id:"nt", label:"신약", sub:"27권", books:NT_BOOKS }
-  ];
+  const chapters = [1,2,3,4,5,6];
   return `
   <div class="card">
-    <div class="section-title">📖 성경 본문 — 나만의 통본문 보관함</div>
-    <p class="section-desc">경건의 훈련을 다루는 목회서신뿐 아니라, 성경 66권 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다. 책을 펼쳐 원하는 장을 고른 뒤 본문을 붙여넣어 저장해 보세요.</p>
+    <div class="section-title">📖 디모데전서 — 경건 훈련의 핵심 본문</div>
+    <p class="section-desc">경건의 훈련을 다루는 목회서신, 디모데전서 전체를 이 곳에 담아 매일 곁에 두고 읽기 위한 공간입니다.</p>
     <div class="notice">
       <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
-      아래에서 책과 장을 펼쳐 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
+      아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
     </div>
-    <input type="text" id="bibleSearch" class="bible-search" placeholder="책 이름으로 찾기 (예: 시편, 로마서)">
-    <div id="bibleGroups">
-      ${groups.map(g=>`
-        <div class="bible-group">
-          <button class="bible-group-head" data-grp="${g.id}">
-            <span>${g.label} <span class="bg-sub">${g.sub}</span></span>
-            <span class="chev">${ui.bibleGroupOpen[g.id]?"▾":"▸"}</span>
-          </button>
-          <div class="bible-book-list" style="display:${ui.bibleGroupOpen[g.id]?"grid":"none"}">
-            ${g.books.map(([name,chCount])=>renderBookRow(name,chCount)).join("")}
-          </div>
-        </div>`).join("")}
-    </div>
-  </div>`;
-}
-function renderBookRow(name, chCount){
-  const isOpen = ui.bibleOpenBook === name;
-  const loaded = !!state.bibleText[name];
-  const doneCount = loaded ? Object.values(state.bibleText[name]).filter(t=>t && t.trim()).length : null;
-  return `
-  <div class="bible-book ${isOpen?"open":""}" data-bookname="${escapeAttr(name)}">
-    <button class="bible-book-head" data-book="${escapeAttr(name)}">
-      <span class="bb-name">${name}</span>
-      <span class="bb-meta">${loaded ? doneCount+" / "+chCount+"장" : chCount+"장"}</span>
-      <span class="chev">${isOpen?"▾":"▸"}</span>
-    </button>
-    ${isOpen ? renderBookBody(name, chCount) : ""}
-  </div>`;
-}
-function renderBookBody(name, chCount){
-  if(ui.bibleLoading[name]){
-    return `<div class="bible-book-body"><div class="empty">불러오는 중…</div></div>`;
-  }
-  const chapters = state.bibleText[name] || {};
-  const active = ui.bibleActiveChapter[name] || 1;
-  const chips = Array.from({length:chCount}, (_,i)=>i+1);
-  return `
-  <div class="bible-book-body">
-    <div class="bible-chip-row">
-      ${chips.map(c=>`<button class="bible-chip ${c===active?"active":""} ${chapters[c]&&chapters[c].trim()?"filled":""}" data-ch="${c}" data-book="${escapeAttr(name)}">${c}</button>`).join("")}
-    </div>
-    <div class="field" style="margin-top:10px;margin-bottom:0;">
-      <label>${name} ${active}장</label>
-      <textarea class="bible-chapter-ta" data-ch="${active}" placeholder="${active}장 본문을 붙여넣어 주세요…">${escapeHtml(chapters[active]||"")}</textarea>
-    </div>
-    <div style="margin-top:8px;text-align:right;">
-      <button class="btn gold small" data-savebook="${escapeAttr(name)}">이 장 저장하기</button>
-    </div>
+    <div id="chapterBlocks"></div>
+    <button class="btn gold" id="saveTimothy">본문 저장하기</button>
   </div>`;
 }
 function bindBible(){
-  const searchEl = document.getElementById("bibleSearch");
-  searchEl.addEventListener("input", ()=> filterBibleBooks(searchEl.value.trim()));
-
-  document.querySelectorAll("[data-grp]").forEach(b=>b.addEventListener("click",()=>{
-    ui.bibleGroupOpen[b.dataset.grp] = !ui.bibleGroupOpen[b.dataset.grp];
-    renderAll();
-  }));
-
-  document.querySelectorAll(".bible-book-head").forEach(b=>b.addEventListener("click", async ()=>{
-    const name = b.dataset.book;
-    if(ui.bibleOpenBook === name){ ui.bibleOpenBook = null; renderAll(); return; }
-    ui.bibleOpenBook = name;
-    if(!state.bibleText[name]){
-      ui.bibleLoading[name] = true;
-      renderAll();
-      await loadBookText(name);
-      ui.bibleLoading[name] = false;
-    }
-    renderAll();
-  }));
-
-  document.querySelectorAll(".bible-chip").forEach(b=>b.addEventListener("click",()=>{
-    ui.bibleActiveChapter[b.dataset.book] = Number(b.dataset.ch);
-    renderAll();
-  }));
-
-  document.querySelectorAll("[data-savebook]").forEach(b=>b.addEventListener("click", async ()=>{
-    const name = b.dataset.savebook;
-    const ta = document.querySelector(".bible-chapter-ta");
-    const ch = Number(ta.dataset.ch);
-    if(!state.bibleText[name]) state.bibleText[name] = {};
-    state.bibleText[name][ch] = ta.value;
-    try{
-      await saveBookText(name);
-      showToast(`${name} ${ch}장을 저장했어요.`);
-    }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
-    renderAll();
-  }));
-}
-function filterBibleBooks(term){
-  document.querySelectorAll(".bible-book").forEach(el=>{
-    const name = el.dataset.bookname || "";
-    el.style.display = (!term || name.includes(term)) ? "" : "none";
-  });
-  document.querySelectorAll(".bible-group").forEach(g=>{
-    const anyVisible = [...g.querySelectorAll(".bible-book")].some(b=>b.style.display!=="none");
-    g.style.display = anyVisible ? "" : "none";
+  const wrap = document.getElementById("chapterBlocks");
+  if(!wrap) return;
+  wrap.innerHTML = [1,2,3,4,5,6].map(c=>`
+    <div class="chapter-block">
+      <h4>디모데전서 ${c}장</h4>
+      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${state.timothyText[c]||""}</textarea>
+    </div>`).join("");
+  document.getElementById("saveTimothy").addEventListener("click",()=>{
+    wrap.querySelectorAll("textarea").forEach(t=>{ state.timothyText[t.dataset.ch]=t.value; });
+    persist("timothyText");
+    showToast("본문을 저장했어요.");
   });
 }
 
@@ -1291,10 +1109,6 @@ function renderMemory(){
       ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
     </div>
     <p style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px;">${cat.desc}</p>
-    <div class="field">
-      <label style="font-size:13.5px;color:var(--gold);">✦ 제목 <span style="font-weight:400;color:var(--ink-soft);">— 이 구절을 대표하는 한 줄 제목</span></label>
-      <input type="text" id="newTitle" placeholder="예: 하나님의 사랑 / 구원의 확신" style="font-weight:700;">
-    </div>
     <div class="grid" style="grid-template-columns:1fr auto;gap:8px;align-items:end;">
       <div class="field" style="margin-bottom:0;">
         <label>구절 참조 (예: 요한복음 3:16)</label>
@@ -1323,12 +1137,10 @@ function bindMemory(){
     ui.memTab=b.dataset.mc; renderAll();
   }));
   document.getElementById("addCardBtn").addEventListener("click",()=>{
-    const title=document.getElementById("newTitle").value.trim();
     const ref=document.getElementById("newRef").value.trim();
     const text=document.getElementById("newText").value.trim();
-    if(!title){ showToast("제목을 입력해 주세요."); return; }
     if(!ref){ showToast("구절 참조를 입력해 주세요."); return; }
-    state.memoryCards[ui.memTab].push({id:uid(), title, ref, text, memorized:false, added:dstr(TODAY)});
+    state.memoryCards[ui.memTab].push({id:uid(), ref, text, memorized:false, added:dstr(TODAY)});
     persist("memoryCards");
     showToast("암송카드를 추가했어요.");
     renderAll();
@@ -1346,8 +1158,7 @@ function renderMemList(){
   list.innerHTML = cards.map(c=>`
     <div class="mem-item ${c.memorized?"mem-done":""}">
       <div>
-        <div class="mi-title">${escapeHtml(c.title||"(제목 없음)")} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
-        <div class="mi-ref">${c.ref}</div>
+        <div class="mi-ref">${c.ref} ${c.memorized?'<span class="badge">암송완료</span>':""}</div>
         ${c.text?`<div class="mi-text">${escapeHtml(c.text)}</div>`:""}
       </div>
       <div class="mem-actions">
@@ -1392,12 +1203,10 @@ function renderTestArea(){
       <div class="flip-zone">
         <div class="flip-card ${ui.testFlipped?"flipped":""}" id="testFlipCard">
           <div class="flip-face flip-front">
-            <div class="card-title">${escapeHtml(card.title||"(제목 없음)")}</div>
             <div class="card-ref">${card.ref}</div>
             <div class="flip-hint">눌러서 정답 확인</div>
           </div>
           <div class="flip-face flip-back">
-            <div class="card-title">${escapeHtml(card.title||"(제목 없음)")}</div>
             <div class="card-text">${card.text?escapeHtml(card.text):"(등록된 본문이 없어요)"}</div>
             <div class="flip-hint">다시 눌러 되돌리기</div>
           </div>
@@ -1683,7 +1492,7 @@ function bindCalendar(){
     </div>`;
   }
   grid.innerHTML = html;
-  grid.querySelectorAll("[data-date]").forEach(c=>c.addEventListener("click",()=>openDailyModal(c.dataset.date)));
+  grid.querySelectorAll("[data-date]").forEach(c=>c.addEventListener("click",()=>openDayModal(c.dataset.date)));
 
   document.querySelectorAll("[data-lm]").forEach(b=>b.addEventListener("click",()=>{ ui.listMode=b.dataset.lm; renderAll(); }));
   const lp = document.getElementById("listPrev"), ln = document.getElementById("listNext");
@@ -1707,6 +1516,7 @@ function renderEventItems(dateKey){
     <div class="todo-row">
       <span class="todo-time">${ev.time?escapeHtml(ev.time):""}</span>
       <span class="todo-title">${escapeHtml(ev.title)}</span>
+      <button class="icon-btn" data-editev="${ev.id}">✎</button>
       <button class="icon-btn" data-delev="${ev.id}">✕</button>
     </div>`).join("");
 }
@@ -1718,6 +1528,7 @@ function renderTodoItems(dateKey){
     return `<div class="todo-row">
       <button class="status-btn ${sm.cls}" data-cyc="${t.id}">${sm.icon} ${sm.label}</button>
       <span class="todo-title ${t.status==="done"?"todo-done-text":""}">${escapeHtml(t.title)}</span>
+      <button class="icon-btn" data-edittd="${t.id}">✎</button>
       <button class="icon-btn" data-deltd="${t.id}">✕</button>
     </div>`;
   }).join("");
@@ -1736,6 +1547,8 @@ function bindEventTodoLists(dateKey){
     persist("dailyEntries");
     refreshEventTodoLists(dateKey);
   }));
+  document.querySelectorAll("[data-editev]").forEach(b=>b.addEventListener("click",()=> openEventModal(dateKey, b.dataset.editev)));
+  document.querySelectorAll("[data-edittd]").forEach(b=>b.addEventListener("click",()=> openTodoModal(dateKey, b.dataset.edittd)));
   document.querySelectorAll("[data-cyc]").forEach(b=>b.addEventListener("click",()=>{
     const before = snapshotGamify();
     const e = ensureEntry(dateKey);
@@ -1752,56 +1565,140 @@ function bindEventTodoLists(dateKey){
     refreshEventTodoLists(dateKey);
   }));
 }
-function openDailyModal(dateKey){
+
+/* ---------- 날짜별 개요 모달: 일정 / 할 일 / QT·묵상 / 교제를 각각 독립된 모달로 분리 ---------- */
+function openDayModal(dateKey){
+  const e = ensureEntry(dateKey);
+  const hasQt = e.qt || e.verse || e.prayer || e.grace || e.application || e.thanks;
+  const qtSummary = [e.qt, e.verse].filter(Boolean).join(" · ");
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>${fmtDateKor(dateKey)}</h3><button class="close-x" id="modalClose">✕</button></div>
+
+    <div class="day-section">
+      <div class="day-section-head">
+        <div class="subsection-title" style="margin:0;">🗓️ 일정</div>
+        <button class="btn gold small" id="openAddEvent">+ 일정 추가</button>
+      </div>
+      <div id="eventList">${renderEventItems(dateKey)}</div>
+    </div>
+
+    <div class="day-section">
+      <div class="day-section-head">
+        <div class="subsection-title" style="margin:0;">✅ 할 일</div>
+        <button class="btn gold small" id="openAddTodo">+ 할 일 추가</button>
+      </div>
+      <div id="todoList">${renderTodoItems(dateKey)}</div>
+    </div>
+
+    <div class="day-section">
+      <div class="day-section-head">
+        <div class="subsection-title" style="margin:0;">📝 QT·묵상</div>
+        <button class="btn outline small" id="openQt">${hasQt?"편집":"기록하기"}</button>
+      </div>
+      ${hasQt
+        ? `<div class="empty" style="text-align:left;padding:10px;font-size:12.5px;line-height:1.6;">${qtSummary?escapeHtml(qtSummary):""}${e.grace?`<br>받은 은혜: ${escapeHtml(e.grace.length>44?e.grace.slice(0,44)+"…":e.grace)}`:""}</div>`
+        : `<div class="empty" style="padding:10px;font-size:12px;">아직 기록이 없어요.</div>`}
+    </div>
+
+    <div class="day-section" style="border-bottom:none;">
+      <div class="day-section-head">
+        <div class="subsection-title" style="margin:0;">🤝 교제 약속</div>
+        <button class="btn outline small" id="openFel">+ 추가</button>
+      </div>
+      <div class="empty" style="padding:10px;font-size:12px;">등록된 교제 약속은 '교제노트' 탭에서 모아 볼 수 있어요.</div>
+    </div>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  bindEventTodoLists(dateKey);
+  document.getElementById("openAddEvent").addEventListener("click", ()=> openEventModal(dateKey));
+  document.getElementById("openAddTodo").addEventListener("click", ()=> openTodoModal(dateKey));
+  document.getElementById("openQt").addEventListener("click", ()=> openQtModal(dateKey));
+  document.getElementById("openFel").addEventListener("click", ()=> openFellowshipModal(null, dateKey));
+}
+
+/* ---------- 일정 추가/편집 전용 모달 (다른 항목과 섞이지 않음) ---------- */
+function openEventModal(dateKey, eventId){
+  const entry = ensureEntry(dateKey);
+  const existing = eventId ? entry.events.find(x=>x.id===eventId) : null;
+  const ev = existing || {id:uid(), time:"", title:""};
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>🗓️ 일정 ${existing?"편집":"추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="text" value="${fmtDateKor(dateKey)}" disabled></div>
+    <div class="field"><label>시간 (선택)</label><input type="time" id="ev_time" value="${ev.time||""}"></div>
+    <div class="field"><label>일정 제목</label><input type="text" id="ev_title" value="${escapeAttr(ev.title)}" placeholder="예: 청년부 예배"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn gold" id="saveEvent" style="flex:1;">저장하기</button>
+      <button class="btn ghost" id="backToDay">‹ 뒤로</button>
+    </div>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("backToDay").addEventListener("click", ()=> openDayModal(dateKey));
+  document.getElementById("saveEvent").addEventListener("click",()=>{
+    const title = document.getElementById("ev_title").value.trim();
+    if(!title){ showToast("일정 제목을 입력해 주세요."); return; }
+    const time = document.getElementById("ev_time").value;
+    if(existing){ existing.time = time; existing.title = title; }
+    else entry.events.push({id:ev.id, time, title});
+    persist("dailyEntries");
+    showToast("일정을 저장했어요.");
+    openDayModal(dateKey);
+  });
+}
+
+/* ---------- 할 일 추가/편집 전용 모달 (다른 항목과 섞이지 않음) ---------- */
+function openTodoModal(dateKey, todoId){
+  const entry = ensureEntry(dateKey);
+  const existing = todoId ? entry.todos.find(x=>x.id===todoId) : null;
+  const td = existing || {id:uid(), title:"", status:"todo"};
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>✅ 할 일 ${existing?"편집":"추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="text" value="${fmtDateKor(dateKey)}" disabled></div>
+    <div class="field"><label>할 일</label><input type="text" id="td_title" value="${escapeAttr(td.title)}" placeholder="할 일을 입력하세요"></div>
+    ${existing?`<div class="field"><label>상태</label>
+      <div class="ebook-checks">
+        <label><input type="radio" name="td_status" value="todo" ${td.status==="todo"?"checked":""}> 대기</label>
+        <label><input type="radio" name="td_status" value="doing" ${td.status==="doing"?"checked":""}> 진행 중</label>
+        <label><input type="radio" name="td_status" value="done" ${td.status==="done"?"checked":""}> 완료</label>
+      </div></div>`:""}
+    <div style="display:flex;gap:8px;">
+      <button class="btn gold" id="saveTodo" style="flex:1;">저장하기</button>
+      <button class="btn ghost" id="backToDay">‹ 뒤로</button>
+    </div>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("backToDay").addEventListener("click", ()=> openDayModal(dateKey));
+  document.getElementById("saveTodo").addEventListener("click",()=>{
+    const title = document.getElementById("td_title").value.trim();
+    if(!title){ showToast("할 일을 입력해 주세요."); return; }
+    const before = snapshotGamify();
+    if(existing){
+      existing.title = title;
+      const statusEl = document.querySelector('input[name="td_status"]:checked');
+      if(statusEl) existing.status = statusEl.value;
+    } else {
+      entry.todos.push({id:td.id, title, status:"todo"});
+    }
+    persist("dailyEntries");
+    showToast("할 일을 저장했어요.");
+    openDayModal(dateKey);
+    announceGamify(before);
+  });
+}
+
+/* ---------- QT·묵상 전용 모달 (일정/할일과 섞이지 않음) ---------- */
+function openQtModal(dateKey){
   const entry = ensureEntry(dateKey);
   document.getElementById("modalBody").innerHTML = `
-    <div class="modal-head"><h3>${fmtDateKor(dateKey)} · 일일 경건 스케줄</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="modal-head"><h3>📝 ${fmtDateKor(dateKey)} · QT·묵상</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
     <div class="field"><label>기도제목</label><textarea id="m_prayer" placeholder="오늘의 기도제목">${entry.prayer||""}</textarea></div>
-
-    <div class="subsection-title">🗓️ 일정</div>
-    <div id="eventList">${renderEventItems(dateKey)}</div>
-    <div class="mini-add-row">
-      <input type="time" id="ev_time">
-      <input type="text" id="ev_title" placeholder="일정 제목 (예: 청년부 예배)">
-      <button class="btn gold small" id="addEventBtn">추가</button>
-    </div>
-
-    <div class="subsection-title">✅ 할 일</div>
-    <div id="todoList">${renderTodoItems(dateKey)}</div>
-    <div class="mini-add-row">
-      <input type="text" id="td_title" placeholder="할 일 입력">
-      <button class="btn gold small" id="addTodoBtn">추가</button>
-    </div>
-
-    <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
     <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜">${entry.grace||""}</textarea></div>
     <div class="field"><label>삶의 적용</label><textarea id="m_app" placeholder="오늘 실천할 적용점">${entry.application||""}</textarea></div>
     <div class="field"><label>감사 제목</label><textarea id="m_thanks" placeholder="오늘의 감사">${entry.thanks||""}</textarea></div>
     <button class="btn gold" id="saveDaily">저장하기</button>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
-  bindEventTodoLists(dateKey);
-  document.getElementById("addEventBtn").addEventListener("click",()=>{
-    const time = document.getElementById("ev_time").value;
-    const title = document.getElementById("ev_title").value.trim();
-    if(!title){ showToast("일정 제목을 입력해 주세요."); return; }
-    const e = ensureEntry(dateKey);
-    e.events.push({id:uid(), time, title});
-    persist("dailyEntries");
-    document.getElementById("ev_time").value=""; document.getElementById("ev_title").value="";
-    refreshEventTodoLists(dateKey);
-  });
-  document.getElementById("addTodoBtn").addEventListener("click",()=>{
-    const title = document.getElementById("td_title").value.trim();
-    if(!title){ showToast("할 일을 입력해 주세요."); return; }
-    const e = ensureEntry(dateKey);
-    e.todos.push({id:uid(), title, status:"todo"});
-    persist("dailyEntries");
-    document.getElementById("td_title").value="";
-    refreshEventTodoLists(dateKey);
-  });
   document.getElementById("saveDaily").addEventListener("click",()=>{
     const before = snapshotGamify();
     const existing = ensureEntry(dateKey);
@@ -1851,8 +1748,8 @@ function renderJournal(){
   </div>`;
 }
 function bindJournal(){
-  document.getElementById("newJournalBtn").addEventListener("click",()=>openDailyModal(dstr(TODAY)));
-  document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openDailyModal(b.dataset.edit); }));
+  document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(dstr(TODAY)));
+  document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openQtModal(b.dataset.edit); }));
 }
 
 /* =========================================================
@@ -1988,9 +1885,9 @@ function bindFellowship(){
     persist("fellowship"); renderAll();
   }));
 }
-function openFellowshipModal(id){
+function openFellowshipModal(id, presetDate){
   const existing = id ? state.fellowship.find(f=>f.id===id) : null;
-  const f = existing || {id:uid(), date:dstr(TODAY), person:"", place:"", content:"", lessons:""};
+  const f = existing || {id:uid(), date: presetDate || dstr(TODAY), person:"", place:"", content:"", lessons:""};
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>${existing?"교제 약속 편집":"교제 약속 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>날짜</label><input type="date" id="f_date" value="${f.date||""}"></div>
@@ -2157,7 +2054,7 @@ function makeBookletNode(className, innerHtml){
 }
 function makeCoverNode(opts, jCount, fCount, pCount){
   return makeBookletNode("booklet-cover", `
-    <div style="font-size:13px;letter-spacing:3px;color:#CBB88A;text-transform:uppercase;">등불 · 경건훈련 플래너</div>
+    <div style="font-size:13px;letter-spacing:3px;color:#CBB88A;text-transform:uppercase;">라이프플래너 · 경건에 이르는 훈련</div>
     <h1>${escapeHtml(opts.title||"은혜의 기록")}</h1>
     ${opts.subtitle?`<div class="sub">${escapeHtml(opts.subtitle)}</div>`:""}
     <div class="sub" style="margin-top:30px;">${fmtDateKor(dstr(TODAY))} 엮음</div>
@@ -2293,18 +2190,15 @@ function renderBadges(){
    추천 상품 (쿠팡 파트너스)
    ⚠️ 관리자 안내: 아래 COUPANG_PRODUCTS 배열은 예시입니다.
    partners.coupang.com 에서 발급받은 실제 파트너스 링크로 name/note/price/link를 교체해 주세요.
-   img에는 쿠팡 파트너스 "이미지형 링크 만들기"에서 함께 발급되는 상품 이미지 URL을
-   붙여넣으면 썸네일로 표시됩니다 (직접 상품 페이지를 스크래핑해 자동으로 가져올 수는
-   없어서, 링크 만들 때 같이 나오는 이미지 주소를 복사해 넣는 방식입니다).
    쿠팡 파트너스 정책상 고지문구(coupang-disclosure)는 반드시 유지해야 합니다.
    ========================================================= */
 const COUPANG_PRODUCTS = [
-  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:"", img:""},
-  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:"", img:""},
-  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:"", img:""},
-  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:"", img:""},
-  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:"", img:""},
-  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:"", img:""}
+  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:""},
+  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:""},
+  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:""},
+  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:""},
+  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:""},
+  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:""}
 ];
 function renderShop(){
   return `
@@ -2315,9 +2209,6 @@ function renderShop(){
     <div class="product-grid">
       ${COUPANG_PRODUCTS.map(p=>`
         <div class="product-card">
-          <div class="product-thumb">
-            ${p.img ? `<img src="${p.img}" alt="${escapeHtml(p.name)}" loading="lazy">` : `<span class="ph-icon">🖼️</span>`}
-          </div>
           <div class="product-name">${escapeHtml(p.name)}</div>
           <div class="product-note">${escapeHtml(p.note)}</div>
           ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
@@ -2387,60 +2278,12 @@ function bindAccount(){
 function renderQuotes(){
   return `
   <div class="card">
-    <div class="section-title">🕯️ 영적 명언 모음 ${isAdmin()?'<span class="admin-tag">관리자</span>':""}</div>
+    <div class="section-title">🕯️ 영적 명언 모음</div>
     <p class="section-desc">신앙의 선진들이 남긴 짧은 말씀을 카드로 만나보세요. 홈 화면에는 매일 다른 명언이 랜덤으로 나타나요.</p>
-    ${isAdmin() ? `
-    <div class="grid grid-2" style="align-items:end;margin-bottom:16px;">
-      <div class="field" style="margin-bottom:0;">
-        <label>명언 본문</label>
-        <textarea id="newQuoteText" placeholder="명언 본문을 입력하세요" style="min-height:44px;"></textarea>
-      </div>
-      <div style="display:flex;gap:8px;align-items:end;">
-        <div class="field" style="margin-bottom:0;flex:1;">
-          <label>출처 / 인물</label>
-          <input type="text" id="newQuoteAuthor" placeholder="예: 찰스 스펄전">
-        </div>
-        <button class="btn gold" id="addQuoteBtn">추가</button>
-      </div>
-    </div>` : ``}
-    <div class="quote-grid" id="quoteGrid"></div>
+    <div class="quote-grid">
+      ${QUOTES.map(q=>`<div class="quote-card"><p>"${q.t}"</p><span>— ${q.a}</span></div>`).join("")}
+    </div>
   </div>`;
-}
-function bindQuotes(){
-  renderQuoteGrid();
-  if(!isAdmin()) return;
-  document.getElementById("addQuoteBtn").addEventListener("click", async ()=>{
-    const text = document.getElementById("newQuoteText").value.trim();
-    const author = document.getElementById("newQuoteAuthor").value.trim();
-    if(!text || !author){ showToast("명언 본문과 출처를 모두 입력해 주세요."); return; }
-    try{
-      await addQuote(text, author);
-      showToast("명언을 추가했어요. 모든 회원 화면에 반영돼요.");
-      renderQuoteGrid();
-      document.getElementById("newQuoteText").value="";
-      document.getElementById("newQuoteAuthor").value="";
-    }catch(e){ showToast("추가에 실패했어요. 잠시 후 다시 시도해 주세요."); }
-  });
-}
-function renderQuoteGrid(){
-  const grid = document.getElementById("quoteGrid");
-  if(!grid) return;
-  if(!QUOTES.length){ grid.innerHTML = `<div class="empty">등록된 명언이 없어요.</div>`; return; }
-  grid.innerHTML = QUOTES.map(q=>`
-    <div class="quote-card">
-      <p>"${escapeHtml(q.t)}"</p>
-      <span>— ${escapeHtml(q.a)}</span>
-      ${isAdmin() && q.id ? `<button class="icon-btn quote-del" data-qid="${q.id}" title="삭제">✕</button>` : ``}
-    </div>`).join("");
-  if(!isAdmin()) return;
-  grid.querySelectorAll("[data-qid]").forEach(b=>b.addEventListener("click", async ()=>{
-    if(!confirm("이 명언을 삭제할까요? 모든 회원 화면에서 사라져요.")) return;
-    try{
-      await deleteQuote(b.dataset.qid);
-      showToast("명언을 삭제했어요.");
-      renderQuoteGrid();
-    }catch(e){ showToast("삭제에 실패했어요."); }
-  }));
 }
 
 /* =========================================================
@@ -2477,7 +2320,6 @@ function renderAll(){
     case "prayer": bindPrayer(); break;
     case "fellowship": bindFellowship(); break;
     case "ebook": bindEbook(); break;
-    case "quotes": bindQuotes(); break;
     case "account": bindAccount(); break;
   }
 }
@@ -2549,8 +2391,6 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("authScreen").style.display = "none";
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
-    await loadQuotes();
-    await migrateTimothyTextIfNeeded();
     renderAll();
   } else {
     currentUser = null;

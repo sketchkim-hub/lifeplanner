@@ -1,4 +1,4 @@
-# 등불 — 경건훈련 플래너 배포 가이드
+# 라이프플래너 — 경건에 이르는 훈련 배포 가이드
 
 이 문서는 `index.html`(+ `manifest.json`, `sw.js`, `icons/`)로 만든 플래너를
 ① 실제 회원가입/데이터 저장이 되는 웹앱으로 배포하고, ② 안드로이드 앱(Play 스토어)으로
@@ -111,7 +111,7 @@ bubblewrap build
 ### 방법 C. Capacitor (네이티브 기능을 더 붙이고 싶을 때)
 ```bash
 npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init "등불" com.tjcar.deungbul
+npx cap init "라이프플래너" com.tjcar.deungbul
 npx cap add android
 npx cap open android   # Android Studio가 열립니다
 ```
