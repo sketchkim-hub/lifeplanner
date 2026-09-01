@@ -131,6 +131,14 @@ input,textarea,select{font-family:inherit;}
 
 .field{margin-bottom:12px;}
 .field label{display:block;font-size:12.5px;font-weight:600;color:var(--navy-soft);margin-bottom:5px;}
+.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;}
+.field-label-row label{margin-bottom:0;}
+.mic-btn{
+  flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:4px 11px;
+  font-size:11.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;
+}
+.mic-btn:disabled{opacity:.65;cursor:default;color:var(--brick);}
+.mic-btn .rec-dot{background:var(--brick);}
 .field input,.field textarea,.field select{
   width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;
   font-size:13.5px;background:#fffef9;color:var(--ink);
@@ -395,7 +403,9 @@ input,textarea,select{font-family:inherit;}
 
 /* ---------- Journal list ---------- */
 .journal-entry{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 18px;margin-bottom:12px;}
-.journal-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:14.5px;margin-bottom:8px;}
+.journal-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:14.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.journal-date span{min-width:0;overflow-wrap:break-word;}
+.journal-date button{flex:none;white-space:nowrap;}
 .journal-row{margin-bottom:8px;}
 .journal-row .jr-label{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
 .journal-row .jr-val{font-size:13.5px;line-height:1.65;white-space:pre-wrap;color:var(--ink);}
@@ -893,7 +903,7 @@ function countMemorized(){
   return Object.values(state.memoryCards).reduce((s,arr)=>s+arr.filter(c=>c.memorized).length,0);
 }
 function countJournalEntries(){
-  return Object.values(state.dailyEntries).filter(e=>e.grace||e.application||e.thanks).length;
+  return Object.values(state.dailyEntries).filter(e=>e.grace||e.application||e.thanks||e.prayer).length;
 }
 function countFellowshipLessons(){
   return state.fellowship.filter(f=>f.lessons && f.lessons.trim()).length;
@@ -2004,6 +2014,68 @@ function openTodoModal(dateKey, todoId){
 }
 
 /* ---------- QT·묵상 전용 모달 (일정/할일과 섞이지 않음) ---------- */
+function syncJournalPrayer(dateKey, entry, prayerText){
+  const text = (prayerText||"").trim();
+  if(!text) return; // 비워두면 자동 동기화하지 않고, 기존에 연결된 기도노트 항목은 그대로 둬요
+  if(entry.linkedPrayerId){
+    const existing = state.prayers.find(p=>p.id===entry.linkedPrayerId);
+    if(existing){
+      existing.title = text;
+      existing.date = dateKey;
+      persist("prayers");
+      return;
+    }
+  }
+  const id = uid();
+  state.prayers.push({id, date:dateKey, title:text, request:"", prayerText:"", status:"praying", answer:"", answeredDate:""});
+  entry.linkedPrayerId = id;
+  persist("prayers");
+}
+/* ---------- 텍스트 입력칸용 일반 음성 입력 (묵상노트 등) ----------
+   성경암송 음성 테스트와 달리 연속 인식·자동 재시작을 하지 않는 단발 인식이라
+   안드로이드에서 문장이 중복 반복되는 문제가 구조적으로 발생하지 않아요. */
+function startFieldVoiceInput(btn, textareaId){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ showToast("이 브라우저는 음성 인식을 지원하지 않아요. Chrome에서 열어주세요."); return; }
+  const ta = document.getElementById(textareaId);
+  if(!ta || btn.disabled) return;
+  const rec = new SR();
+  rec.lang = "ko-KR";
+  rec.continuous = false;
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  const origHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="rec-dot"></span>듣는 중…';
+  let gotResult = false;
+  rec.onresult = (e)=>{
+    let added = "";
+    for(let i=0;i<e.results.length;i++){
+      if(e.results[i].isFinal) added += e.results[i][0].transcript;
+    }
+    added = added.trim();
+    if(added){
+      gotResult = true;
+      const cur = ta.value;
+      const sep = cur && !/[\s\n]$/.test(cur) ? " " : "";
+      ta.value = cur + sep + added;
+    }
+  };
+  rec.onerror = (e)=>{
+    if(e.error!=="no-speech" && e.error!=="aborted") showToast("음성 인식 오류: "+e.error);
+  };
+  rec.onend = ()=>{
+    btn.disabled = false;
+    btn.innerHTML = origHTML;
+    if(!gotResult) showToast("음성이 인식되지 않았어요. 다시 시도해 주세요.");
+  };
+  try{
+    rec.start();
+  }catch(err){
+    showToast("마이크를 사용할 수 없어요.");
+    btn.disabled = false; btn.innerHTML = origHTML;
+  }
+}
 function openQtModal(dateKey){
   const entry = ensureEntry(dateKey);
   document.getElementById("modalBody").innerHTML = `
@@ -2011,23 +2083,34 @@ function openQtModal(dateKey){
     <div class="field"><label>날짜</label><input type="date" id="m_date" value="${dateKey}"></div>
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
-    <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${entry.grace||""}</textarea></div>
-    <div class="field"><label>삶의 적용</label><textarea id="m_app" placeholder="오늘 실천할 적용점" style="min-height:140px;">${entry.application||""}</textarea></div>
-    <div class="field"><label>감사 제목</label><textarea id="m_thanks" placeholder="오늘의 감사">${entry.thanks||""}</textarea></div>
+    <div class="field">
+      <div class="field-label-row"><label>오늘 받은 은혜</label><button type="button" class="mic-btn" data-mic="m_grace">🎙️ 음성 입력</button></div>
+      <textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${entry.grace||""}</textarea>
+    </div>
+    <div class="field">
+      <div class="field-label-row"><label>삶의 적용</label><button type="button" class="mic-btn" data-mic="m_app">🎙️ 음성 입력</button></div>
+      <textarea id="m_app" placeholder="오늘 실천할 적용점" style="min-height:140px;">${entry.application||""}</textarea>
+    </div>
+    <div class="field">
+      <div class="field-label-row"><label>기도제목</label><button type="button" class="mic-btn" data-mic="m_prayer">🎙️ 음성 입력</button></div>
+      <textarea id="m_prayer" placeholder="오늘의 기도제목 (저장하면 기도노트에도 자동으로 추가돼요)">${entry.prayer||""}</textarea>
+    </div>
     <button class="btn gold" id="saveDaily">저장하기</button>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveDaily").addEventListener("click",()=>{
     const newDate = document.getElementById("m_date").value;
     if(!newDate){ showToast("날짜를 선택해 주세요."); return; }
     const existing = ensureEntry(dateKey);
+    const prayerText = document.getElementById("m_prayer").value;
     const updated = {
       ...existing,
       qt: document.getElementById("m_qt").value,
       verse: document.getElementById("m_verse").value,
       grace: document.getElementById("m_grace").value,
       application: document.getElementById("m_app").value,
-      thanks: document.getElementById("m_thanks").value
+      prayer: prayerText
     };
     if(newDate!==dateKey){
       const target = state.dailyEntries[newDate];
@@ -2039,6 +2122,7 @@ function openQtModal(dateKey){
     }
     const before = snapshotGamify();
     state.dailyEntries[newDate] = updated;
+    syncJournalPrayer(newDate, updated, prayerText);
     persist("dailyEntries");
     closeModal(); renderAll();
     announceGamify(before, "일일 기록을 저장했어요.");
@@ -2066,7 +2150,7 @@ function renderJournal(){
   <div id="journalList">
     ${entries.length? entries.map(([date,e])=>`
       <div class="journal-entry">
-        <div class="journal-date">${fmtDateKor(date)} <button class="icon-btn" data-edit="${date}" style="float:right;">편집</button></div>
+        <div class="journal-date"><span>${fmtDateKor(date)}</span><button class="btn ghost small" data-edit="${date}">편집</button></div>
         ${e.qt||e.verse?`<div class="journal-row"><div class="jr-label">QT / 암송</div><div class="jr-val">${[e.qt,e.verse].filter(Boolean).join(" · ")}</div></div>`:""}
         ${e.grace?`<div class="journal-row"><div class="jr-label">받은 은혜</div><div class="jr-val">${escapeHtml(e.grace)}</div></div>`:""}
         ${e.application?`<div class="journal-row"><div class="jr-label">삶의 적용</div><div class="jr-val">${escapeHtml(e.application)}</div></div>`:""}
@@ -2138,8 +2222,14 @@ function openPrayerModal(id){
     <div class="modal-head"><h3>${existing?"기도노트 편집":"기도제목 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>날짜</label><input type="date" id="p_date" value="${p.date||""}"></div>
     <div class="field"><label>기도제목</label><input type="text" id="p_title" value="${escapeAttr(p.title)}" placeholder="예: 가족의 건강을 위하여"></div>
-    <div class="field"><label>기도 내용 (선택)</label><textarea id="p_request" placeholder="구체적인 기도 배경이나 내용을 적어보세요">${p.request||""}</textarea></div>
-    <div class="field"><label>기도문 (자유롭게 작성)</label><textarea id="p_prayertext" placeholder="하나님께 올려드리는 기도를 자유롭게 적어보세요" style="min-height:130px;">${p.prayerText||""}</textarea></div>
+    <div class="field">
+      <div class="field-label-row"><label>기도 내용 (선택)</label><button type="button" class="mic-btn" data-mic="p_request">🎙️ 음성 입력</button></div>
+      <textarea id="p_request" placeholder="구체적인 기도 배경이나 내용을 적어보세요">${p.request||""}</textarea>
+    </div>
+    <div class="field">
+      <div class="field-label-row"><label>기도문 (자유롭게 작성)</label><button type="button" class="mic-btn" data-mic="p_prayertext">🎙️ 음성 입력</button></div>
+      <textarea id="p_prayertext" placeholder="하나님께 올려드리는 기도를 자유롭게 적어보세요" style="min-height:130px;">${p.prayerText||""}</textarea>
+    </div>
     <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
     <div class="field">
       <label>응답 여부</label>
@@ -2149,10 +2239,14 @@ function openPrayerModal(id){
       </div>
     </div>
     <div class="field"><label>응답 날짜</label><input type="date" id="p_answerdate" value="${p.answeredDate||""}"></div>
-    <div class="field"><label>기도 응답 내용</label><textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${p.answer||""}</textarea></div>
+    <div class="field">
+      <div class="field-label-row"><label>기도 응답 내용</label><button type="button" class="mic-btn" data-mic="p_answer">🎙️ 음성 입력</button></div>
+      <textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${p.answer||""}</textarea>
+    </div>
     <button class="btn gold" id="savePrayer">저장하기</button>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("savePrayer").addEventListener("click",()=>{
     const title = document.getElementById("p_title").value.trim();
     if(!title){ showToast("기도제목을 입력해 주세요."); return; }
@@ -2221,11 +2315,18 @@ function openFellowshipModal(id, presetDate){
     <div class="field"><label>날짜</label><input type="date" id="f_date" value="${f.date||""}"></div>
     <div class="field"><label>만난 사람 / 모임</label><input type="text" id="f_person" value="${escapeAttr(f.person)}" placeholder="예: 청년부 순모임"></div>
     <div class="field"><label>장소</label><input type="text" id="f_place" value="${escapeAttr(f.place)}" placeholder="예: 교회 카페"></div>
-    <div class="field"><label>나눈 내용</label><textarea id="f_content" placeholder="나눈 이야기, 기도제목 등">${f.content||""}</textarea></div>
-    <div class="field"><label>교제를 통해 배운 것</label><textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${f.lessons||""}</textarea></div>
+    <div class="field">
+      <div class="field-label-row"><label>나눈 내용</label><button type="button" class="mic-btn" data-mic="f_content">🎙️ 음성 입력</button></div>
+      <textarea id="f_content" placeholder="나눈 이야기, 기도제목 등">${f.content||""}</textarea>
+    </div>
+    <div class="field">
+      <div class="field-label-row"><label>교제를 통해 배운 것</label><button type="button" class="mic-btn" data-mic="f_lessons">🎙️ 음성 입력</button></div>
+      <textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${f.lessons||""}</textarea>
+    </div>
     <button class="btn gold" id="saveFel">저장하기</button>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveFel").addEventListener("click",()=>{
     const before = snapshotGamify();
     const record = {
@@ -2261,7 +2362,7 @@ function inRangeDate(dateKey, opts){
 }
 function getBookletEntries(opts){
   const journal = Object.entries(state.dailyEntries)
-    .filter(([k,v])=> (v.grace||v.application||v.thanks) && inRangeDate(k,opts))
+    .filter(([k,v])=> (v.grace||v.application||v.thanks||v.prayer) && inRangeDate(k,opts))
     .sort((a,b)=> a[0].localeCompare(b[0]));
   const fellowship = state.fellowship
     .filter(f=> f.lessons && f.lessons.trim() && f.date && inRangeDate(f.date,opts))
@@ -2384,6 +2485,7 @@ function journalEntryHTML(dateKey, e){
     ${e.grace?`<div class="booklet-row"><div class="br-label">받은 은혜</div><div class="br-val">${escapeHtml(e.grace)}</div></div>`:""}
     ${e.application?`<div class="booklet-row"><div class="br-label">삶의 적용</div><div class="br-val">${escapeHtml(e.application)}</div></div>`:""}
     ${e.thanks?`<div class="booklet-row"><div class="br-label">감사 제목</div><div class="br-val">${escapeHtml(e.thanks)}</div></div>`:""}
+    ${e.prayer?`<div class="booklet-row"><div class="br-label">기도제목</div><div class="br-val">${escapeHtml(e.prayer)}</div></div>`:""}
   `;
 }
 function fellowshipEntryHTML(f){
