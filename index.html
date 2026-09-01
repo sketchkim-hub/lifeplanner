@@ -751,6 +751,7 @@ let state = {
   prayers: [],
   bibleText: {},
   testLog: [],
+  settings: {tzOffsetMinutes: 540},
   gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
 };
 let ui = {
@@ -775,6 +776,7 @@ async function loadAllFromFirestore(){
         prayers: d.prayers || [],
         bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
         testLog: d.testLog || [],
+        settings: d.settings || {tzOffsetMinutes: 540},
         gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
       };
     } else {
@@ -815,6 +817,7 @@ async function importDataFromFile(file){
       prayers: d.prayers || [],
       bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
       testLog: d.testLog || [],
+      settings: d.settings || {tzOffsetMinutes: 540},
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
@@ -826,6 +829,7 @@ async function resetAllData(){
   state = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
     dailyEntries: {}, fellowship: [], prayers: [], bibleText: {}, testLog: [],
+    settings: {tzOffsetMinutes: 540},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
   await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
@@ -937,7 +941,11 @@ function levelInfo(points){
 }
 
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
-function dstr(d){ return d.toISOString().slice(0,10); }
+function dstr(d){
+  const offsetMin = (state.settings && typeof state.settings.tzOffsetMinutes==="number") ? state.settings.tzOffsetMinutes : 540;
+  const shifted = new Date(d.getTime() + offsetMin*60000);
+  return shifted.toISOString().slice(0,10);
+}
 function fmtDateKor(iso){
   const [y,m,d] = iso.split("-").map(Number);
   return `${y}년 ${m}월 ${d}일`;
@@ -1999,7 +2007,8 @@ function openTodoModal(dateKey, todoId){
 function openQtModal(dateKey){
   const entry = ensureEntry(dateKey);
   document.getElementById("modalBody").innerHTML = `
-    <div class="modal-head"><h3>📝 ${fmtDateKor(dateKey)} · QT·묵상</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="modal-head"><h3>📝 QT·묵상</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="date" id="m_date" value="${dateKey}"></div>
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
     <div class="field"><label>오늘 받은 은혜</label><textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${entry.grace||""}</textarea></div>
@@ -2009,9 +2018,10 @@ function openQtModal(dateKey){
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.getElementById("saveDaily").addEventListener("click",()=>{
-    const before = snapshotGamify();
+    const newDate = document.getElementById("m_date").value;
+    if(!newDate){ showToast("날짜를 선택해 주세요."); return; }
     const existing = ensureEntry(dateKey);
-    state.dailyEntries[dateKey] = {
+    const updated = {
       ...existing,
       qt: document.getElementById("m_qt").value,
       verse: document.getElementById("m_verse").value,
@@ -2019,6 +2029,16 @@ function openQtModal(dateKey){
       application: document.getElementById("m_app").value,
       thanks: document.getElementById("m_thanks").value
     };
+    if(newDate!==dateKey){
+      const target = state.dailyEntries[newDate];
+      const targetHasData = target && Object.entries(target).some(([k,v])=>
+        (typeof v==="string" && v.trim()) || (Array.isArray(v) && v.length)
+      );
+      if(targetHasData && !confirm(`${fmtDateKor(newDate)}에 이미 기록이 있어요. 그 위에 덮어쓸까요?`)) return;
+      delete state.dailyEntries[dateKey];
+    }
+    const before = snapshotGamify();
+    state.dailyEntries[newDate] = updated;
     persist("dailyEntries");
     closeModal(); renderAll();
     announceGamify(before, "일일 기록을 저장했어요.");
@@ -2577,12 +2597,31 @@ function renderShop(){
    계정
    ========================================================= */
 function renderAccount(){
+  const tzMin = (state.settings && typeof state.settings.tzOffsetMinutes==="number") ? state.settings.tzOffsetMinutes : 540;
   return `
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">👤 내 계정</div>
     <div class="account-row">
       <div><div class="ar-label">로그인 이메일</div><div class="ar-desc">${escapeHtml(currentUser?.email||"")}</div></div>
       <button class="btn outline small" id="logoutBtn">로그아웃</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">⏰ 시간대 설정</div>
+    <p class="section-desc">오늘 날짜, 캘린더, 성경읽기 진도 등 앱 전체의 기준 시간대예요. 한국에서 쓰신다면 기본값(서울) 그대로 두시면 돼요.</p>
+    <div class="field" style="margin-bottom:0;">
+      <label>시간대</label>
+      <select id="tzSelect">
+        <option value="540">🇰🇷 서울 (UTC+9) — 기본값</option>
+        <option value="0">🌍 협정세계시 UTC (UTC+0)</option>
+        <option value="-480">🇺🇸 로스앤젤레스 (UTC-8)</option>
+        <option value="-300">🇺🇸 뉴욕 (UTC-5)</option>
+        <option value="60">🇬🇧 런던 (UTC+1)</option>
+        <option value="480">🇨🇳 베이징 (UTC+8)</option>
+        <option value="540">🇯🇵 도쿄 (UTC+9)</option>
+        <option value="570">🇦🇺 애들레이드 (UTC+9:30)</option>
+        <option value="600">🇦🇺 시드니 (UTC+10)</option>
+      </select>
     </div>
   </div>
   <div class="card" style="margin-bottom:16px;">
@@ -2613,6 +2652,16 @@ function renderAccount(){
 }
 function bindAccount(){
   document.getElementById("logoutBtn").addEventListener("click",()=> auth.signOut());
+  const tzMin = (state.settings && typeof state.settings.tzOffsetMinutes==="number") ? state.settings.tzOffsetMinutes : 540;
+  const tzSel = document.getElementById("tzSelect");
+  tzSel.value = String(tzMin);
+  tzSel.addEventListener("change",()=>{
+    if(!state.settings) state.settings = {tzOffsetMinutes: 540};
+    state.settings.tzOffsetMinutes = Number(tzSel.value);
+    persist("settings");
+    showToast("시간대를 변경했어요.");
+    renderAll();
+  });
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("importFile").addEventListener("change",(e)=>{
     const f = e.target.files[0]; if(f) importDataFromFile(f);
