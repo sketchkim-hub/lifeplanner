@@ -433,6 +433,13 @@ input,textarea,select{font-family:inherit;}
 .quote-card p{font-family:'Noto Serif KR',serif;font-size:14px;line-height:1.75;margin:0 0 8px;color:var(--ink);}
 .quote-card span{font-size:12px;color:var(--gold);font-weight:700;}
 
+/* ---------- 성경이야기 (숏폼) ---------- */
+.shorts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;}
+.shorts-card{border:1px solid var(--line);background:var(--card);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+.shorts-embed{position:relative;width:100%;aspect-ratio:9/16;background:#000;}
+.shorts-embed iframe{position:absolute;inset:0;width:100%;height:100%;border:none;}
+.shorts-title{padding:10px 12px;font-size:12.5px;color:var(--ink);line-height:1.5;}
+
 /* ---------- Bible text ---------- */
 .notice{
   background:rgba(184,134,62,0.1);border:1px solid var(--gold-soft);border-radius:10px;
@@ -547,6 +554,7 @@ input,textarea,select{font-family:inherit;}
 }
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
 .product-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;}
+.product-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;background:var(--paper-deep);}
 .product-name{font-weight:700;color:var(--navy);font-size:13.5px;font-family:'Noto Serif KR',serif;}
 .product-note{font-size:12px;color:var(--ink-soft);line-height:1.5;flex:1;}
 .product-price{font-size:13px;color:var(--gold);font-weight:700;}
@@ -696,6 +704,16 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
+
+/* =========================================================
+   유튜브 숏폼 설정
+   ⚠️ 아래 값을 본인의 유튜브 데이터 API v3 키와, 숏폼을 모아둔
+   재생목록(플레이리스트) ID로 교체하세요. (README_배포가이드.md 참고)
+   ========================================================= */
+const YOUTUBE_CONFIG = {
+  apiKey: "YOUR_YOUTUBE_API_KEY",
+  playlistId: "YOUR_PLAYLIST_ID"
+};
 
 /* =========================================================
    데이터
@@ -1007,6 +1025,7 @@ const TABS = [
   {id:"badges", label:"배지·포인트"},
   {id:"shop", label:"추천 상품"},
   {id:"quotes", label:"영적 명언"},
+  {id:"shorts", label:"성경이야기"},
   {id:"account", label:"계정"}
 ];
 function renderTabbar(){
@@ -1018,9 +1037,23 @@ function renderTabbar(){
 /* =========================================================
    홈
    ========================================================= */
+let adminQuotes = null;
+async function loadAdminQuotes(){
+  try{
+    const snap = await db.collection("quotes").orderBy("order","asc").get();
+    adminQuotes = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){
+    adminQuotes = [];
+  }
+}
+function getAllQuotes(){
+  const extra = (adminQuotes||[]).filter(q=>q.text).map(q=>({a:q.author||"작자 미상", t:q.text}));
+  return [...QUOTES, ...extra];
+}
 function pickQuote(seedShift=0){
+  const list = getAllQuotes();
   const dayIdx = Math.floor(TODAY.getTime()/86400000)+seedShift;
-  return QUOTES[((dayIdx % QUOTES.length)+QUOTES.length)%QUOTES.length];
+  return list[((dayIdx % list.length)+list.length)%list.length];
 }
 let homeQuoteShift = 0;
 function renderHome(){
@@ -2661,39 +2694,275 @@ function renderBadges(){
 }
 
 /* =========================================================
-   추천 상품 (쿠팡 파트너스)
-   ⚠️ 관리자 안내: 아래 COUPANG_PRODUCTS 배열은 예시입니다.
-   partners.coupang.com 에서 발급받은 실제 파트너스 링크로 name/note/price/link를 교체해 주세요.
-   쿠팡 파트너스 정책상 고지문구(coupang-disclosure)는 반드시 유지해야 합니다.
+   추천 상품 (쿠팡 파트너스) — 관리자 계정이 계정 탭에서 등록/수정하면
+   모든 사용자의 '추천 상품' 탭에 공통으로 보여요. (공용 Firestore 컬렉션)
    ========================================================= */
-const COUPANG_PRODUCTS = [
-  {name:"묵상 다이어리", note:"매일 QT와 기도제목을 손으로 쓰는 필사형 다이어리", price:"", link:""},
-  {name:"성경 필사노트", note:"본문을 옮겨 적으며 말씀을 마음에 새기는 필사노트", price:"", link:""},
-  {name:"말씀 암송 카드 세트", note:"네비게이토 암송카드처럼 들고 다니며 외우는 카드형 노트", price:"", link:""},
-  {name:"성경 통독용 인덱스 스티커", note:"66권을 빠르게 찾도록 도와주는 성경 인덱스", price:"", link:""},
-  {name:"연필/형광펜 세트", note:"본문에 밑줄을 긋고 메모할 때 쓰는 문구류", price:"", link:""},
-  {name:"감사·기도제목 카드", note:"교제 모임에서 나눌 기도제목을 적는 카드", price:"", link:""}
-];
+const ADMIN_EMAIL = "kimsketch@naver.com";
+function isAdmin(){ return !!(currentUser && currentUser.email === ADMIN_EMAIL); }
+
+let shopProducts = null;
+let shopProductsLoading = false;
+async function loadShopProducts(){
+  if(shopProductsLoading) return;
+  shopProductsLoading = true;
+  try{
+    const snap = await db.collection("shopProducts").orderBy("order","asc").get();
+    shopProducts = snap.docs.map(d=>({id:d.id, ...d.data()}));
+  }catch(e){
+    shopProducts = [];
+  }
+  shopProductsLoading = false;
+}
+function compressImageFile(file, maxWidth, quality){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onload = ()=>{
+        const scale = Math.min(1, maxWidth/img.width);
+        const w = Math.max(1, Math.round(img.width*scale));
+        const h = Math.max(1, Math.round(img.height*scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = ()=>reject(new Error("이미지를 읽을 수 없어요."));
+      img.src = reader.result;
+    };
+    reader.onerror = ()=>reject(new Error("파일을 읽을 수 없어요."));
+    reader.readAsDataURL(file);
+  });
+}
+
 function renderShop(){
   return `
   <div class="card">
     <div class="section-title">🛍️ 경건 훈련에 도움이 되는 상품</div>
     <p class="section-desc">다이어리, 필사노트, 암송카드, 문구류 등 경건 훈련에 쓰기 좋은 상품을 모아두는 코너예요.</p>
     <div class="coupang-disclosure">이 포스팅은 쿠팡 파트너스 활동의 일환으로, 이에 따른 일정액의 수수료를 제공받습니다.</div>
-    <div class="product-grid">
-      ${COUPANG_PRODUCTS.map(p=>`
-        <div class="product-card">
-          <div class="product-name">${escapeHtml(p.name)}</div>
-          <div class="product-note">${escapeHtml(p.note)}</div>
-          ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
-          <div class="product-link">
-            ${p.link ? `<a class="btn gold small" href="${p.link}" target="_blank" rel="noopener nofollow sponsored" style="text-decoration:none;">쿠팡에서 보기</a>`
-                     : `<button class="btn ghost small" disabled>링크 준비 중</button>`}
-          </div>
-        </div>`).join("")}
-    </div>
+    <div id="shopProductGrid" class="product-grid"></div>
   </div>`;
 }
+function renderShopGrid(){
+  if(!shopProducts) return `<div class="empty">상품을 불러오는 중…</div>`;
+  if(!shopProducts.length) return `<div class="empty">아직 등록된 추천 상품이 없어요.</div>`;
+  return shopProducts.map(p=>`
+    <div class="product-card">
+      ${p.imageUrl?`<img src="${p.imageUrl}" class="product-thumb" alt="${escapeAttr(p.name||"")}">`:""}
+      <div class="product-name">${escapeHtml(p.name||"")}</div>
+      ${p.note?`<div class="product-note">${escapeHtml(p.note)}</div>`:""}
+      ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
+      <div class="product-link">
+        ${p.link ? `<a class="btn gold small" href="${p.link}" target="_blank" rel="noopener nofollow sponsored" style="text-decoration:none;">쿠팡에서 보기</a>`
+                 : `<button class="btn ghost small" disabled>링크 준비 중</button>`}
+      </div>
+    </div>`).join("");
+}
+async function bindShop(){
+  const grid = document.getElementById("shopProductGrid");
+  if(shopProducts){ grid.innerHTML = renderShopGrid(); return; }
+  grid.innerHTML = `<div class="empty">상품을 불러오는 중…</div>`;
+  await loadShopProducts();
+  grid.innerHTML = renderShopGrid();
+}
+
+/* ---------- 관리자 전용: 계정 탭에서 상품 등록/수정/삭제 ---------- */
+let shopAdminEditId = null;
+let shopAdminPhotoData = null;
+function renderShopAdminSection(){
+  if(!isAdmin()) return "";
+  const editing = shopAdminEditId && shopProducts ? shopProducts.find(p=>p.id===shopAdminEditId) : null;
+  return `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">🛍️ 추천 상품 관리 (관리자)</div>
+    <p class="section-desc">여기서 등록·수정한 상품은 모든 사용자의 '추천 상품' 탭에 똑같이 보여요.</p>
+    <div id="shopAdminFormBox">
+      ${editing?`<div class="notice">✎ "${escapeHtml(editing.name||"")}" 상품을 수정하고 있어요.</div>`:""}
+      <div class="field"><label>상품명</label><input type="text" id="sp_name" value="${escapeAttr(editing?.name||"")}" placeholder="예: 묵상 다이어리"></div>
+      <div class="field"><label>설명</label><input type="text" id="sp_note" value="${escapeAttr(editing?.note||"")}" placeholder="상품 한 줄 설명"></div>
+      <div class="field"><label>가격 (선택)</label><input type="text" id="sp_price" value="${escapeAttr(editing?.price||"")}" placeholder="예: 12,900원"></div>
+      <div class="field"><label>쿠팡 파트너스 링크</label><input type="text" id="sp_link" value="${escapeAttr(editing?.link||"")}" placeholder="https://link.coupang.com/..."></div>
+      <div class="field">
+        <label>썸네일 사진</label>
+        <input type="file" id="sp_photo" accept="image/*">
+        <div id="sp_photoPreview" style="margin-top:8px;">${editing?.imageUrl?`<img src="${editing.imageUrl}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`:""}</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn gold" id="sp_saveBtn">${editing?"수정 저장":"상품 추가"}</button>
+        ${editing?'<button class="btn ghost" id="sp_cancelBtn">취소</button>':""}
+      </div>
+    </div>
+    <div id="shopAdminList" style="margin-top:16px;"></div>
+  </div>`;
+}
+function renderShopAdminList(){
+  if(!shopProducts) return `<div class="empty">불러오는 중…</div>`;
+  if(!shopProducts.length) return `<div class="empty">등록된 상품이 없어요.</div>`;
+  return shopProducts.map(p=>`
+    <div class="mem-item">
+      <div style="display:flex;gap:10px;align-items:center;">
+        ${p.imageUrl?`<img src="${p.imageUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:7px;flex:none;">`:""}
+        <div>
+          <div class="mi-ref">${escapeHtml(p.name||"")}</div>
+          <div class="mi-text">${escapeHtml(p.note||"")}${p.price?" · "+escapeHtml(p.price):""}</div>
+        </div>
+      </div>
+      <div class="mem-actions">
+        <button class="icon-btn" data-spedit="${p.id}" title="수정">✎</button>
+        <button class="icon-btn" data-spdel="${p.id}" title="삭제">✕</button>
+      </div>
+    </div>`).join("");
+}
+async function bindShopAdminSection(){
+  if(!isAdmin()) return;
+  const listBox = document.getElementById("shopAdminList");
+  if(!shopProducts){
+    listBox.innerHTML = `<div class="empty">불러오는 중…</div>`;
+    await loadShopProducts();
+  }
+  listBox.innerHTML = renderShopAdminList();
+  document.querySelectorAll("[data-spedit]").forEach(b=>b.addEventListener("click",()=>{
+    shopAdminEditId = b.dataset.spedit;
+    shopAdminPhotoData = null;
+    renderAll();
+  }));
+  document.querySelectorAll("[data-spdel]").forEach(b=>b.addEventListener("click",async ()=>{
+    if(!confirm("이 상품을 삭제할까요?")) return;
+    try{
+      await db.collection("shopProducts").doc(b.dataset.spdel).delete();
+      shopProducts = shopProducts.filter(p=>p.id!==b.dataset.spdel);
+      showToast("상품을 삭제했어요.");
+      renderAll();
+    }catch(e){ showToast("삭제에 실패했어요: "+e.message); }
+  }));
+  document.getElementById("sp_photo").addEventListener("change",(e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    if(file.size > 8*1024*1024){ showToast("사진 용량이 너무 커요 (8MB 이하로 올려주세요)."); e.target.value=""; return; }
+    compressImageFile(file, 500, 0.75).then(dataUrl=>{
+      shopAdminPhotoData = dataUrl;
+      document.getElementById("sp_photoPreview").innerHTML = `<img src="${dataUrl}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`;
+    }).catch(()=>showToast("사진을 처리하지 못했어요."));
+  });
+  const cancelBtn = document.getElementById("sp_cancelBtn");
+  if(cancelBtn) cancelBtn.addEventListener("click",()=>{ shopAdminEditId=null; shopAdminPhotoData=null; renderAll(); });
+  document.getElementById("sp_saveBtn").addEventListener("click", saveShopProductFromForm);
+}
+async function saveShopProductFromForm(){
+  const name = document.getElementById("sp_name").value.trim();
+  const note = document.getElementById("sp_note").value.trim();
+  const price = document.getElementById("sp_price").value.trim();
+  const link = document.getElementById("sp_link").value.trim();
+  if(!name){ showToast("상품명을 입력해 주세요."); return; }
+  const btn = document.getElementById("sp_saveBtn");
+  btn.disabled = true;
+  try{
+    if(shopAdminEditId){
+      const data = { name, note, price, link };
+      if(shopAdminPhotoData) data.imageUrl = shopAdminPhotoData;
+      await db.collection("shopProducts").doc(shopAdminEditId).set(data, {merge:true});
+      const idx = shopProducts.findIndex(p=>p.id===shopAdminEditId);
+      if(idx>=0) shopProducts[idx] = {...shopProducts[idx], ...data};
+      showToast("상품을 수정했어요.");
+      shopAdminEditId = null;
+    } else {
+      const data = { name, note, price, link, imageUrl: shopAdminPhotoData||"", order: Date.now() };
+      const ref = await db.collection("shopProducts").add(data);
+      shopProducts.push({id:ref.id, ...data});
+      showToast("상품을 추가했어요.");
+    }
+    shopAdminPhotoData = null;
+    renderAll();
+  }catch(e){
+    showToast("저장에 실패했어요: "+e.message);
+    btn.disabled = false;
+  }
+}
+
+/* ---------- 관리자 전용: 계정 탭에서 영적 명언 등록/수정/삭제 ---------- */
+let quoteAdminEditId = null;
+function renderQuoteAdminSection(){
+  if(!isAdmin()) return "";
+  const editing = quoteAdminEditId && adminQuotes ? adminQuotes.find(q=>q.id===quoteAdminEditId) : null;
+  return `
+  <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">🕯️ 영적 명언 관리 (관리자)</div>
+    <p class="section-desc">여기서 추가한 명언은 기본 제공 명언들과 함께 모든 사용자의 '영적 명언' 탭과 홈 화면 랜덤 명언에 나타나요.</p>
+    ${editing?`<div class="notice">✎ 명언을 수정하고 있어요.</div>`:""}
+    <div class="field"><label>명언 내용</label><textarea id="qa_text" placeholder="짧은 명언을 입력하세요">${escapeHtml(editing?.text||"")}</textarea></div>
+    <div class="field"><label>저자</label><input type="text" id="qa_author" value="${escapeAttr(editing?.author||"")}" placeholder="예: 찰스 스펄전"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn gold" id="qa_saveBtn">${editing?"수정 저장":"명언 추가"}</button>
+      ${editing?'<button class="btn ghost" id="qa_cancelBtn">취소</button>':""}
+    </div>
+    <div id="quoteAdminList" style="margin-top:14px;"></div>
+  </div>`;
+}
+function renderQuoteAdminList(){
+  if(!adminQuotes) return `<div class="empty">불러오는 중…</div>`;
+  if(!adminQuotes.length) return `<div class="empty">아직 관리자가 추가한 명언이 없어요. (기본 제공 명언은 이 목록엔 안 뜨지만 항상 함께 표시돼요)</div>`;
+  return adminQuotes.map(q=>`
+    <div class="mem-item">
+      <div>
+        <div class="mi-ref">${escapeHtml(q.author||"작자 미상")}</div>
+        <div class="mi-text">"${escapeHtml(q.text||"")}"</div>
+      </div>
+      <div class="mem-actions">
+        <button class="icon-btn" data-qaedit="${q.id}" title="수정">✎</button>
+        <button class="icon-btn" data-qadel="${q.id}" title="삭제">✕</button>
+      </div>
+    </div>`).join("");
+}
+async function bindQuoteAdminSection(){
+  if(!isAdmin()) return;
+  const listBox = document.getElementById("quoteAdminList");
+  if(!adminQuotes){ listBox.innerHTML = `<div class="empty">불러오는 중…</div>`; await loadAdminQuotes(); }
+  listBox.innerHTML = renderQuoteAdminList();
+  document.querySelectorAll("[data-qaedit]").forEach(b=>b.addEventListener("click",()=>{
+    quoteAdminEditId = b.dataset.qaedit;
+    renderAll();
+  }));
+  document.querySelectorAll("[data-qadel]").forEach(b=>b.addEventListener("click", async ()=>{
+    if(!confirm("이 명언을 삭제할까요?")) return;
+    try{
+      await db.collection("quotes").doc(b.dataset.qadel).delete();
+      adminQuotes = adminQuotes.filter(q=>q.id!==b.dataset.qadel);
+      showToast("명언을 삭제했어요.");
+      renderAll();
+    }catch(e){ showToast("삭제에 실패했어요: "+e.message); }
+  }));
+  const cancelBtn = document.getElementById("qa_cancelBtn");
+  if(cancelBtn) cancelBtn.addEventListener("click",()=>{ quoteAdminEditId=null; renderAll(); });
+  document.getElementById("qa_saveBtn").addEventListener("click", saveQuoteFromForm);
+}
+async function saveQuoteFromForm(){
+  const text = document.getElementById("qa_text").value.trim();
+  const author = document.getElementById("qa_author").value.trim();
+  if(!text){ showToast("명언 내용을 입력해 주세요."); return; }
+  const btn = document.getElementById("qa_saveBtn");
+  btn.disabled = true;
+  try{
+    if(quoteAdminEditId){
+      const data = { text, author };
+      await db.collection("quotes").doc(quoteAdminEditId).set(data, {merge:true});
+      const idx = adminQuotes.findIndex(q=>q.id===quoteAdminEditId);
+      if(idx>=0) adminQuotes[idx] = {...adminQuotes[idx], ...data};
+      showToast("명언을 수정했어요.");
+      quoteAdminEditId = null;
+    } else {
+      const data = { text, author, order: Date.now() };
+      const ref = await db.collection("quotes").add(data);
+      adminQuotes.push({id:ref.id, ...data});
+      showToast("명언을 추가했어요.");
+    }
+    renderAll();
+  }catch(e){
+    showToast("저장에 실패했어요: "+e.message);
+    btn.disabled = false;
+  }
+}
+
 
 /* =========================================================
    계정
@@ -2744,6 +3013,8 @@ function renderAccount(){
   <div class="card" style="margin-bottom:16px;">
     ${renderEbookSection()}
   </div>
+  ${isAdmin() ? renderShopAdminSection() : ""}
+  ${isAdmin() ? renderQuoteAdminSection() : ""}
   <div class="card">
     <div class="section-title">⚠️ 위험 구역</div>
     <div class="account-row">
@@ -2777,19 +3048,81 @@ function bindAccount(){
     }
   });
   bindEbookSection();
+  if(isAdmin()) bindShopAdminSection();
+  if(isAdmin()) bindQuoteAdminSection();
 }
 
 /* =========================================================
    명언
    ========================================================= */
 function renderQuotes(){
+  const list = getAllQuotes();
   return `
   <div class="card">
     <div class="section-title">🕯️ 영적 명언 모음</div>
     <p class="section-desc">신앙의 선진들이 남긴 짧은 말씀을 카드로 만나보세요. 홈 화면에는 매일 다른 명언이 랜덤으로 나타나요.</p>
     <div class="quote-grid">
-      ${QUOTES.map(q=>`<div class="quote-card"><p>"${q.t}"</p><span>— ${q.a}</span></div>`).join("")}
+      ${list.map(q=>`<div class="quote-card"><p>"${escapeHtml(q.t)}"</p><span>— ${escapeHtml(q.a)}</span></div>`).join("")}
     </div>
+  </div>`;
+}
+function bindQuotes(){
+  if(adminQuotes) return;
+  loadAdminQuotes().then(()=>{ if(ui.tab==="quotes") renderAll(); });
+}
+
+/* =========================================================
+   성경이야기 (유튜브 재생목록 연동, 숏폼)
+   ========================================================= */
+let shortsCache = null;
+function renderShorts(){
+  return `
+  <div class="card">
+    <div class="section-title">📖 성경이야기</div>
+    <p class="section-desc">성경 속 이야기를 1분 안팎의 짧은 영상으로 만나보는 코너예요. 유튜브 재생목록에 새 숏폼을 올리면 여기에도 자동으로 나타나요.</p>
+    <div id="shortsFeed"></div>
+  </div>`;
+}
+function bindShorts(){
+  const feedEl = document.getElementById("shortsFeed");
+  if(!feedEl) return;
+  if(shortsCache){ feedEl.innerHTML = renderShortsFeed(shortsCache); return; }
+  loadShorts();
+}
+async function loadShorts(){
+  const feedEl = document.getElementById("shortsFeed");
+  if(!feedEl) return;
+  if(YOUTUBE_CONFIG.apiKey==="YOUR_YOUTUBE_API_KEY" || YOUTUBE_CONFIG.playlistId==="YOUR_PLAYLIST_ID"){
+    feedEl.innerHTML = `<div class="notice">유튜브 연동이 아직 설정되지 않았어요. <code>index.html</code> 상단의 <code>YOUTUBE_CONFIG</code>에 유튜브 데이터 API 키와 재생목록 ID를 넣어주세요. (README_배포가이드.md 참고)</div>`;
+    return;
+  }
+  feedEl.innerHTML = `<div class="empty">영상을 불러오는 중…</div>`;
+  try{
+    const url = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=25&playlistId=${encodeURIComponent(YOUTUBE_CONFIG.playlistId)}&key=${encodeURIComponent(YOUTUBE_CONFIG.apiKey)}`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const data = await res.json();
+    const items = (data.items||[]).filter(it=> it.snippet && it.snippet.resourceId && it.snippet.resourceId.videoId);
+    shortsCache = items.map(it=>({
+      id: it.snippet.resourceId.videoId,
+      title: it.snippet.title || ""
+    }));
+    feedEl.innerHTML = renderShortsFeed(shortsCache);
+  }catch(e){
+    feedEl.innerHTML = `<div class="notice">영상을 불러오지 못했어요. 재생목록 ID·API 키를 확인하시거나 잠시 후 다시 시도해 주세요.</div>`;
+  }
+}
+function renderShortsFeed(list){
+  if(!list.length) return `<div class="empty">아직 등록된 숏폼이 없어요.</div>`;
+  return `<div class="shorts-grid">
+    ${list.map(v=>`
+      <div class="shorts-card">
+        <div class="shorts-embed">
+          <iframe src="https://www.youtube-nocookie.com/embed/${v.id}" title="${escapeAttr(v.title)}" loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+        <div class="shorts-title">${escapeHtml(v.title)}</div>
+      </div>`).join("")}
   </div>`;
 }
 
@@ -2813,6 +3146,7 @@ function renderAll(){
     case "badges": html = renderBadges(); break;
     case "shop": html = renderShop(); break;
     case "quotes": html = renderQuotes(); break;
+    case "shorts": html = renderShorts(); break;
     case "account": html = renderAccount(); break;
   }
   panels.innerHTML = `<div class="panel active">${html}</div>`;
@@ -2826,6 +3160,9 @@ function renderAll(){
     case "prayer": bindPrayer(); break;
     case "fellowship": bindFellowship(); break;
     case "account": bindAccount(); break;
+    case "shorts": bindShorts(); break;
+    case "quotes": bindQuotes(); break;
+    case "shop": bindShop(); break;
   }
 }
 
@@ -2902,6 +3239,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("authScreen").style.display = "none";
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
+    loadAdminQuotes().then(()=>{ if(ui.tab==="home"||ui.tab==="quotes") renderAll(); });
     renderAll();
   } else {
     currentUser = null;
