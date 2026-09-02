@@ -555,6 +555,8 @@ input,textarea,select{font-family:inherit;}
 .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
 .product-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;}
 .product-thumb{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;background:var(--paper-deep);}
+.product-widget{width:100%;overflow-x:auto;border-radius:9px;background:var(--paper-deep);}
+.product-widget iframe{display:block;border:none;max-width:none;}
 .product-name{font-weight:700;color:var(--navy);font-size:13.5px;font-family:'Noto Serif KR',serif;}
 .product-note{font-size:12px;color:var(--ink-soft);line-height:1.5;flex:1;}
 .product-price{font-size:13px;color:var(--gold);font-weight:700;}
@@ -1287,6 +1289,7 @@ function renderPlan(){
     </div>
     <div class="subsection-title" style="margin-top:18px;">📈 최근 12주 읽기 추이 (주간 체크 일수)</div>
     <div id="readingChart">${renderReadingChart()}</div>
+    <button class="btn danger small" id="resetPlanBtn" style="margin-top:16px;">🔄 읽기표 진도 초기화</button>
   </div>
   <div class="card">
     <div class="plan-controls">
@@ -1301,6 +1304,13 @@ function bindPlan(){
   const total = plan.length;
   const monthChunks = 12;
   const perPage = Math.ceil(total/monthChunks);
+  document.getElementById("resetPlanBtn").addEventListener("click",()=>{
+    if(!confirm("성경읽기표 진도를 처음부터 다시 시작할까요? 지금까지 체크한 기록이 모두 지워지고, 되돌릴 수 없어요.")) return;
+    state.readingProgress = {};
+    persist("readingProgress");
+    showToast("읽기표 진도를 초기화했어요.");
+    renderAll();
+  });
   document.querySelectorAll("[data-seg]").forEach(b=>b.addEventListener("click",()=>{
     ui.planMonthFilter = Number(b.dataset.seg); renderAll();
   }));
@@ -2749,7 +2759,9 @@ function renderShopGrid(){
   if(!shopProducts.length) return `<div class="empty">아직 등록된 추천 상품이 없어요.</div>`;
   return shopProducts.map(p=>`
     <div class="product-card">
-      ${p.imageUrl?`<img src="${p.imageUrl}" class="product-thumb" alt="${escapeAttr(p.name||"")}">`:""}
+      ${p.widgetHtml
+        ? `<div class="product-widget">${p.widgetHtml}</div>`
+        : (p.imageUrl?`<img src="${p.imageUrl}" class="product-thumb" alt="${escapeAttr(p.name||"")}">`:"")}
       <div class="product-name">${escapeHtml(p.name||"")}</div>
       ${p.note?`<div class="product-note">${escapeHtml(p.note)}</div>`:""}
       ${p.price?`<div class="product-price">${escapeHtml(p.price)}</div>`:""}
@@ -2788,6 +2800,11 @@ function renderShopAdminSection(){
         <input type="file" id="sp_photo" accept="image/*">
         <div id="sp_photoPreview" style="margin-top:8px;">${editing?.imageUrl?`<img src="${editing.imageUrl}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`:""}</div>
       </div>
+      <div class="field">
+        <label>쿠팡 위젯 코드 (iframe, 선택)</label>
+        <textarea id="sp_widget" placeholder="쿠팡 파트너스 사이트에서 복사한 <iframe ...></iframe> 코드를 그대로 붙여넣어 주세요">${escapeHtml(editing?.widgetHtml||"")}</textarea>
+        <p style="font-size:11px;color:var(--ink-soft);margin-top:4px;">이 코드를 넣으면 위의 썸네일 사진 대신 쿠팡 위젯이 표시돼요. 코드 중 &lt;iframe&gt; 태그만 자동으로 추출해서 저장해요.</p>
+      </div>
       <div style="display:flex;gap:8px;">
         <button class="btn gold" id="sp_saveBtn">${editing?"수정 저장":"상품 추가"}</button>
         ${editing?'<button class="btn ghost" id="sp_cancelBtn">취소</button>':""}
@@ -2802,7 +2819,9 @@ function renderShopAdminList(){
   return shopProducts.map(p=>`
     <div class="mem-item">
       <div style="display:flex;gap:10px;align-items:center;">
-        ${p.imageUrl?`<img src="${p.imageUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:7px;flex:none;">`:""}
+        ${p.widgetHtml
+          ? `<span class="badge gold" style="flex:none;">위젯</span>`
+          : (p.imageUrl?`<img src="${p.imageUrl}" style="width:40px;height:40px;object-fit:cover;border-radius:7px;flex:none;">`:"")}
         <div>
           <div class="mi-ref">${escapeHtml(p.name||"")}</div>
           <div class="mi-text">${escapeHtml(p.note||"")}${p.price?" · "+escapeHtml(p.price):""}</div>
@@ -2813,6 +2832,16 @@ function renderShopAdminList(){
         <button class="icon-btn" data-spdel="${p.id}" title="삭제">✕</button>
       </div>
     </div>`).join("");
+}
+function extractIframeHtml(raw){
+  if(!raw) return "";
+  let m = raw.match(/<iframe[\s\S]*?<\/iframe>/i);
+  if(m) return m[0];
+  m = raw.match(/<iframe[^>]*\/>/i);
+  if(m) return m[0];
+  m = raw.match(/<iframe[^>]*>/i);
+  if(m) return m[0] + "</iframe>";
+  return "";
 }
 async function bindShopAdminSection(){
   if(!isAdmin()) return;
@@ -2854,12 +2883,13 @@ async function saveShopProductFromForm(){
   const note = document.getElementById("sp_note").value.trim();
   const price = document.getElementById("sp_price").value.trim();
   const link = document.getElementById("sp_link").value.trim();
+  const widgetHtml = extractIframeHtml(document.getElementById("sp_widget").value.trim());
   if(!name){ showToast("상품명을 입력해 주세요."); return; }
   const btn = document.getElementById("sp_saveBtn");
   btn.disabled = true;
   try{
     if(shopAdminEditId){
-      const data = { name, note, price, link };
+      const data = { name, note, price, link, widgetHtml };
       if(shopAdminPhotoData) data.imageUrl = shopAdminPhotoData;
       await db.collection("shopProducts").doc(shopAdminEditId).set(data, {merge:true});
       const idx = shopProducts.findIndex(p=>p.id===shopAdminEditId);
@@ -2867,7 +2897,7 @@ async function saveShopProductFromForm(){
       showToast("상품을 수정했어요.");
       shopAdminEditId = null;
     } else {
-      const data = { name, note, price, link, imageUrl: shopAdminPhotoData||"", order: Date.now() };
+      const data = { name, note, price, link, widgetHtml, imageUrl: shopAdminPhotoData||"", order: Date.now() };
       const ref = await db.collection("shopProducts").add(data);
       shopProducts.push({id:ref.id, ...data});
       showToast("상품을 추가했어요.");

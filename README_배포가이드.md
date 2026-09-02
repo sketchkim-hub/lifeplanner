@@ -100,7 +100,7 @@ bubblewrap build
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.tjcar.deungbul",
+      "package_name": "com.sketchkim.lifeplanner",
       "sha256_cert_fingerprints": ["여기에 keystore의 SHA-256 지문"]
     }
   }]
@@ -111,7 +111,7 @@ bubblewrap build
 ### 방법 C. Capacitor (네이티브 기능을 더 붙이고 싶을 때)
 ```bash
 npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init "라이프플래너" com.tjcar.deungbul
+npx cap init "라이프플래너" com.sketchkim.lifeplanner
 npx cap add android
 npx cap open android   # Android Studio가 열립니다
 ```
