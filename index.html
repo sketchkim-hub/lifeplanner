@@ -656,7 +656,7 @@ input,textarea,select{font-family:inherit;}
       <button class="auth-tab" id="authTabSignup">회원가입</button>
     </div>
     <div class="field"><label>이메일</label><input type="email" id="authEmail" placeholder="you@example.com" autocomplete="email"></div>
-    <div class="field"><label>비밀번호</label><input type="password" id="authPw" placeholder="6자 이상" autocomplete="current-password"></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="authPw" placeholder="8자 이상" autocomplete="current-password"></div>
     <button class="btn gold" id="authSubmit" style="width:100%;">로그인</button>
     <button class="btn ghost small" id="authResetPw" style="width:100%;margin-top:8px;">비밀번호를 잊으셨나요?</button>
     <div class="auth-error" id="authError"></div>
@@ -1526,7 +1526,7 @@ function renderTestArea(){
         <div class="flip-card ${ui.testFlipped?"flipped":""}" id="testFlipCard">
           <div class="flip-face flip-front">
             ${card.title?`<div class="card-cat">${escapeHtml(card.title)}</div>`:""}
-            <div class="card-ref">${card.ref}</div>
+            <div class="card-ref">${escapeHtml(card.ref)}</div>
             <div class="flip-hint">눌러서 정답 확인</div>
           </div>
           <div class="flip-face flip-back">
@@ -1554,7 +1554,7 @@ function renderTestArea(){
       ` : `
         <div class="voice-box">
           <p style="font-size:12px;color:var(--ink-soft);line-height:1.6;">
-            "${card.title||cat.title}" → "${card.ref}" → 본문 순서로 소리내어 암송하고 녹음해 보세요.
+            "${escapeHtml(card.title||cat.title)}" → "${escapeHtml(card.ref)}" → 본문 순서로 소리내어 암송하고 녹음해 보세요.
             (Chrome 브라우저 · https 환경 · 마이크 권한 필요)
           </p>
           <button class="btn ${ui.recording?"danger":"sage"} small" id="recBtn">
@@ -2128,15 +2128,15 @@ function openQtModal(dateKey){
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
     <div class="field">
       <div class="field-label-row"><label>오늘 받은 은혜</label><button type="button" class="mic-btn" data-mic="m_grace">🎙️ 음성 입력</button></div>
-      <textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${entry.grace||""}</textarea>
+      <textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${escapeHtml(entry.grace||"")}</textarea>
     </div>
     <div class="field">
       <div class="field-label-row"><label>삶의 적용</label><button type="button" class="mic-btn" data-mic="m_app">🎙️ 음성 입력</button></div>
-      <textarea id="m_app" placeholder="오늘 실천할 적용점" style="min-height:140px;">${entry.application||""}</textarea>
+      <textarea id="m_app" placeholder="오늘 실천할 적용점" style="min-height:140px;">${escapeHtml(entry.application||"")}</textarea>
     </div>
     <div class="field">
       <div class="field-label-row"><label>기도제목</label><button type="button" class="mic-btn" data-mic="m_prayer">🎙️ 음성 입력</button></div>
-      <textarea id="m_prayer" placeholder="오늘의 기도제목 (저장하면 기도노트에도 자동으로 추가돼요)">${entry.prayer||""}</textarea>
+      <textarea id="m_prayer" placeholder="오늘의 기도제목 (저장하면 기도노트에도 자동으로 추가돼요)">${escapeHtml(entry.prayer||"")}</textarea>
     </div>
     <button class="btn gold" id="saveDaily">저장하기</button>`;
   openModal();
@@ -2267,11 +2267,11 @@ function openPrayerModal(id){
     <div class="field"><label>기도제목</label><input type="text" id="p_title" value="${escapeAttr(p.title)}" placeholder="예: 가족의 건강을 위하여"></div>
     <div class="field">
       <div class="field-label-row"><label>기도 내용 (선택)</label><button type="button" class="mic-btn" data-mic="p_request">🎙️ 음성 입력</button></div>
-      <textarea id="p_request" placeholder="구체적인 기도 배경이나 내용을 적어보세요">${p.request||""}</textarea>
+      <textarea id="p_request" placeholder="구체적인 기도 배경이나 내용을 적어보세요">${escapeHtml(p.request||"")}</textarea>
     </div>
     <div class="field">
       <div class="field-label-row"><label>기도문 (자유롭게 작성)</label><button type="button" class="mic-btn" data-mic="p_prayertext">🎙️ 음성 입력</button></div>
-      <textarea id="p_prayertext" placeholder="하나님께 올려드리는 기도를 자유롭게 적어보세요" style="min-height:130px;">${p.prayerText||""}</textarea>
+      <textarea id="p_prayertext" placeholder="하나님께 올려드리는 기도를 자유롭게 적어보세요" style="min-height:130px;">${escapeHtml(p.prayerText||"")}</textarea>
     </div>
     <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
     <div class="field">
@@ -2284,7 +2284,7 @@ function openPrayerModal(id){
     <div class="field"><label>응답 날짜</label><input type="date" id="p_answerdate" value="${p.answeredDate||""}"></div>
     <div class="field">
       <div class="field-label-row"><label>기도 응답 내용</label><button type="button" class="mic-btn" data-mic="p_answer">🎙️ 음성 입력</button></div>
-      <textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${p.answer||""}</textarea>
+      <textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${escapeHtml(p.answer||"")}</textarea>
     </div>
     <button class="btn gold" id="savePrayer">저장하기</button>`;
   openModal();
@@ -2360,11 +2360,11 @@ function openFellowshipModal(id, presetDate){
     <div class="field"><label>장소</label><input type="text" id="f_place" value="${escapeAttr(f.place)}" placeholder="예: 교회 카페"></div>
     <div class="field">
       <div class="field-label-row"><label>나눈 내용</label><button type="button" class="mic-btn" data-mic="f_content">🎙️ 음성 입력</button></div>
-      <textarea id="f_content" placeholder="나눈 이야기, 기도제목 등">${f.content||""}</textarea>
+      <textarea id="f_content" placeholder="나눈 이야기, 기도제목 등">${escapeHtml(f.content||"")}</textarea>
     </div>
     <div class="field">
       <div class="field-label-row"><label>교제를 통해 배운 것</label><button type="button" class="mic-btn" data-mic="f_lessons">🎙️ 음성 입력</button></div>
-      <textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${f.lessons||""}</textarea>
+      <textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${escapeHtml(f.lessons||"")}</textarea>
     </div>
     <button class="btn gold" id="saveFel">저장하기</button>`;
   openModal();
@@ -3218,7 +3218,7 @@ function authErrorMessage(code){
     "auth/wrong-password":"비밀번호가 일치하지 않아요.",
     "auth/invalid-credential":"이메일 또는 비밀번호가 올바르지 않아요.",
     "auth/email-already-in-use":"이미 가입된 이메일이에요. 로그인해 주세요.",
-    "auth/weak-password":"비밀번호는 6자 이상이어야 해요.",
+    "auth/weak-password":"비밀번호는 8자 이상으로 설정해 주세요.",
     "auth/too-many-requests":"시도가 너무 많아요. 잠시 후 다시 시도해 주세요.",
     "auth/operation-not-allowed":"이메일/비밀번호 로그인이 아직 꺼져 있어요. Firebase 콘솔의 Authentication > 로그인 방법에서 켜주세요.",
     "auth/unauthorized-domain":"이 웹 주소가 Firebase에 등록되어 있지 않아요. Authentication > Settings > 승인된 도메인에 이 주소를 추가해 주세요.",
@@ -3238,6 +3238,7 @@ function bindAuthScreen(){
     const errEl = document.getElementById("authError");
     errEl.textContent = "";
     if(!email || !pw){ errEl.textContent = "이메일과 비밀번호를 입력해 주세요."; return; }
+    if(authMode==="signup" && pw.length < 8){ errEl.textContent = "비밀번호는 8자 이상으로 설정해 주세요."; return; }
     try{
       if(authMode==="login"){
         await auth.signInWithEmailAndPassword(email, pw);
