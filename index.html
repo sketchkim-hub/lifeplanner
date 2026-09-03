@@ -224,6 +224,10 @@ input,textarea,select{font-family:inherit;}
 .plan-day .d-num{font-weight:700;color:var(--navy);font-size:11.5px;}
 .plan-day .d-refs{color:var(--ink-soft);line-height:1.45;flex:1;}
 .plan-day label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sage);font-weight:600;cursor:pointer;}
+.d-chapters{display:flex;flex-direction:column;gap:3px;flex:1;}
+.ch-check{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-soft);font-weight:500;cursor:pointer;}
+.ch-check input{accent-color:var(--sage);flex:none;}
+.plan-day.done .ch-check{color:var(--sage);}
 
 /* ---------- 달성률 링 & 주간 차트 ---------- */
 .percent-ring{
@@ -271,6 +275,11 @@ input,textarea,select{font-family:inherit;}
 .diff-box{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--card);margin-top:12px;font-size:13.5px;line-height:1.8;}
 .diff-box .miss{background:rgba(139,74,66,0.16);color:var(--brick);padding:1px 3px;border-radius:3px;}
 .diff-box .hit{background:rgba(91,107,79,0.14);color:var(--sage);padding:1px 3px;border-radius:3px;}
+.bulk-test{max-width:520px;margin:0 auto;}
+.bulk-slot{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:14px;margin-bottom:12px;}
+.bulk-slot-num{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--gold);font-size:13px;margin-bottom:8px;}
+.test-range-picker{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;}
+.test-range-picker input{width:44px;border:1px solid var(--line);border-radius:6px;padding:3px 5px;font-size:12px;text-align:center;}
 .score-tag{font-weight:700;font-size:15px;}
 
 /* ---------- Calendar ---------- */
@@ -454,6 +463,12 @@ input,textarea,select{font-family:inherit;}
 }
 .chapter-block textarea:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
 .chapter-modal-textarea, textarea.chapter-modal-textarea{min-height:56vh;width:100%;font-size:15.5px;line-height:1.9;}
+.ch-read-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sage);font-weight:700;cursor:pointer;white-space:nowrap;}
+.ch-read-check input{accent-color:var(--sage);}
+.chapter-view-text{
+  font-size:15.5px;line-height:2;color:var(--ink);white-space:pre-wrap;
+  max-height:56vh;overflow-y:auto;padding:4px 2px;
+}
 .bible-chapters-scroll{max-height:560px;overflow-y:auto;padding-right:6px;}
 .book-select-box{
   margin:16px 0 14px;padding:16px;border-radius:12px;
@@ -788,7 +803,7 @@ let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null, testBulkMode:false
 };
 let recognition = null;
 
@@ -851,6 +866,7 @@ async function importDataFromFile(file){
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+    migrateReadingProgressIfNeeded();
     showToast("데이터를 가져왔어요.");
     renderAll();
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
@@ -891,11 +907,11 @@ function showToast(msg){
    게이미피케이션 — 포인트 & 배지
    ========================================================= */
 const BADGES = [
- {id:"read1", title:"첫 걸음", desc:"성경읽기표 1일 체크", icon:"🌱", metric:"readingDays", need:1},
- {id:"read7", title:"말씀의 새싹", desc:"성경읽기 7일 완료", icon:"🌿", metric:"readingDays", need:7},
- {id:"read30", title:"한 달의 진심", desc:"성경읽기 30일 완료", icon:"🍃", metric:"readingDays", need:30},
- {id:"read100", title:"백 일의 정성", desc:"성경읽기 100일 완료", icon:"🌳", metric:"readingDays", need:100},
- {id:"read365", title:"통독 완주자", desc:"1년 통독표 완주", icon:"🏆", metric:"readingDays", need:365},
+ {id:"read1", title:"첫 걸음", desc:"성경읽기표 1장 체크", icon:"🌱", metric:"readingDays", need:1},
+ {id:"read7", title:"말씀의 새싹", desc:"성경읽기 7장 완료", icon:"🌿", metric:"readingDays", need:7},
+ {id:"read30", title:"한 달의 진심", desc:"성경읽기 30장 완료", icon:"🍃", metric:"readingDays", need:30},
+ {id:"read100", title:"백 장의 정성", desc:"성경읽기 100장 완료", icon:"🌳", metric:"readingDays", need:100},
+ {id:"read365", title:"통독 완주자", desc:"성경 전체 통독 완주", icon:"🏆", metric:"readingDays", need:totalBibleChapters()},
  {id:"mem1", title:"첫 암송", desc:"말씀 1구절 암송 완료", icon:"✨", metric:"memorized", need:1},
  {id:"mem10", title:"암송 용사", desc:"말씀 10구절 암송 완료", icon:"⚔️", metric:"memorized", need:10},
  {id:"mem60", title:"TMS 완주", desc:"말씀 60구절 암송 완료", icon:"📜", metric:"memorized", need:60},
@@ -989,6 +1005,35 @@ function flattenBooks(list){
   list.forEach(([name,ch])=>{ for(let i=1;i<=ch;i++) out.push(`${name} ${i}장`); });
   return out;
 }
+function totalBibleChapters(){
+  return BOOKS.reduce((s,[,c])=>s+c,0) + NT_BOOKS.reduce((s,[,c])=>s+c,0);
+}
+function chapterKey(bookName, chapterNum){ return `${bookName}_${chapterNum}`; }
+function parseChapterRef(ref){
+  const m = ref.match(/^(.+) (\d+)장$/);
+  return m ? {book:m[1], ch:Number(m[2])} : null;
+}
+function migrateReadingProgressIfNeeded(){
+  const keys = Object.keys(state.readingProgress);
+  if(!keys.length) return;
+  const looksOld = keys.every(k => /^\d+$/.test(k));
+  if(!looksOld) return;
+  const plan = buildReadingPlan();
+  const migrated = {};
+  keys.forEach(k=>{
+    const idx = Number(k);
+    const val = state.readingProgress[k];
+    const dayRefs = plan[idx];
+    if(dayRefs){
+      dayRefs.forEach(ref=>{
+        const parsed = parseChapterRef(ref);
+        if(parsed) migrated[chapterKey(parsed.book, parsed.ch)] = val;
+      });
+    }
+  });
+  state.readingProgress = migrated;
+  persist("readingProgress");
+}
 function chunkEvenly(arr, buckets){
   const res = Array.from({length:buckets},()=>[]);
   const base = Math.floor(arr.length/buckets);
@@ -1059,7 +1104,7 @@ function pickQuote(seedShift=0){
 }
 let homeQuoteShift = 0;
 function renderHome(){
-  const totalDays = buildReadingPlan().length;
+  const totalDays = totalBibleChapters();
   const doneDays = Object.values(state.readingProgress).filter(Boolean).length;
   const memCount = Object.values(state.memoryCards).reduce((s,a)=>s+a.length,0);
   const memDone = Object.values(state.memoryCards).reduce((s,a)=>s+a.filter(c=>c.memorized).length,0);
@@ -1083,7 +1128,7 @@ function renderHome(){
       <span class="points-chip">${m.points}P</span>
     </div>
     <div class="stat-row">
-      <div class="stat"><b>${doneDays} / ${totalDays}</b><span>성경읽기 진도(일)</span></div>
+      <div class="stat"><b>${doneDays} / ${totalDays}</b><span>성경읽기 진도(장)</span></div>
       <div class="stat"><b>${memDone} / ${memCount}</b><span>암송 완료 구절</span></div>
       <div class="stat"><b>${felThisMonth}</b><span>이번 달 교제 횟수</span></div>
       <div class="stat"><b>${earned.size} / ${BADGES.length}</b><span>획득한 배지</span></div>
@@ -1176,40 +1221,77 @@ function renderBibleChapters(){
   const bookName = ui.bibleBook;
   const chCount = getBookChapterCount(bookName);
   const data = state.bibleText[bookName] || {};
-  wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>`
+  wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>{
+    const isRead = !!state.readingProgress[chapterKey(bookName,c)];
+    return `
     <div class="chapter-block">
-      <div class="chapter-block-head" data-expandch="${c}">
+      <div class="chapter-block-head">
         <h4>${bookName} ${c}장</h4>
-        <button class="btn outline small" data-expandch="${c}">⤢ 크게 편집</button>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <label class="ch-read-check"><input type="checkbox" data-readch="${c}" ${isRead?"checked":""}> 읽음</label>
+          <button class="btn outline small" data-expandch="${c}">🔍 크게 보기</button>
+        </div>
       </div>
       <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${escapeHtml(data[c]||"")}</textarea>
-    </div>`).join("");
+    </div>`;
+  }).join("");
   const filled = Object.values(data).filter(v=>v && v.trim()).length;
   const prog = document.getElementById("bibleBookProgress");
   if(prog) prog.textContent = `${bookName} — ${filled} / ${chCount}장 저장됨`;
   wrap.querySelectorAll("[data-expandch]").forEach(el=>el.addEventListener("click",()=>{
-    openChapterEditModal(bookName, Number(el.dataset.expandch));
+    openChapterViewModal(bookName, Number(el.dataset.expandch));
+  }));
+  wrap.querySelectorAll("[data-readch]").forEach(cb=>cb.addEventListener("change",()=>{
+    const before = snapshotGamify();
+    const key = chapterKey(bookName, Number(cb.dataset.readch));
+    if(cb.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
+    persist("readingProgress");
+    if(cb.checked) announceGamify(before);
   }));
 }
-function openChapterEditModal(bookName, chapterNum){
+/* ---------- 본문 음성으로 읽어주기 (TTS) ---------- */
+let currentUtterance = null;
+function toggleTTS(text, btn){
+  if(!("speechSynthesis" in window)){ showToast("이 브라우저는 음성 읽기를 지원하지 않아요."); return; }
+  if(speechSynthesis.speaking){
+    speechSynthesis.cancel();
+    btn.innerHTML = "🔊 읽어주기";
+    return;
+  }
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "ko-KR";
+  utter.rate = 0.95;
+  utter.onend = ()=>{ btn.innerHTML = "🔊 읽어주기"; };
+  utter.onerror = ()=>{ btn.innerHTML = "🔊 읽어주기"; };
+  currentUtterance = utter;
+  speechSynthesis.speak(utter);
+  btn.innerHTML = "⏸ 읽기 중지";
+}
+function stopTTS(){
+  if("speechSynthesis" in window && speechSynthesis.speaking) speechSynthesis.cancel();
+}
+function openChapterViewModal(bookName, chapterNum){
   const data = state.bibleText[bookName] || {};
-  const current = data[chapterNum] || "";
+  const text = data[chapterNum] || "";
+  const key = chapterKey(bookName, chapterNum);
+  const isRead = !!state.readingProgress[key];
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>📖 ${bookName} ${chapterNum}장</h3><button class="close-x" id="modalClose">✕</button></div>
-    <div class="field">
-      <label>본문</label>
-      <textarea id="chEditArea" class="chapter-modal-textarea" placeholder="${chapterNum}장 본문을 붙여넣어 주세요…">${escapeHtml(current)}</textarea>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+      <button class="btn sage small" id="ttsBtn" ${text?"":"disabled"}>🔊 읽어주기</button>
+      <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" id="viewReadCheck" ${isRead?"checked":""}> 이 장 읽음</label>
     </div>
-    <button class="btn gold" id="saveChEdit" style="width:100%;">저장하기</button>`;
+    <div class="chapter-view-text">${text?escapeHtml(text).replace(/\n/g,"<br>"):'<span style="color:var(--ink-soft)">아직 저장된 본문이 없어요. "성경 본문" 화면의 입력칸에 붙여넣어 저장해 주세요.</span>'}</div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
-  document.getElementById("saveChEdit").addEventListener("click",()=>{
-    if(!state.bibleText[bookName]) state.bibleText[bookName] = {};
-    state.bibleText[bookName][chapterNum] = document.getElementById("chEditArea").value;
-    persist("bibleText");
-    showToast(`${bookName} ${chapterNum}장을 저장했어요.`);
-    closeModal();
+  document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); closeModal(); });
+  const ttsBtn = document.getElementById("ttsBtn");
+  if(text) ttsBtn.addEventListener("click",()=> toggleTTS(text, ttsBtn));
+  document.getElementById("viewReadCheck").addEventListener("change",(e)=>{
+    const before = snapshotGamify();
+    if(e.target.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
+    persist("readingProgress");
     renderBibleChapters();
+    if(e.target.checked) announceGamify(before);
   });
 }
 function bindBible(){
@@ -1264,15 +1346,15 @@ function renderReadingChart(){
 }
 function renderPlan(){
   const plan = buildReadingPlan();
-  const total = plan.length;
+  const total = totalBibleChapters();
   const done = Object.values(state.readingProgress).filter(Boolean).length;
   const pct = Math.round((done/total)*1000)/10;
   const monthChunks = 12;
-  const perPage = Math.ceil(total/monthChunks);
+  const perPage = Math.ceil(plan.length/monthChunks);
   return `
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">📅 1년 성경통독표</div>
-    <p class="section-desc">구약 929장 · 신약 260장, 총 1,189장을 365일에 고르게 나눈 통독표예요. 매일 읽은 날짜에 체크해 진도를 확인해 보세요.</p>
+    <p class="section-desc">구약 929장 · 신약 260장, 총 1,189장을 365일에 고르게 나눈 통독표예요. 각 장을 읽으면 장마다 체크해 진도를 확인해 보세요. 성경 본문 탭에서 체크해도 여기에 똑같이 반영돼요.</p>
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:14px 0;">
       <div class="percent-ring" id="percentRing" style="--pct:${pct};">
         <div class="percent-ring-inner">
@@ -1283,11 +1365,11 @@ function renderPlan(){
       <div style="flex:1;min-width:160px;">
         <div class="progress-wrap" style="margin-bottom:0;">
           <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
-          <div class="progress-label"><span id="doneCountLabel">${done} / ${total}일 완료</span><span id="pctLabel">${pct}%</span></div>
+          <div class="progress-label"><span id="doneCountLabel">${done} / ${total}장 완료</span><span id="pctLabel">${pct}%</span></div>
         </div>
       </div>
     </div>
-    <div class="subsection-title" style="margin-top:18px;">📈 최근 12주 읽기 추이 (주간 체크 일수)</div>
+    <div class="subsection-title" style="margin-top:18px;">📈 최근 12주 읽기 추이 (주간 체크 장수)</div>
     <div id="readingChart">${renderReadingChart()}</div>
     <button class="btn danger small" id="resetPlanBtn" style="margin-top:16px;">🔄 읽기표 진도 초기화</button>
   </div>
@@ -1319,34 +1401,46 @@ function bindPlan(){
   const end = Math.min(total, start+perPage);
   let html="";
   for(let i=start;i<end;i++){
-    const done = !!state.readingProgress[i];
-    html += `<div class="plan-day ${done?"done":""}">
+    const refs = plan[i];
+    const parsedRefs = refs.map(r=>({ref:r, ...parseChapterRef(r)}));
+    const allDone = parsedRefs.every(p=> p.book && !!state.readingProgress[chapterKey(p.book,p.ch)]);
+    html += `<div class="plan-day ${allDone?"done":""}">
       <div class="d-num">${i+1}일차</div>
-      <div class="d-refs">${plan[i].join(" · ")}</div>
-      <label><input type="checkbox" data-day="${i}" ${done?"checked":""}/> 읽음</label>
+      <div class="d-chapters">
+        ${parsedRefs.map(p=>{
+          const key = p.book ? chapterKey(p.book,p.ch) : "";
+          const done = key && !!state.readingProgress[key];
+          return `<label class="ch-check"><input type="checkbox" data-chkey="${key}" ${done?"checked":""}> ${p.ref}</label>`;
+        }).join("")}
+      </div>
     </div>`;
   }
   grid.innerHTML = html;
-  grid.querySelectorAll("[data-day]").forEach(cb=>cb.addEventListener("change",()=>{
+  grid.querySelectorAll("[data-chkey]").forEach(cb=>cb.addEventListener("change",()=>{
     const before = snapshotGamify();
-    const d = Number(cb.dataset.day);
-    if(cb.checked) state.readingProgress[d]=dstr(TODAY); else delete state.readingProgress[d];
+    const key = cb.dataset.chkey;
+    if(!key) return;
+    if(cb.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
     persist("readingProgress");
+    const dayEl = cb.closest(".plan-day");
+    if(dayEl){
+      const allChecked = [...dayEl.querySelectorAll("[data-chkey]")].every(c=>c.checked);
+      dayEl.classList.toggle("done", allChecked);
+    }
     renderTopStatsOnly();
     if(cb.checked) announceGamify(before);
   }));
 }
 function renderTopStatsOnly(){
   // 진행률(바·링·주간 차트)만 가볍게 갱신 (전체 리렌더 없이)
-  const plan = buildReadingPlan();
-  const total = plan.length;
+  const total = totalBibleChapters();
   const done = Object.values(state.readingProgress).filter(Boolean).length;
   const pct = Math.round((done/total)*1000)/10;
   const fill = document.querySelector(".progress-bar-fill");
   const doneLabel = document.getElementById("doneCountLabel");
   const pctLabel = document.getElementById("pctLabel");
   if(fill) fill.style.width = pct+"%";
-  if(doneLabel) doneLabel.textContent = `${done} / ${total}일 완료`;
+  if(doneLabel) doneLabel.textContent = `${done} / ${total}장 완료`;
   if(pctLabel) pctLabel.textContent = `${pct}%`;
   const ring = document.getElementById("percentRing");
   const ringNum = document.getElementById("percentRingNum");
@@ -1396,9 +1490,22 @@ function renderMemory(){
 
   <div class="card">
     <div class="section-title">🎯 암송 테스트</div>
-    <p class="section-desc">카드 앞면(참조)만 보고 외운 뒤 눌러서 확인하거나, 직접 타이핑해 채점해 보세요.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
-      ${MEM_CATEGORIES.map(c=>`<button class="btn outline small" data-teststart="${c.id}">${c.title} 테스트</button>`).join("")}
+    <p class="section-desc">5·8구절은 힌트 없이 제목·장절·본문을 전부 떠올려 채점하고, 60·180구절·OYO는 카드 앞면(참조)만 보고 뒤집어 확인하거나 타이핑해 채점해요.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+      ${MEM_CATEGORIES.map(c=>{
+        if(c.id==="five"||c.id==="eight"){
+          return `<button class="btn outline small" data-testbulk="${c.id}">${c.title} 전체 테스트</button>`;
+        }
+        if(c.id==="sixty"){
+          const n = (state.memoryCards.sixty||[]).length;
+          return `<span class="test-range-picker">
+            <span style="font-size:11.5px;color:var(--ink-soft);">${c.title} 구간</span>
+            <input type="number" id="rangeFrom" min="1" max="${n||1}" value="1">–<input type="number" id="rangeTo" min="1" max="${n||1}" value="${n||1}">
+            <button class="btn outline small" data-testrange="sixty">시작</button>
+          </span>`;
+        }
+        return `<button class="btn outline small" data-teststart="${c.id}">${c.title} 테스트</button>`;
+      }).join("")}
     </div>
     <div id="testArea"></div>
   </div>
@@ -1462,7 +1569,16 @@ function bindMemory(){
   document.querySelectorAll("[data-teststart]").forEach(b=>b.addEventListener("click",()=>{
     startTest(b.dataset.teststart);
   }));
-  if(ui.testCat) renderTestArea();
+  document.querySelectorAll("[data-testbulk]").forEach(b=>b.addEventListener("click",()=>{
+    startBulkTest(b.dataset.testbulk);
+  }));
+  document.querySelectorAll("[data-testrange]").forEach(b=>b.addEventListener("click",()=>{
+    const catId = b.dataset.testrange;
+    const from = Math.max(1, Number(document.getElementById("rangeFrom").value)||1);
+    const to = Math.max(from, Number(document.getElementById("rangeTo").value)||from);
+    startTestRange(catId, from, to);
+  }));
+  if(ui.testCat){ if(ui.testBulkMode) renderTestAreaBulk(); else renderTestArea(); }
 }
 function renderMemList(){
   const list = document.getElementById("memList");
@@ -1505,8 +1621,65 @@ function escapeHtml(s){ return s.replace(/[&<>"]/g, m=>({"&":"&amp;","<":"&lt;",
 function startTest(catId){
   const cards = state.memoryCards[catId]||[];
   if(!cards.length){ showToast("이 카테고리에 등록된 카드가 없어요."); return; }
-  ui.testCat = catId; ui.testQueue = [...cards].sort(()=>Math.random()-0.5); ui.testIdx=0; ui.testFlipped=false;
+  ui.testCat = catId; ui.testBulkMode = false;
+  ui.testQueue = [...cards].sort(()=>Math.random()-0.5); ui.testIdx=0; ui.testFlipped=false;
   renderTestArea();
+}
+function startTestRange(catId, from, to){
+  const cards = state.memoryCards[catId]||[];
+  if(!cards.length){ showToast("이 카테고리에 등록된 카드가 없어요."); return; }
+  const slice = cards.slice(from-1, to);
+  if(!slice.length){ showToast("선택한 구간에 카드가 없어요."); return; }
+  ui.testCat = catId; ui.testBulkMode = false;
+  ui.testQueue = [...slice].sort(()=>Math.random()-0.5); ui.testIdx=0; ui.testFlipped=false;
+  renderTestArea();
+}
+function startBulkTest(catId){
+  const cards = state.memoryCards[catId]||[];
+  if(!cards.length){ showToast("이 카테고리에 등록된 카드가 없어요."); return; }
+  ui.testCat = catId; ui.testBulkMode = true;
+  renderTestAreaBulk();
+}
+function renderTestAreaBulk(){
+  const area = document.getElementById("testArea");
+  if(!area) return;
+  const cat = MEM_CATEGORIES.find(c=>c.id===ui.testCat);
+  const cards = state.memoryCards[ui.testCat]||[];
+  area.innerHTML = `
+    <div class="bulk-test">
+      <p class="section-desc">${cat.title}(${cat.sub}) 전체를 힌트 없이, 저장하신 순서대로 제목·장절·본문을 기억나는 대로 적어보세요.</p>
+      ${cards.map((card,i)=>`
+        <div class="bulk-slot">
+          <div class="bulk-slot-num">${i+1}구절</div>
+          <div class="field"><label>제목</label><input type="text" class="bulk-title" data-idx="${i}" placeholder="제목"></div>
+          <div class="field"><label>장절</label><input type="text" class="bulk-ref" data-idx="${i}" placeholder="장절"></div>
+          <div class="field"><label>본문</label><textarea class="bulk-text" data-idx="${i}" placeholder="본문"></textarea></div>
+        </div>`).join("")}
+      <button class="btn sage" id="bulkGradeBtn" style="width:100%;">전체 채점하기</button>
+      <div id="bulkGradeResult"></div>
+    </div>`;
+  document.getElementById("bulkGradeBtn").addEventListener("click",()=>{
+    const before = snapshotGamify();
+    let totalPct = 0;
+    let resultHtml = "";
+    cards.forEach((card,i)=>{
+      const title = area.querySelector(`.bulk-title[data-idx="${i}"]`).value;
+      const ref = area.querySelector(`.bulk-ref[data-idx="${i}"]`).value;
+      const text = area.querySelector(`.bulk-text[data-idx="${i}"]`).value;
+      const expected = `${card.title||""} ${card.ref} ${card.text}`;
+      const typed = `${title} ${ref} ${text}`;
+      const {pct, html} = diffScore(expected, typed);
+      totalPct += pct;
+      resultHtml += `<div class="diff-box"><span class="score-tag" style="color:${scoreColor(pct)}">${i+1}구절 — ${pct}%</span><br><br>${html}</div>`;
+      state.gamifyCounts.reviewCount++;
+      logTestResult(cat, card, "text", pct);
+    });
+    persist("gamifyCounts");
+    const avg = Math.round(totalPct/cards.length);
+    document.getElementById("bulkGradeResult").innerHTML =
+      `<div class="diff-box"><span class="score-tag" style="font-size:17px;color:${scoreColor(avg)}">전체 평균 일치도 ${avg}%</span></div>` + resultHtml;
+    announceGamify(before);
+  });
 }
 function renderTestArea(){
   const area = document.getElementById("testArea");
@@ -3270,6 +3443,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("authScreen").style.display = "none";
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
+    migrateReadingProgressIfNeeded();
     loadAdminQuotes().then(()=>{ if(ui.tab==="home"||ui.tab==="quotes") renderAll(); });
     renderAll();
   } else {
