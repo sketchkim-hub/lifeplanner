@@ -464,6 +464,13 @@ input,textarea,select{font-family:inherit;}
 .chapter-block textarea:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
 .chapter-modal-textarea, textarea.chapter-modal-textarea{min-height:56vh;width:100%;font-size:15.5px;line-height:1.9;}
 .ch-read-check{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sage);font-weight:700;cursor:pointer;white-space:nowrap;}
+.speed-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.speed-row span{font-size:12px;color:var(--ink-soft);font-weight:600;}
+.speed-btn{
+  border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+  padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;
+}
+.speed-btn.active{background:var(--gold);border-color:var(--gold);color:#fff;}
 .ch-read-check input{accent-color:var(--sage);}
 .chapter-view-text{
   font-size:15.5px;line-height:2;color:var(--ink);white-space:pre-wrap;
@@ -1252,6 +1259,7 @@ function renderBibleChapters(){
 /* ---------- 본문 음성으로 읽어주기 (TTS) ---------- */
 let cachedVoices = [];
 let ttsState = { queue:[], idx:0, playing:false, btn:null, voice:null };
+let ttsSpeed = 1;
 function stripVerseNumbersForTTS(text){
   let t = text;
   // 줄 시작의 절 번호 제거 (예: "1 태초에", "1. 태초에", "1절 태초에", "1) 태초에")
@@ -1298,10 +1306,11 @@ function buildReadQueue(bookName, startChapter){
     if(!raw || !raw.trim()) break;
     queue.push({type:"announce", text: first ? `${bookName} ${ch}장` : `${ch}장`});
     const cleaned = stripVerseNumbersForTTS(raw);
-    cleaned.split("\n").map(l=>l.trim()).filter(Boolean).forEach(line=>{
-      splitIntoSentences(line).forEach(sentence=>{
-        queue.push({type:"verse", text: sentence});
-      });
+    // 절(줄바꿈) 경계에서 문장이 안 끝났으면 쉬지 않고 이어지도록, 절들을 하나로 이어붙인 뒤
+    // 문장부호가 나오는 곳에서만 끊어요.
+    const joined = cleaned.split("\n").map(l=>l.trim()).filter(Boolean).join(" ");
+    splitIntoSentences(joined).forEach(sentence=>{
+      queue.push({type:"verse", text: sentence});
     });
     queue.push({type:"chapterEnd"});
     first = false;
@@ -1318,18 +1327,18 @@ function playNextTTS(){
   const item = ttsState.queue[ttsState.idx];
   if(item.type==="chapterEnd"){
     ttsState.idx++;
-    setTimeout(playNextTTS, 700); // 장이 바뀔 때의 텀
+    setTimeout(playNextTTS, 700/ttsSpeed); // 장이 바뀔 때의 텀
     return;
   }
   const utter = new SpeechSynthesisUtterance(item.text);
   utter.lang = "ko-KR";
   if(ttsState.voice) utter.voice = ttsState.voice;
-  utter.rate = item.type==="announce" ? 0.88 : 0.9;
+  utter.rate = (item.type==="announce" ? 0.88 : 0.9) * ttsSpeed;
   utter.pitch = 0.96;
   utter.volume = 1;
   utter.onend = ()=>{
     ttsState.idx++;
-    setTimeout(playNextTTS, item.type==="announce" ? 380 : 320); // 절(문장) 사이의 짧은 텀
+    setTimeout(playNextTTS, (item.type==="announce" ? 380 : 320) / ttsSpeed); // 절(문장) 사이의 짧은 텀
   };
   utter.onerror = ()=>{ ttsState.idx++; setTimeout(playNextTTS, 200); };
   speechSynthesis.speak(utter);
@@ -1358,18 +1367,28 @@ function openChapterViewModal(bookName, chapterNum){
   const text = data[chapterNum] || "";
   const key = chapterKey(bookName, chapterNum);
   const isRead = !!state.readingProgress[key];
+  const speeds = [1, 1.2, 1.5, 2];
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>📖 ${bookName} ${chapterNum}장</h3><button class="close-x" id="modalClose">✕</button></div>
-    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
       <button class="btn sage small" id="ttsBtn" ${text?"":"disabled"}>🔊 읽어주기</button>
       <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" id="viewReadCheck" ${isRead?"checked":""}> 이 장 읽음</label>
     </div>
-    <p style="font-size:11px;color:var(--ink-soft);margin:-8px 0 12px;">재생하면 책 이름과 장을 먼저 안내하고, 본문을 저장해 두신 다음 장까지 이어서 읽어드려요.</p>
+    <div class="speed-row">
+      <span>재생 속도</span>
+      ${speeds.map(s=>`<button class="speed-btn ${ttsSpeed===s?"active":""}" data-speed="${s}">${s}x</button>`).join("")}
+    </div>
+    <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 12px;">재생하면 책 이름과 장을 먼저 안내하고, 본문을 저장해 두신 다음 장까지 이어서 읽어드려요.</p>
     <div class="chapter-view-text">${text?escapeHtml(text).replace(/\n/g,"<br>"):'<span style="color:var(--ink-soft)">아직 저장된 본문이 없어요. "성경 본문" 화면의 입력칸에 붙여넣어 저장해 주세요.</span>'}</div>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); closeModal(); });
   const ttsBtn = document.getElementById("ttsBtn");
   if(text) ttsBtn.addEventListener("click",()=> toggleTTS(bookName, chapterNum, ttsBtn));
+  document.querySelectorAll("[data-speed]").forEach(b=>b.addEventListener("click",()=>{
+    ttsSpeed = Number(b.dataset.speed);
+    document.querySelectorAll(".speed-btn").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+  }));
   document.getElementById("viewReadCheck").addEventListener("change",(e)=>{
     const before = snapshotGamify();
     if(e.target.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
