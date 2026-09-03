@@ -1367,7 +1367,7 @@ function openChapterViewModal(bookName, chapterNum){
   const text = data[chapterNum] || "";
   const key = chapterKey(bookName, chapterNum);
   const isRead = !!state.readingProgress[key];
-  const speeds = [1, 1.2, 1.5, 2];
+  const speeds = [1, 1.2];
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>📖 ${bookName} ${chapterNum}장</h3><button class="close-x" id="modalClose">✕</button></div>
     <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
