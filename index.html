@@ -298,11 +298,11 @@ input,textarea,select{font-family:inherit;}
 .cal-cell .cd-num{font-weight:700;color:var(--navy);}
 .cal-dots{position:absolute;bottom:6px;left:7px;display:flex;gap:3px;}
 .cal-dot{width:5px;height:5px;border-radius:50%;}
-.dot-qt{background:var(--gold);}
-.dot-fel{background:var(--brick);}
-.dot-grace{background:var(--sage);}
-.dot-event{background:var(--navy-soft);}
-.dot-todo{background:#8E6BAA;}
+.dot-qt{background:#E8A020;}
+.dot-fel{background:#E53935;}
+.dot-grace{background:#43A047;}
+.dot-event{background:#1E88E5;}
+.dot-todo{background:#8E24AA;}
 
 /* ---------- 일정 / 할일 ---------- */
 .list-nav{display:flex;align-items:center;gap:10px;margin:10px 0 14px;}
@@ -842,7 +842,9 @@ async function loadAllFromFirestore(){
 async function persist(prop){
   if(!currentUser) return;
   try{
-    await db.collection("users").doc(currentUser.uid).set({[prop]: state[prop]}, {merge:true});
+    // update()는 지정한 필드 값을 통째로 교체해요 (set+merge와 달리, 지워진 키가
+    // 이전 값과 병합되어 되살아나지 않고 실제로 삭제가 반영돼요)
+    await db.collection("users").doc(currentUser.uid).update({[prop]: state[prop]});
   }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
 }
 
@@ -872,7 +874,7 @@ async function importDataFromFile(file){
       settings: d.settings || {tzOffsetMinutes: 540},
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
-    await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+    await db.collection("users").doc(currentUser.uid).update(state);
     migrateReadingProgressIfNeeded();
     showToast("데이터를 가져왔어요.");
     renderAll();
@@ -885,7 +887,7 @@ async function resetAllData(){
     settings: {tzOffsetMinutes: 540},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
-  await db.collection("users").doc(currentUser.uid).set(state, {merge:true});
+  await db.collection("users").doc(currentUser.uid).update(state);
   showToast("모든 데이터를 초기화했어요.");
   renderAll();
 }
