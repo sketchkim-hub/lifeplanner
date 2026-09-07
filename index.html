@@ -801,6 +801,7 @@ let state = {
   dailyEntries: {},
   fellowship: [],
   prayers: [],
+  journal: [],
   bibleText: {},
   testLog: [],
   settings: {tzOffsetMinutes: 540},
@@ -826,6 +827,7 @@ async function loadAllFromFirestore(){
         dailyEntries: d.dailyEntries || {},
         fellowship: d.fellowship || [],
         prayers: d.prayers || [],
+        journal: d.journal || [],
         bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
         testLog: d.testLog || [],
         settings: d.settings || {tzOffsetMinutes: 540},
@@ -869,6 +871,7 @@ async function importDataFromFile(file){
       dailyEntries: d.dailyEntries || {},
       fellowship: d.fellowship || [],
       prayers: d.prayers || [],
+      journal: d.journal || [],
       bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
       testLog: d.testLog || [],
       settings: d.settings || {tzOffsetMinutes: 540},
@@ -876,6 +879,7 @@ async function importDataFromFile(file){
     };
     await db.collection("users").doc(currentUser.uid).update(state);
     migrateReadingProgressIfNeeded();
+    migrateJournalIfNeeded();
     showToast("데이터를 가져왔어요.");
     renderAll();
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
@@ -883,7 +887,7 @@ async function importDataFromFile(file){
 async function resetAllData(){
   state = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
-    dailyEntries: {}, fellowship: [], prayers: [], bibleText: {}, testLog: [],
+    dailyEntries: {}, fellowship: [], prayers: [], journal: [], bibleText: {}, testLog: [],
     settings: {tzOffsetMinutes: 540},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
@@ -948,7 +952,7 @@ function countMemorized(){
   return Object.values(state.memoryCards).reduce((s,arr)=>s+arr.filter(c=>c.memorized).length,0);
 }
 function countJournalEntries(){
-  return Object.values(state.dailyEntries).filter(e=>e.grace||e.application||e.thanks||e.prayer).length;
+  return state.journal.filter(e=>e.grace||e.application||e.qt||e.verse||e.prayer).length;
 }
 function countFellowshipLessons(){
   return state.fellowship.filter(f=>f.lessons && f.lessons.trim()).length;
@@ -1043,6 +1047,26 @@ function migrateReadingProgressIfNeeded(){
   state.readingProgress = migrated;
   persist("readingProgress");
 }
+function migrateJournalIfNeeded(){
+  // 예전엔 하루에 한 건씩만 dailyEntries[날짜]에 QT·묵상이 저장됐어요.
+  // 이제는 하루에 여러 건을 쓸 수 있도록 별도의 journal 배열로 옮겨요.
+  let changed = false;
+  Object.keys(state.dailyEntries).forEach(dateKey=>{
+    const e = state.dailyEntries[dateKey];
+    if(!e) return;
+    const hasJournalContent = e.qt || e.verse || e.grace || e.application || e.thanks || e.prayer;
+    if(hasJournalContent){
+      state.journal.push({
+        id: uid(), date: dateKey,
+        qt: e.qt||"", verse: e.verse||"", grace: e.grace||e.thanks||"", application: e.application||"",
+        prayer: e.prayer||"", linkedPrayerId: e.linkedPrayerId||null
+      });
+      delete e.qt; delete e.verse; delete e.grace; delete e.application; delete e.thanks; delete e.prayer; delete e.linkedPrayerId;
+      changed = true;
+    }
+  });
+  if(changed){ persist("journal"); persist("dailyEntries"); }
+}
 function chunkEvenly(arr, buckets){
   const res = Array.from({length:buckets},()=>[]);
   const base = Math.floor(arr.length/buckets);
@@ -1103,8 +1127,10 @@ async function loadAdminQuotes(){
   }
 }
 function getAllQuotes(){
-  const extra = (adminQuotes||[]).filter(q=>q.text).map(q=>({a:q.author||"작자 미상", t:q.text}));
-  return [...QUOTES, ...extra];
+  if(adminQuotes && adminQuotes.length){
+    return adminQuotes.filter(q=>q.text).map(q=>({a:q.author||"작자 미상", t:q.text}));
+  }
+  return QUOTES;
 }
 function pickQuote(seedShift=0){
   const list = getAllQuotes();
@@ -1184,7 +1210,7 @@ function bindHome(){
   const sh = document.getElementById("shuffleQuote");
   if(sh) sh.addEventListener("click",(e)=>{ e.stopPropagation(); homeQuoteShift = Math.floor(Math.random()*1000); renderAll(); });
   const gj = document.getElementById("goJournalToday");
-  if(gj) gj.addEventListener("click",()=>{ ui.tab="journal"; renderAll(); openQtModal(dstr(TODAY)); });
+  if(gj) gj.addEventListener("click",()=>{ ui.tab="journal"; renderAll(); openQtModal(null, dstr(TODAY)); });
   const gc = document.getElementById("goCalendar");
   if(gc) gc.addEventListener("click",()=>{ ui.tab="calendar"; renderAll(); });
   const gf = document.getElementById("goFellowship");
@@ -1989,11 +2015,14 @@ function diffScore(original, typed){
    캘린더 (일정 / 할일 포함)
    ========================================================= */
 function ensureEntry(dateKey){
-  if(!state.dailyEntries[dateKey]) state.dailyEntries[dateKey]={qt:"",verse:"",prayer:"",grace:"",application:"",thanks:"",events:[],todos:[]};
+  if(!state.dailyEntries[dateKey]) state.dailyEntries[dateKey]={events:[],todos:[]};
   const e = state.dailyEntries[dateKey];
   if(!e.events) e.events=[];
   if(!e.todos) e.todos=[];
   return e;
+}
+function journalEntriesForDate(dateKey){
+  return state.journal.filter(j=>j.date===dateKey);
 }
 function statusMeta(status){
   if(status==="done") return {icon:"✅", label:"완료", cls:"status-done"};
@@ -2123,8 +2152,9 @@ function bindCalendar(){
     const dateKey = `${ui.calYear}-${String(ui.calMonth+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     const isToday = dateKey===dstr(TODAY);
     const entry = state.dailyEntries[dateKey];
-    const hasQt = entry && (entry.qt||entry.verse||entry.prayer);
-    const hasGrace = entry && (entry.grace||entry.application||entry.thanks);
+    const dayJournal = journalEntriesForDate(dateKey);
+    const hasQt = dayJournal.some(j=>j.qt||j.verse||j.prayer);
+    const hasGrace = dayJournal.some(j=>j.grace||j.application);
     const hasEvent = entry && entry.events && entry.events.length;
     const hasTodo = entry && entry.todos && entry.todos.length;
     const hasFel = state.fellowship.some(f=>f.date===dateKey);
@@ -2216,10 +2246,19 @@ function bindEventTodoLists(dateKey){
 }
 
 /* ---------- 날짜별 개요 모달: 일정 / 할 일 / QT·묵상 / 교제를 각각 독립된 모달로 분리 ---------- */
+function renderQtItems(dateKey){
+  const entries = journalEntriesForDate(dateKey);
+  if(!entries.length) return `<div class="empty" style="padding:10px;font-size:12px;">아직 기록이 없어요.</div>`;
+  return entries.map(en=>{
+    const summary = [en.qt,en.verse].filter(Boolean).join(" · ") || (en.grace ? (en.grace.length>34?en.grace.slice(0,34)+"…":en.grace) : "묵상 기록");
+    return `<div class="todo-row">
+      <span class="todo-title">${escapeHtml(summary)}</span>
+      <button class="icon-btn" data-qtedit="${en.id}" title="편집">✎</button>
+    </div>`;
+  }).join("");
+}
 function openDayModal(dateKey){
   const e = ensureEntry(dateKey);
-  const hasQt = e.qt || e.verse || e.prayer || e.grace || e.application || e.thanks;
-  const qtSummary = [e.qt, e.verse].filter(Boolean).join(" · ");
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>${fmtDateKor(dateKey)}</h3><button class="close-x" id="modalClose">✕</button></div>
 
@@ -2242,11 +2281,9 @@ function openDayModal(dateKey){
     <div class="day-section">
       <div class="day-section-head">
         <div class="subsection-title" style="margin:0;">📝 QT·묵상</div>
-        <button class="btn outline small" id="openQt">${hasQt?"편집":"기록하기"}</button>
+        <button class="btn gold small" id="openAddQt">+ 묵상 추가</button>
       </div>
-      ${hasQt
-        ? `<div class="empty" style="text-align:left;padding:10px;font-size:12.5px;line-height:1.6;">${qtSummary?escapeHtml(qtSummary):""}${e.grace?`<br>받은 은혜: ${escapeHtml(e.grace.length>44?e.grace.slice(0,44)+"…":e.grace)}`:""}</div>`
-        : `<div class="empty" style="padding:10px;font-size:12px;">아직 기록이 없어요.</div>`}
+      <div id="qtList">${renderQtItems(dateKey)}</div>
     </div>
 
     <div class="day-section" style="border-bottom:none;">
@@ -2261,7 +2298,8 @@ function openDayModal(dateKey){
   bindEventTodoLists(dateKey);
   document.getElementById("openAddEvent").addEventListener("click", ()=> openEventModal(dateKey));
   document.getElementById("openAddTodo").addEventListener("click", ()=> openTodoModal(dateKey));
-  document.getElementById("openQt").addEventListener("click", ()=> openQtModal(dateKey));
+  document.getElementById("openAddQt").addEventListener("click", ()=> openQtModal(null, dateKey));
+  document.querySelectorAll("[data-qtedit]").forEach(b=>b.addEventListener("click", ()=> openQtModal(b.dataset.qtedit)));
   document.getElementById("openFel").addEventListener("click", ()=> openFellowshipModal(null, dateKey));
 }
 
@@ -2335,20 +2373,20 @@ function openTodoModal(dateKey, todoId){
 }
 
 /* ---------- QT·묵상 전용 모달 (일정/할일과 섞이지 않음) ---------- */
-function syncJournalPrayer(dateKey, entry, prayerText){
+function syncJournalPrayer(entry, prayerText){
   const text = (prayerText||"").trim();
   if(!text) return; // 비워두면 자동 동기화하지 않고, 기존에 연결된 기도노트 항목은 그대로 둬요
   if(entry.linkedPrayerId){
     const existing = state.prayers.find(p=>p.id===entry.linkedPrayerId);
     if(existing){
       existing.title = text;
-      existing.date = dateKey;
+      existing.date = entry.date;
       persist("prayers");
       return;
     }
   }
   const id = uid();
-  state.prayers.push({id, date:dateKey, title:text, request:"", prayerText:"", status:"praying", answer:"", answeredDate:""});
+  state.prayers.push({id, date:entry.date, title:text, request:"", prayerText:"", status:"praying", answer:"", answeredDate:""});
   entry.linkedPrayerId = id;
   persist("prayers");
 }
@@ -2397,15 +2435,16 @@ function startFieldVoiceInput(btn, textareaId){
     btn.disabled = false; btn.innerHTML = origHTML;
   }
 }
-function openQtModal(dateKey){
-  const entry = ensureEntry(dateKey);
+function openQtModal(entryId, presetDate){
+  const existing = entryId ? state.journal.find(j=>j.id===entryId) : null;
+  const entry = existing || {id:uid(), date: presetDate || dstr(TODAY), qt:"", verse:"", grace:"", application:"", prayer:"", linkedPrayerId:null};
   document.getElementById("modalBody").innerHTML = `
-    <div class="modal-head"><h3>📝 QT·묵상</h3><button class="close-x" id="modalClose">✕</button></div>
-    <div class="field"><label>날짜</label><input type="date" id="m_date" value="${dateKey}"></div>
+    <div class="modal-head"><h3>📝 ${existing?"묵상 편집":"묵상 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="date" id="m_date" value="${entry.date}"></div>
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
     <div class="field">
-      <div class="field-label-row"><label>오늘 받은 은혜</label><button type="button" class="mic-btn" data-mic="m_grace">🎙️ 음성 입력</button></div>
+      <div class="field-label-row"><label>오늘 받은 은혜 (이해, 발견)</label><button type="button" class="mic-btn" data-mic="m_grace">🎙️ 음성 입력</button></div>
       <textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${escapeHtml(entry.grace||"")}</textarea>
     </div>
     <div class="field">
@@ -2416,37 +2455,31 @@ function openQtModal(dateKey){
       <div class="field-label-row"><label>기도제목</label><button type="button" class="mic-btn" data-mic="m_prayer">🎙️ 음성 입력</button></div>
       <textarea id="m_prayer" placeholder="오늘의 기도제목 (저장하면 기도노트에도 자동으로 추가돼요)">${escapeHtml(entry.prayer||"")}</textarea>
     </div>
-    <button class="btn gold" id="saveDaily">저장하기</button>`;
+    <button class="btn gold" id="saveDaily">저장하기</button>
+    <p style="font-size:11px;color:var(--ink-soft);margin-top:10px;">하루에 여러 번 기록할 수 있어요 — "묵상 추가"를 다시 누르면 새 기록이 하나 더 생겨요.</p>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveDaily").addEventListener("click",()=>{
     const newDate = document.getElementById("m_date").value;
     if(!newDate){ showToast("날짜를 선택해 주세요."); return; }
-    const existing = ensureEntry(dateKey);
     const prayerText = document.getElementById("m_prayer").value;
     const updated = {
-      ...existing,
+      ...entry,
+      date: newDate,
       qt: document.getElementById("m_qt").value,
       verse: document.getElementById("m_verse").value,
       grace: document.getElementById("m_grace").value,
       application: document.getElementById("m_app").value,
       prayer: prayerText
     };
-    if(newDate!==dateKey){
-      const target = state.dailyEntries[newDate];
-      const targetHasData = target && Object.entries(target).some(([k,v])=>
-        (typeof v==="string" && v.trim()) || (Array.isArray(v) && v.length)
-      );
-      if(targetHasData && !confirm(`${fmtDateKor(newDate)}에 이미 기록이 있어요. 그 위에 덮어쓸까요?`)) return;
-      delete state.dailyEntries[dateKey];
-    }
     const before = snapshotGamify();
-    state.dailyEntries[newDate] = updated;
-    syncJournalPrayer(newDate, updated, prayerText);
-    persist("dailyEntries");
+    const idx = state.journal.findIndex(j=>j.id===entry.id);
+    if(idx>=0) state.journal[idx] = updated; else state.journal.push(updated);
+    syncJournalPrayer(updated, prayerText);
+    persist("journal");
     closeModal(); renderAll();
-    announceGamify(before, "일일 기록을 저장했어요.");
+    announceGamify(before, "묵상을 저장했어요.");
   });
 }
 function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
@@ -2457,31 +2490,30 @@ function closeModal(){ document.getElementById("modalBackdrop").classList.remove
    묵상노트 (연대기 저널 뷰)
    ========================================================= */
 function renderJournal(){
-  const entries = Object.entries(state.dailyEntries)
-    .filter(([k,v])=> v.grace||v.application||v.thanks||v.qt||v.verse||v.prayer)
-    .sort((a,b)=> b[0].localeCompare(a[0]));
+  const entries = [...state.journal]
+    .filter(e=> e.grace||e.application||e.qt||e.verse||e.prayer)
+    .sort((a,b)=> (b.date||"").localeCompare(a.date||"") || (b.id||"").localeCompare(a.id||""));
   return `
   <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
       <div class="section-title" style="margin-bottom:2px;">📝 묵상 메모</div>
-      <p class="section-desc" style="margin-bottom:0;">그날 받은 은혜, 적용점, 감사제목을 기록하는 코너예요.</p>
+      <p class="section-desc" style="margin-bottom:0;">그날 받은 은혜(이해, 발견)와 적용점을 기록하는 코너예요. 하루에도 여러 번 쓸 수 있어요.</p>
     </div>
-    <button class="btn gold" id="newJournalBtn">오늘 묵상 쓰기</button>
+    <button class="btn gold" id="newJournalBtn">+ 묵상 추가</button>
   </div>
   <div id="journalList">
-    ${entries.length? entries.map(([date,e])=>`
+    ${entries.length? entries.map(e=>`
       <div class="journal-entry">
-        <div class="journal-date"><span>${fmtDateKor(date)}</span><button class="btn ghost small" data-edit="${date}">편집</button></div>
-        ${e.qt||e.verse?`<div class="journal-row"><div class="jr-label">QT / 암송</div><div class="jr-val">${[e.qt,e.verse].filter(Boolean).join(" · ")}</div></div>`:""}
-        ${e.grace?`<div class="journal-row"><div class="jr-label">받은 은혜</div><div class="jr-val">${escapeHtml(e.grace)}</div></div>`:""}
+        <div class="journal-date"><span>${fmtDateKor(e.date)}</span><button class="btn ghost small" data-edit="${e.id}">편집</button></div>
+        ${e.qt||e.verse?`<div class="journal-row"><div class="jr-label">QT / 암송</div><div class="jr-val">${escapeHtml([e.qt,e.verse].filter(Boolean).join(" · "))}</div></div>`:""}
+        ${e.grace?`<div class="journal-row"><div class="jr-label">받은 은혜 (이해, 발견)</div><div class="jr-val">${escapeHtml(e.grace)}</div></div>`:""}
         ${e.application?`<div class="journal-row"><div class="jr-label">삶의 적용</div><div class="jr-val">${escapeHtml(e.application)}</div></div>`:""}
-        ${e.thanks?`<div class="journal-row"><div class="jr-label">감사 제목</div><div class="jr-val">${escapeHtml(e.thanks)}</div></div>`:""}
         ${e.prayer?`<div class="journal-row"><div class="jr-label">기도제목</div><div class="jr-val">${escapeHtml(e.prayer)}</div></div>`:""}
       </div>`).join("") : `<div class="empty">아직 작성된 묵상 노트가 없어요. 오늘의 은혜부터 기록해 보세요.</div>`}
   </div>`;
 }
 function bindJournal(){
-  document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(dstr(TODAY)));
+  document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(null, dstr(TODAY)));
   document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openQtModal(b.dataset.edit); }));
 }
 
@@ -2624,17 +2656,19 @@ function bindFellowship(){
   document.getElementById("newFelBtn").addEventListener("click",()=>openFellowshipModal());
   document.querySelectorAll("[data-feledit]").forEach(b=>b.addEventListener("click",()=>openFellowshipModal(b.dataset.feledit)));
   document.querySelectorAll("[data-feldel]").forEach(b=>b.addEventListener("click",()=>{
+    const record = state.fellowship.find(f=>f.id===b.dataset.feldel);
+    removeFellowshipEvent(record);
     state.fellowship = state.fellowship.filter(f=>f.id!==b.dataset.feldel);
-    persist("fellowship"); renderAll();
+    persist("fellowship"); persist("dailyEntries"); renderAll();
   }));
 }
 function openFellowshipModal(id, presetDate){
   const existing = id ? state.fellowship.find(f=>f.id===id) : null;
-  const f = existing || {id:uid(), date: presetDate || dstr(TODAY), person:"", place:"", content:"", lessons:""};
+  const f = existing || {id:uid(), date: presetDate || dstr(TODAY), person:"", place:"", content:"", lessons:"", eventLinkId:null};
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>${existing?"교제 약속 편집":"교제 약속 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>날짜</label><input type="date" id="f_date" value="${f.date||""}"></div>
-    <div class="field"><label>만난 사람 / 모임</label><input type="text" id="f_person" value="${escapeAttr(f.person)}" placeholder="예: 청년부 순모임"></div>
+    <div class="field"><label>만난 사람 / 모임</label><input type="text" id="f_person" value="${escapeAttr(f.person)}" placeholder="예: OOO 교제"></div>
     <div class="field"><label>장소</label><input type="text" id="f_place" value="${escapeAttr(f.place)}" placeholder="예: 교회 카페"></div>
     <div class="field">
       <div class="field-label-row"><label>나눈 내용</label><button type="button" class="mic-btn" data-mic="f_content">🎙️ 음성 입력</button></div>
@@ -2644,7 +2678,8 @@ function openFellowshipModal(id, presetDate){
       <div class="field-label-row"><label>교제를 통해 배운 것</label><button type="button" class="mic-btn" data-mic="f_lessons">🎙️ 음성 입력</button></div>
       <textarea id="f_lessons" placeholder="이 만남을 통해 깨닫고 배운 점">${escapeHtml(f.lessons||"")}</textarea>
     </div>
-    <button class="btn gold" id="saveFel">저장하기</button>`;
+    <button class="btn gold" id="saveFel">저장하기</button>
+    <p style="font-size:11px;color:var(--ink-soft);margin-top:10px;">저장하면 캘린더의 그 날짜 "일정" 칸에도 자동으로 추가돼요.</p>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
@@ -2656,13 +2691,36 @@ function openFellowshipModal(id, presetDate){
       person: document.getElementById("f_person").value,
       place: document.getElementById("f_place").value,
       content: document.getElementById("f_content").value,
-      lessons: document.getElementById("f_lessons").value
+      lessons: document.getElementById("f_lessons").value,
+      eventLinkId: f.eventLinkId || null
     };
+    syncFellowshipEvent(record);
     const idx = state.fellowship.findIndex(x=>x.id===f.id);
     if(idx>=0) state.fellowship[idx]=record; else state.fellowship.push(record);
     persist("fellowship");
+    persist("dailyEntries");
     closeModal(); renderAll();
     announceGamify(before, "교제 노트를 저장했어요.");
+  });
+}
+// 교제 약속을 저장할 때 캘린더의 "일정"에도 같은 내용을 동기화해요.
+// 날짜가 바뀌거나 삭제되면 예전 위치의 일정도 함께 정리돼요.
+function syncFellowshipEvent(record){
+  if(record.eventLinkId){
+    Object.values(state.dailyEntries).forEach(e=>{
+      if(e.events) e.events = e.events.filter(ev=>ev.id!==record.eventLinkId);
+    });
+  }
+  if(!record.date || !record.person || !record.person.trim()){ record.eventLinkId = null; return; }
+  const entry = ensureEntry(record.date);
+  const evId = record.eventLinkId || uid();
+  entry.events.push({id: evId, time:"", title: `${record.person} 교제`});
+  record.eventLinkId = evId;
+}
+function removeFellowshipEvent(record){
+  if(!record || !record.eventLinkId) return;
+  Object.values(state.dailyEntries).forEach(e=>{
+    if(e.events) e.events = e.events.filter(ev=>ev.id!==record.eventLinkId);
   });
 }
 
@@ -2682,9 +2740,9 @@ function inRangeDate(dateKey, opts){
   return true; // all
 }
 function getBookletEntries(opts){
-  const journal = Object.entries(state.dailyEntries)
-    .filter(([k,v])=> (v.grace||v.application||v.thanks||v.prayer) && inRangeDate(k,opts))
-    .sort((a,b)=> a[0].localeCompare(b[0]));
+  const journal = state.journal
+    .filter(e=> (e.grace||e.application||e.qt||e.verse||e.prayer) && e.date && inRangeDate(e.date,opts))
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
   const fellowship = state.fellowship
     .filter(f=> f.lessons && f.lessons.trim() && f.date && inRangeDate(f.date,opts))
     .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
@@ -2799,13 +2857,12 @@ function bindEbookSection(){
   document.getElementById("ebk_genBtn").addEventListener("click", handleGeneratePdf);
 }
 
-function journalEntryHTML(dateKey, e){
+function journalEntryHTML(e){
   return `
-    <div class="booklet-entry-date">${fmtDateKor(dateKey)}</div>
+    <div class="booklet-entry-date">${fmtDateKor(e.date)}</div>
     ${(e.qt||e.verse)?`<div class="booklet-row"><div class="br-label">QT · 암송</div><div class="br-val">${escapeHtml([e.qt,e.verse].filter(Boolean).join(" · "))}</div></div>`:""}
-    ${e.grace?`<div class="booklet-row"><div class="br-label">받은 은혜</div><div class="br-val">${escapeHtml(e.grace)}</div></div>`:""}
+    ${e.grace?`<div class="booklet-row"><div class="br-label">받은 은혜 (이해, 발견)</div><div class="br-val">${escapeHtml(e.grace)}</div></div>`:""}
     ${e.application?`<div class="booklet-row"><div class="br-label">삶의 적용</div><div class="br-val">${escapeHtml(e.application)}</div></div>`:""}
-    ${e.thanks?`<div class="booklet-row"><div class="br-label">감사 제목</div><div class="br-val">${escapeHtml(e.thanks)}</div></div>`:""}
     ${e.prayer?`<div class="booklet-row"><div class="br-label">기도제목</div><div class="br-val">${escapeHtml(e.prayer)}</div></div>`:""}
   `;
 }
@@ -2888,7 +2945,10 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onPro
     first = false;
     pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
     heightLeft -= pageHeight;
-    while(heightLeft > 0){
+    // 캔버스↔페이지 크기 변환 과정의 미세한 반올림 오차로 heightLeft가 아주 살짝
+    // 양수로 남는 경우가 있어, 내용 없는 빈 페이지가 하나 더 생기곤 했어요.
+    // 2pt 정도의 여유(허용 오차)를 둬서 그런 빈 페이지가 생기지 않도록 했어요.
+    while(heightLeft > 2){
       position = heightLeft - imgHeight;
       pdf.addPage();
       pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
@@ -2900,7 +2960,7 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onPro
   await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length));
   if(journal.length){
     await addNode(makeDividerNode("묵상노트", "그날 받은 은혜와 삶의 적용, 감사의 기록"));
-    for(const [dateKey, e] of journal) await addNode(makeBookletNode("booklet-entry", journalEntryHTML(dateKey, e)));
+    for(const e of journal) await addNode(makeBookletNode("booklet-entry", journalEntryHTML(e)));
   }
   if(prayers.length){
     await addNode(makeDividerNode("기도노트", "드린 기도와 그 응답의 기록"));
@@ -3193,23 +3253,27 @@ let quoteAdminEditId = null;
 function renderQuoteAdminSection(){
   if(!isAdmin()) return "";
   const editing = quoteAdminEditId && adminQuotes ? adminQuotes.find(q=>q.id===quoteAdminEditId) : null;
+  const hasAdminQuotes = adminQuotes && adminQuotes.length;
   return `
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">🕯️ 영적 명언 관리 (관리자)</div>
-    <p class="section-desc">여기서 추가한 명언은 기본 제공 명언들과 함께 모든 사용자의 '영적 명언' 탭과 홈 화면 랜덤 명언에 나타나요.</p>
+    <p class="section-desc">${hasAdminQuotes
+      ? "지금 사용자들에게 보이는 명언은 아래 목록 전체예요. 자유롭게 추가·수정·삭제할 수 있어요."
+      : "아직 관리자가 등록한 명언이 없어서, 기본 제공 명언이 대신 보이고 있어요. 아래에서 새로 추가하거나, 기본 명언을 가져와서 수정·삭제할 수 있게 만들 수 있어요."}</p>
     ${editing?`<div class="notice">✎ 명언을 수정하고 있어요.</div>`:""}
     <div class="field"><label>명언 내용</label><textarea id="qa_text" placeholder="짧은 명언을 입력하세요">${escapeHtml(editing?.text||"")}</textarea></div>
     <div class="field"><label>저자</label><input type="text" id="qa_author" value="${escapeAttr(editing?.author||"")}" placeholder="예: 찰스 스펄전"></div>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn gold" id="qa_saveBtn">${editing?"수정 저장":"명언 추가"}</button>
       ${editing?'<button class="btn ghost" id="qa_cancelBtn">취소</button>':""}
+      ${!hasAdminQuotes?`<button class="btn outline small" id="qa_seedBtn" style="margin-left:auto;">📥 기본 명언 ${QUOTES.length}개 가져오기</button>`:""}
     </div>
     <div id="quoteAdminList" style="margin-top:14px;"></div>
   </div>`;
 }
 function renderQuoteAdminList(){
   if(!adminQuotes) return `<div class="empty">불러오는 중…</div>`;
-  if(!adminQuotes.length) return `<div class="empty">아직 관리자가 추가한 명언이 없어요. (기본 제공 명언은 이 목록엔 안 뜨지만 항상 함께 표시돼요)</div>`;
+  if(!adminQuotes.length) return `<div class="empty">관리자가 등록한 명언이 없어요. 기본 명언을 가져오거나 새로 추가해 보세요.</div>`;
   return adminQuotes.map(q=>`
     <div class="mem-item">
       <div>
@@ -3221,6 +3285,24 @@ function renderQuoteAdminList(){
         <button class="icon-btn" data-qadel="${q.id}" title="삭제">✕</button>
       </div>
     </div>`).join("");
+}
+async function seedDefaultQuotes(){
+  const btn = document.getElementById("qa_seedBtn");
+  if(btn) btn.disabled = true;
+  try{
+    const batch = db.batch();
+    QUOTES.forEach((q,i)=>{
+      const ref = db.collection("quotes").doc();
+      batch.set(ref, {text:q.t, author:q.a, order: Date.now()+i});
+    });
+    await batch.commit();
+    await loadAdminQuotes();
+    showToast("기본 명언을 가져왔어요. 이제 자유롭게 수정·삭제할 수 있어요.");
+    renderAll();
+  }catch(e){
+    showToast("가져오기에 실패했어요: "+e.message);
+    if(btn) btn.disabled = false;
+  }
 }
 async function bindQuoteAdminSection(){
   if(!isAdmin()) return;
@@ -3242,6 +3324,8 @@ async function bindQuoteAdminSection(){
   }));
   const cancelBtn = document.getElementById("qa_cancelBtn");
   if(cancelBtn) cancelBtn.addEventListener("click",()=>{ quoteAdminEditId=null; renderAll(); });
+  const seedBtn = document.getElementById("qa_seedBtn");
+  if(seedBtn) seedBtn.addEventListener("click", seedDefaultQuotes);
   document.getElementById("qa_saveBtn").addEventListener("click", saveQuoteFromForm);
 }
 async function saveQuoteFromForm(){
@@ -3401,7 +3485,9 @@ async function loadShorts(){
   const feedEl = document.getElementById("shortsFeed");
   if(!feedEl) return;
   if(YOUTUBE_CONFIG.apiKey==="YOUR_YOUTUBE_API_KEY" || YOUTUBE_CONFIG.playlistId==="YOUR_PLAYLIST_ID"){
-    feedEl.innerHTML = `<div class="notice">유튜브 연동이 아직 설정되지 않았어요. <code>index.html</code> 상단의 <code>YOUTUBE_CONFIG</code>에 유튜브 데이터 API 키와 재생목록 ID를 넣어주세요. (README_배포가이드.md 참고)</div>`;
+    feedEl.innerHTML = isAdmin()
+      ? `<div class="notice">유튜브 연동이 아직 설정되지 않았어요. <code>index.html</code> 상단의 <code>YOUTUBE_CONFIG</code>에 유튜브 데이터 API 키와 재생목록 ID를 넣어주세요. (README_배포가이드.md 참고)</div>`
+      : `<div class="empty">성경이야기를 준비 중이에요. 곧 만나보실 수 있어요!</div>`;
     return;
   }
   feedEl.innerHTML = `<div class="empty">영상을 불러오는 중…</div>`;
@@ -3417,7 +3503,9 @@ async function loadShorts(){
     }));
     feedEl.innerHTML = renderShortsFeed(shortsCache);
   }catch(e){
-    feedEl.innerHTML = `<div class="notice">영상을 불러오지 못했어요. 재생목록 ID·API 키를 확인하시거나 잠시 후 다시 시도해 주세요.</div>`;
+    feedEl.innerHTML = isAdmin()
+      ? `<div class="notice">영상을 불러오지 못했어요. 재생목록 ID·API 키를 확인하시거나 잠시 후 다시 시도해 주세요.</div>`
+      : `<div class="empty">영상을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.</div>`;
   }
 }
 function renderShortsFeed(list){
@@ -3549,6 +3637,7 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("mainApp").style.display = "block";
     await loadAllFromFirestore();
     migrateReadingProgressIfNeeded();
+    migrateJournalIfNeeded();
     loadAdminQuotes().then(()=>{ if(ui.tab==="home"||ui.tab==="quotes") renderAll(); });
     renderAll();
   } else {
