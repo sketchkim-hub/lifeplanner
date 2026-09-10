@@ -2531,6 +2531,7 @@ function renderPrayerCard(p){
     ${p.request?`<div class="prayer-body">${escapeHtml(p.request)}</div>`:""}
     ${p.prayerText?`<div class="prayer-text">"${escapeHtml(p.prayerText)}"</div>`:""}
     ${p.status==="answered" && p.answer?`<div class="prayer-answer">🌾 응답: ${escapeHtml(p.answer)}${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div>`:""}
+    ${p.thanks?`<div class="prayer-answer" style="color:var(--gold);">🙏 감사: ${escapeHtml(p.thanks)}</div>`:""}
     <div style="margin-top:10px;display:flex;gap:6px;">
       <button class="btn ghost small" data-predit="${p.id}">편집</button>
       <button class="btn danger small" data-predel="${p.id}">삭제</button>
@@ -2570,7 +2571,7 @@ function bindPrayer(){
 }
 function openPrayerModal(id){
   const existing = id ? state.prayers.find(p=>p.id===id) : null;
-  const p = existing || {id:uid(), date:dstr(TODAY), title:"", request:"", prayerText:"", status:"praying", answer:"", answeredDate:""};
+  const p = existing || {id:uid(), date:dstr(TODAY), title:"", request:"", prayerText:"", status:"praying", answer:"", answeredDate:"", thanks:""};
   document.getElementById("modalBody").innerHTML = `
     <div class="modal-head"><h3>${existing?"기도노트 편집":"기도제목 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
     <div class="field"><label>날짜</label><input type="date" id="p_date" value="${p.date||""}"></div>
@@ -2596,6 +2597,11 @@ function openPrayerModal(id){
       <div class="field-label-row"><label>기도 응답 내용</label><button type="button" class="mic-btn" data-mic="p_answer">🎙️ 음성 입력</button></div>
       <textarea id="p_answer" placeholder="어떻게, 무엇으로 응답받았는지 적어보세요">${escapeHtml(p.answer||"")}</textarea>
     </div>
+    <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0 14px;">
+    <div class="field">
+      <div class="field-label-row"><label>감사 제목</label><button type="button" class="mic-btn" data-mic="p_thanks">🎙️ 음성 입력</button></div>
+      <textarea id="p_thanks" placeholder="이 기도와 관련해 감사한 것을 적어보세요">${escapeHtml(p.thanks||"")}</textarea>
+    </div>
     <button class="btn gold" id="savePrayer">저장하기</button>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", closeModal);
@@ -2613,7 +2619,8 @@ function openPrayerModal(id){
       prayerText: document.getElementById("p_prayertext").value,
       status,
       answer: document.getElementById("p_answer").value,
-      answeredDate: document.getElementById("p_answerdate").value
+      answeredDate: document.getElementById("p_answerdate").value,
+      thanks: document.getElementById("p_thanks").value
     };
     const idx = state.prayers.findIndex(x=>x.id===p.id);
     if(idx>=0) state.prayers[idx]=record; else state.prayers.push(record);
@@ -2881,6 +2888,7 @@ function prayerEntryHTML(p){
     ${p.request?`<div class="booklet-row"><div class="br-label">기도 내용</div><div class="br-val">${escapeHtml(p.request)}</div></div>`:""}
     ${p.prayerText?`<div class="booklet-row"><div class="br-label">기도문</div><div class="br-val">${escapeHtml(p.prayerText)}</div></div>`:""}
     ${p.status==="answered" && p.answer?`<div class="booklet-row"><div class="br-label">기도 응답${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div><div class="br-val">${escapeHtml(p.answer)}</div></div>`:""}
+    ${p.thanks?`<div class="booklet-row"><div class="br-label">감사 제목</div><div class="br-val">${escapeHtml(p.thanks)}</div></div>`:""}
   `;
 }
 function makeBookletNode(className, innerHtml){
