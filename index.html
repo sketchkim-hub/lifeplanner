@@ -802,6 +802,7 @@ let state = {
   fellowship: [],
   prayers: [],
   journal: [],
+  gratitudes: [],
   bibleText: {},
   testLog: [],
   settings: {tzOffsetMinutes: 540},
@@ -828,6 +829,7 @@ async function loadAllFromFirestore(){
         fellowship: d.fellowship || [],
         prayers: d.prayers || [],
         journal: d.journal || [],
+        gratitudes: d.gratitudes || [],
         bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
         testLog: d.testLog || [],
         settings: d.settings || {tzOffsetMinutes: 540},
@@ -872,6 +874,7 @@ async function importDataFromFile(file){
       fellowship: d.fellowship || [],
       prayers: d.prayers || [],
       journal: d.journal || [],
+      gratitudes: d.gratitudes || [],
       bibleText: d.bibleText || (d.timothyText ? {"디모데전서": d.timothyText} : {}),
       testLog: d.testLog || [],
       settings: d.settings || {tzOffsetMinutes: 540},
@@ -887,7 +890,7 @@ async function importDataFromFile(file){
 async function resetAllData(){
   state = {
     readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
-    dailyEntries: {}, fellowship: [], prayers: [], journal: [], bibleText: {}, testLog: [],
+    dailyEntries: {}, fellowship: [], prayers: [], journal: [], gratitudes: [], bibleText: {}, testLog: [],
     settings: {tzOffsetMinutes: 540},
     gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
   };
@@ -945,6 +948,8 @@ const BADGES = [
  {id:"pr20", title:"기도의 사람", desc:"기도제목 20개 기록", icon:"🕊️", metric:"prayerCount", need:20},
  {id:"ans1", title:"응답의 첫 열매", desc:"기도응답 1회 기록", icon:"🌾", metric:"answeredCount", need:1},
  {id:"ans10", title:"신실하신 하나님", desc:"기도응답 10회 기록", icon:"⭐", metric:"answeredCount", need:10},
+ {id:"gr1", title:"첫 감사", desc:"감사 목록 1개 기록", icon:"🌾", metric:"gratitudeCount", need:1},
+ {id:"gr20", title:"감사의 사람", desc:"감사 목록 20개 기록", icon:"🍀", metric:"gratitudeCount", need:20},
  {id:"pt500", title:"말씀 지킴이", desc:"누적 포인트 500P 달성", icon:"🕯️", metric:"points", need:500},
  {id:"pt1500", title:"빛의 증인", desc:"누적 포인트 1500P 달성", icon:"💡", metric:"points", need:1500}
 ];
@@ -972,9 +977,10 @@ function getMetrics(){
     todosDone: countTodosDone(),
     bookletsMade: state.gamifyCounts.bookletsMade,
     prayerCount: state.prayers.length,
-    answeredCount: state.prayers.filter(p=>p.status==="answered").length
+    answeredCount: state.prayers.filter(p=>p.status==="answered").length,
+    gratitudeCount: state.gratitudes.filter(g=>g.content&&g.content.trim()).length
   };
-  m.points = m.readingDays*5 + m.memorized*8 + m.journalEntries*10 + m.fellowshipLessons*8 + m.reviewCount*3 + m.audioGood*5 + m.todosDone*2 + m.bookletsMade*15 + m.prayerCount*4 + m.answeredCount*10;
+  m.points = m.readingDays*5 + m.memorized*8 + m.journalEntries*10 + m.fellowshipLessons*8 + m.reviewCount*3 + m.audioGood*5 + m.todosDone*2 + m.bookletsMade*15 + m.prayerCount*4 + m.answeredCount*10 + m.gratitudeCount*3;
   return m;
 }
 function earnedBadgeIds(m){ return new Set(BADGES.filter(b=> m[b.metric] >= b.need).map(b=>b.id)); }
@@ -2543,6 +2549,7 @@ function renderPrayer(){
   const sorted = [...filtered].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
   const praying = state.prayers.filter(p=>p.status!=="answered").length;
   const answered = state.prayers.filter(p=>p.status==="answered").length;
+  const gratitudes = [...state.gratitudes].sort((a,b)=> (b.date||"").localeCompare(a.date||""));
   return `
   <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
@@ -2556,9 +2563,59 @@ function renderPrayer(){
     <button class="memtab ${ui.prayerFilter==="praying"?"active":""}" data-pf="praying">기도 중 ${praying}</button>
     <button class="memtab ${ui.prayerFilter==="answered"?"active":""}" data-pf="answered">응답됨 ${answered}</button>
   </div>
-  <div id="prayerList">
+  <div id="prayerList" style="margin-bottom:20px;">
     ${sorted.length ? sorted.map(renderPrayerCard).join("") : `<div class="empty">아직 기록된 기도제목이 없어요. 오늘의 기도부터 적어보세요.</div>`}
+  </div>
+
+  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
+      <div class="section-title" style="margin-bottom:2px;">🌾 감사 목록</div>
+      <p class="section-desc" style="margin-bottom:0;">특정 기도제목과 상관없이, 따로 감사한 일들을 자유롭게 적어두는 공간이에요.</p>
+    </div>
+    <button class="btn sage" id="newGratitudeBtn">+ 감사 추가</button>
+  </div>
+  <div id="gratitudeList">
+    ${gratitudes.length ? gratitudes.map(renderGratitudeCard).join("") : `<div class="empty">아직 기록된 감사가 없어요. 오늘 감사한 일을 적어보세요.</div>`}
   </div>`;
+}
+function renderGratitudeCard(g){
+  return `
+  <div class="prayer-item">
+    <div class="prayer-top">
+      <div class="prayer-title">🌾 ${g.date?fmtDateKor(g.date):"날짜 미정"}</div>
+    </div>
+    <div class="prayer-body">${escapeHtml(g.content||"")}</div>
+    <div style="margin-top:10px;display:flex;gap:6px;">
+      <button class="btn ghost small" data-gredit="${g.id}">편집</button>
+      <button class="btn danger small" data-grdel="${g.id}">삭제</button>
+    </div>
+  </div>`;
+}
+function openGratitudeModal(id){
+  const existing = id ? state.gratitudes.find(g=>g.id===id) : null;
+  const g = existing || {id:uid(), date:dstr(TODAY), content:""};
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>${existing?"감사 편집":"감사 추가"}</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="field"><label>날짜</label><input type="date" id="gr_date" value="${g.date||""}"></div>
+    <div class="field">
+      <div class="field-label-row"><label>감사한 일</label><button type="button" class="mic-btn" data-mic="gr_content">🎙️ 음성 입력</button></div>
+      <textarea id="gr_content" placeholder="오늘 감사한 일을 자유롭게 적어보세요" style="min-height:120px;">${escapeHtml(g.content||"")}</textarea>
+    </div>
+    <button class="btn sage" id="saveGratitude">저장하기</button>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
+  document.getElementById("saveGratitude").addEventListener("click",()=>{
+    const content = document.getElementById("gr_content").value.trim();
+    if(!content){ showToast("감사한 일을 입력해 주세요."); return; }
+    const before = snapshotGamify();
+    const record = { id: g.id, date: document.getElementById("gr_date").value, content };
+    const idx = state.gratitudes.findIndex(x=>x.id===g.id);
+    if(idx>=0) state.gratitudes[idx]=record; else state.gratitudes.push(record);
+    persist("gratitudes");
+    closeModal(); renderAll();
+    announceGamify(before, "감사 목록에 저장했어요.");
+  });
 }
 function bindPrayer(){
   document.getElementById("newPrayerBtn").addEventListener("click",()=>openPrayerModal());
@@ -2567,6 +2624,12 @@ function bindPrayer(){
   document.querySelectorAll("[data-predel]").forEach(b=>b.addEventListener("click",()=>{
     state.prayers = state.prayers.filter(p=>p.id!==b.dataset.predel);
     persist("prayers"); renderAll();
+  }));
+  document.getElementById("newGratitudeBtn").addEventListener("click",()=>openGratitudeModal());
+  document.querySelectorAll("[data-gredit]").forEach(b=>b.addEventListener("click",()=>openGratitudeModal(b.dataset.gredit)));
+  document.querySelectorAll("[data-grdel]").forEach(b=>b.addEventListener("click",()=>{
+    state.gratitudes = state.gratitudes.filter(g=>g.id!==b.dataset.grdel);
+    persist("gratitudes"); renderAll();
   }));
 }
 function openPrayerModal(id){
@@ -2756,7 +2819,10 @@ function getBookletEntries(opts){
   const prayers = state.prayers
     .filter(p=> p.title && p.date && inRangeDate(p.date,opts))
     .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
-  return { journal, fellowship, prayers };
+  const gratitudes = state.gratitudes
+    .filter(g=> g.content && g.content.trim() && g.date && inRangeDate(g.date,opts))
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||""));
+  return { journal, fellowship, prayers, gratitudes };
 }
 let ebkCoverPhotoData = null; // 표지 사진은 용량 문제로 클라우드에 저장하지 않고 세션 동안만 유지돼요
 function collectBookletOptions(){
@@ -2771,6 +2837,7 @@ function collectBookletOptions(){
     incJournal: document.getElementById("ebk_incJournal").checked,
     incFel: document.getElementById("ebk_incFel").checked,
     incPrayer: document.getElementById("ebk_incPrayer").checked,
+    incGratitude: document.getElementById("ebk_incGratitude").checked,
     range: rangeEl.value,
     start: document.getElementById("ebk_start").value,
     end: document.getElementById("ebk_end").value
@@ -2778,20 +2845,21 @@ function collectBookletOptions(){
 }
 function updateEbookPreview(){
   const opts = collectBookletOptions();
-  const {journal, fellowship, prayers} = getBookletEntries(opts);
+  const {journal, fellowship, prayers, gratitudes} = getBookletEntries(opts);
   const jn = opts.incJournal ? journal.length : 0;
   const fn = opts.incFel ? fellowship.length : 0;
   const pn = opts.incPrayer ? prayers.length : 0;
+  const gn = opts.incGratitude ? gratitudes.length : 0;
   const el = document.getElementById("ebk_preview");
-  el.innerHTML = (jn+fn+pn)>0
-    ? `선택한 조건에 <b>묵상노트 ${jn}건</b>, <b>기도노트 ${pn}건</b>, <b>교제 기록 ${fn}건</b>이 포함돼요. (표지·구분면 포함 총 ${jn+fn+pn+2+(jn?1:0)+(fn?1:0)+(pn?1:0)}쪽 내외)`
+  el.innerHTML = (jn+fn+pn+gn)>0
+    ? `선택한 조건에 <b>묵상노트 ${jn}건</b>, <b>기도노트 ${pn}건</b>, <b>감사 목록 ${gn}건</b>, <b>교제 기록 ${fn}건</b>이 포함돼요. (표지·구분면 포함 총 ${jn+fn+pn+gn+2+(jn?1:0)+(fn?1:0)+(pn?1:0)+(gn?1:0)}쪽 내외)`
     : `선택한 조건에 해당하는 기록이 없어요. 조건을 조정해 보세요.`;
 }
 function renderEbookSection(){
   const now = TODAY;
   return `
   <div class="section-title" style="margin-bottom:2px;">📕 PDF 책자로 만들기</div>
-  <p class="section-desc">묵상노트, 기도노트, 교제를 통해 배운 것들을 모아 한 권의 전자책(PDF)으로 엮어드려요. 인쇄해서 실물 책자로 만들어도 좋아요.</p>
+  <p class="section-desc">묵상노트, 기도노트, 감사 목록, 교제를 통해 배운 것들을 모아 한 권의 전자책(PDF)으로 엮어드려요. 인쇄해서 실물 책자로 만들어도 좋아요.</p>
 
   <div class="subsection-title">🎨 표지 편집</div>
   <div class="field"><label>책 제목</label><input type="text" id="ebk_title" value="은혜의 기록"></div>
@@ -2816,6 +2884,7 @@ function renderEbookSection(){
     <div class="ebook-checks">
       <label><input type="checkbox" id="ebk_incJournal" checked> 묵상노트</label>
       <label><input type="checkbox" id="ebk_incPrayer" checked> 기도노트</label>
+      <label><input type="checkbox" id="ebk_incGratitude" checked> 감사 목록</label>
       <label><input type="checkbox" id="ebk_incFel" checked> 교제 · 배운 것</label>
     </div>
   </div>
@@ -2838,7 +2907,7 @@ function renderEbookSection(){
   <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;line-height:1.6;">기록이 많으면 생성에 시간이 조금 걸릴 수 있어요. 생성 중 창을 닫지 마세요. 표지 사진은 저장 용량 문제로 이 기기에서 만드는 동안만 사용되고 클라우드에는 저장되지 않아요.</p>`;
 }
 function bindEbookSection(){
-  ["ebk_title","ebk_sub","ebk_author","ebk_incJournal","ebk_incPrayer","ebk_incFel","ebk_start","ebk_end"].forEach(id=>{
+  ["ebk_title","ebk_sub","ebk_author","ebk_incJournal","ebk_incPrayer","ebk_incGratitude","ebk_incFel","ebk_start","ebk_end"].forEach(id=>{
     document.getElementById(id).addEventListener("input", updateEbookPreview);
   });
   document.getElementById("ebk_range").addEventListener("change",(e)=>{
@@ -2864,6 +2933,12 @@ function bindEbookSection(){
   document.getElementById("ebk_genBtn").addEventListener("click", handleGeneratePdf);
 }
 
+function gratitudeEntryHTML(g){
+  return `
+    <div class="booklet-entry-date">${fmtDateKor(g.date)}</div>
+    <div class="booklet-row"><div class="br-label">감사한 일</div><div class="br-val">${escapeHtml(g.content||"")}</div></div>
+  `;
+}
 function journalEntryHTML(e){
   return `
     <div class="booklet-entry-date">${fmtDateKor(e.date)}</div>
@@ -2900,7 +2975,7 @@ function makeBookletNode(className, innerHtml){
   div.style.top = "0";
   return div;
 }
-function makeCoverNode(opts, jCount, fCount, pCount){
+function makeCoverNode(opts, jCount, fCount, pCount, gCount){
   const themes = {
     navy: "linear-gradient(165deg,#212B42 0%,#2B3652 100%)",
     dawn: "linear-gradient(165deg,#8B4A42 0%,#C08A3E 100%)",
@@ -2916,7 +2991,7 @@ function makeCoverNode(opts, jCount, fCount, pCount){
     ${opts.subtitle?`<div class="sub">${escapeHtml(opts.subtitle)}</div>`:""}
     ${opts.author?`<div class="sub" style="margin-top:14px;">${escapeHtml(opts.author)}</div>`:""}
     <div class="sub" style="margin-top:${opts.author?"10px":"30px"};">${fmtDateKor(dstr(TODAY))} 엮음</div>
-    <div class="sub" style="margin-top:40px;font-size:13px;">묵상 ${jCount}편 · 기도 ${pCount}편 · 교제 기록 ${fCount}편</div>
+    <div class="sub" style="margin-top:40px;font-size:13px;">묵상 ${jCount}편 · 기도 ${pCount}편 · 감사 ${gCount}편 · 교제 기록 ${fCount}편</div>
   `);
   node.style.background = themes[opts.theme] || themes.navy;
   return node;
@@ -2930,15 +3005,15 @@ function makeClosingNode(){
     <div class="sub">디모데전서 4:7</div>
   `);
 }
-async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onProgress){
+async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, gratitudes, onProgress){
   if(!window.html2canvas || !window.jspdf){ throw new Error("PDF 라이브러리를 불러오지 못했어요."); }
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({unit:"pt", format:"a4"});
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   let first = true;
-  const total = 2 + journal.length + fellowship.length + prayers.length
-    + (journal.length?1:0) + (fellowship.length?1:0) + (prayers.length?1:0);
+  const total = 2 + journal.length + fellowship.length + prayers.length + gratitudes.length
+    + (journal.length?1:0) + (fellowship.length?1:0) + (prayers.length?1:0) + (gratitudes.length?1:0);
   let done = 0;
 
   async function addNode(node){
@@ -2965,7 +3040,7 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onPro
     done++; if(onProgress) onProgress(done, total);
   }
 
-  await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length));
+  await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length, gratitudes.length));
   if(journal.length){
     await addNode(makeDividerNode("묵상노트", "그날 받은 은혜와 삶의 적용, 감사의 기록"));
     for(const e of journal) await addNode(makeBookletNode("booklet-entry", journalEntryHTML(e)));
@@ -2973,6 +3048,10 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onPro
   if(prayers.length){
     await addNode(makeDividerNode("기도노트", "드린 기도와 그 응답의 기록"));
     for(const p of prayers) await addNode(makeBookletNode("booklet-entry", prayerEntryHTML(p)));
+  }
+  if(gratitudes.length){
+    await addNode(makeDividerNode("감사 목록", "기도제목과 상관없이, 따로 감사했던 순간들"));
+    for(const g of gratitudes) await addNode(makeBookletNode("booklet-entry", gratitudeEntryHTML(g)));
   }
   if(fellowship.length){
     await addNode(makeDividerNode("교제와 배운 것", "만남을 통해 나누고 깨달은 것들"));
@@ -2985,20 +3064,21 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, onPro
 }
 async function handleGeneratePdf(){
   const opts = collectBookletOptions();
-  const {journal, fellowship, prayers} = getBookletEntries(opts);
+  const {journal, fellowship, prayers, gratitudes} = getBookletEntries(opts);
   const jn = opts.incJournal ? journal : [];
   const fn = opts.incFel ? fellowship : [];
   const pn = opts.incPrayer ? prayers : [];
-  if(jn.length===0 && fn.length===0 && pn.length===0){ showToast("포함할 기록이 없어요. 조건을 확인해 주세요."); return; }
-  if(jn.length+fn.length+pn.length > 60){
-    if(!confirm(`기록이 총 ${jn.length+fn.length+pn.length}건으로 많아 생성에 시간이 걸릴 수 있어요. 계속할까요?`)) return;
+  const gn = opts.incGratitude ? gratitudes : [];
+  if(jn.length===0 && fn.length===0 && pn.length===0 && gn.length===0){ showToast("포함할 기록이 없어요. 조건을 확인해 주세요."); return; }
+  if(jn.length+fn.length+pn.length+gn.length > 60){
+    if(!confirm(`기록이 총 ${jn.length+fn.length+pn.length+gn.length}건으로 많아 생성에 시간이 걸릴 수 있어요. 계속할까요?`)) return;
   }
   const btn = document.getElementById("ebk_genBtn");
   const origText = btn.textContent;
   btn.disabled = true;
   try{
     const before = snapshotGamify();
-    await buildAndDownloadBooklet(opts, jn, fn, pn, (done,total)=>{ btn.textContent = `생성 중… (${done}/${total})`; });
+    await buildAndDownloadBooklet(opts, jn, fn, pn, gn, (done,total)=>{ btn.textContent = `생성 중… (${done}/${total})`; });
     state.gamifyCounts.bookletsMade = (state.gamifyCounts.bookletsMade||0)+1;
     persist("gamifyCounts");
     showToast("PDF 책자를 만들었어요!");
@@ -3029,7 +3109,7 @@ function renderBadges(){
   </div>
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">📊 포인트 획득 기준</div>
-    <p class="section-desc" style="margin-bottom:0;">성경읽기 체크 +5P · 묵상노트 작성 +10P · 암송 완료 +8P · 암송 복습(테스트/음성) +3P · 음성암송 고득점(80%↑) +5P · 교제 노트(배운 것) +8P · 할 일 완료 +2P · 기도제목 기록 +4P · 기도응답 기록 +10P · PDF 책자 제작 +15P</p>
+    <p class="section-desc" style="margin-bottom:0;">성경읽기 체크 +5P · 묵상노트 작성 +10P · 암송 완료 +8P · 암송 복습(테스트/음성) +3P · 음성암송 고득점(80%↑) +5P · 교제 노트(배운 것) +8P · 할 일 완료 +2P · 기도제목 기록 +4P · 기도응답 기록 +10P · 감사 목록 기록 +3P · PDF 책자 제작 +15P</p>
   </div>
   <div class="badge-grid">
     ${BADGES.map(b=>{
