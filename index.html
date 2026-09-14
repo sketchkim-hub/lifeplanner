@@ -2553,6 +2553,17 @@ function renderPrayer(){
   return `
   <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
     <div>
+      <div class="section-title" style="margin-bottom:2px;">🌾 감사 목록</div>
+      <p class="section-desc" style="margin-bottom:0;">특정 기도제목과 상관없이, 따로 감사한 일들을 자유롭게 적어두는 공간이에요.</p>
+    </div>
+    <button class="btn sage" id="newGratitudeBtn">+ 감사 추가</button>
+  </div>
+  <div id="gratitudeList" style="margin-bottom:20px;">
+    ${gratitudes.length ? gratitudes.map(renderGratitudeCard).join("") : `<div class="empty">아직 기록된 감사가 없어요. 오늘 감사한 일을 적어보세요.</div>`}
+  </div>
+
+  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+    <div>
       <div class="section-title" style="margin-bottom:2px;">🙏 기도노트</div>
       <p class="section-desc" style="margin-bottom:0;">날짜와 기도제목, 응답을 기록하고 자유롭게 기도문을 적어보는 공간이에요.</p>
     </div>
@@ -2563,19 +2574,8 @@ function renderPrayer(){
     <button class="memtab ${ui.prayerFilter==="praying"?"active":""}" data-pf="praying">기도 중 ${praying}</button>
     <button class="memtab ${ui.prayerFilter==="answered"?"active":""}" data-pf="answered">응답됨 ${answered}</button>
   </div>
-  <div id="prayerList" style="margin-bottom:20px;">
+  <div id="prayerList">
     ${sorted.length ? sorted.map(renderPrayerCard).join("") : `<div class="empty">아직 기록된 기도제목이 없어요. 오늘의 기도부터 적어보세요.</div>`}
-  </div>
-
-  <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-    <div>
-      <div class="section-title" style="margin-bottom:2px;">🌾 감사 목록</div>
-      <p class="section-desc" style="margin-bottom:0;">특정 기도제목과 상관없이, 따로 감사한 일들을 자유롭게 적어두는 공간이에요.</p>
-    </div>
-    <button class="btn sage" id="newGratitudeBtn">+ 감사 추가</button>
-  </div>
-  <div id="gratitudeList">
-    ${gratitudes.length ? gratitudes.map(renderGratitudeCard).join("") : `<div class="empty">아직 기록된 감사가 없어요. 오늘 감사한 일을 적어보세요.</div>`}
   </div>`;
 }
 function renderGratitudeCard(g){
