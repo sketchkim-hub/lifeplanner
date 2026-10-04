@@ -74,6 +74,14 @@ jobs:
         env:
           ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
 
+      - name: Update TWA project
+        # 안드로이드 프로젝트를 생성하고 manifest-checksum.txt를 기록.
+        # 이 파일이 없으면 build 스텝에서 "프로젝트를 업데이트할까요?" 프롬프트가 떠서
+        # CI에서 exit 130으로 죽으므로, build 전에 update를 먼저 실행한다.
+        # --skipVersionUpgrade: 버전은 twa-manifest.json에서 직접 관리
+        working-directory: twa
+        run: bubblewrap update --manifest=./twa-manifest.json --skipVersionUpgrade
+
       - name: Build signed AAB
         working-directory: twa
         run: bubblewrap build --manifest=./twa-manifest.json
