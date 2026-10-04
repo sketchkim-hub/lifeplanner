@@ -1,9 +1,14 @@
-# TWA Android 빌드 (Bubblewrap)
-# 태그 푸시(twa-v1.0.0 형식) 또는 수동 실행 시 서명된 AAB를 빌드해 Artifacts에 올립니다.
+# TWA Android Build (Bubblewrap)
+# 태그 푸시(twa-v* 형식) 또는 수동 실행 시 서명된 AAB를 빌드해 Artifacts에 올립니다.
 # 필요 Secrets (저장소 Settings > Secrets and variables > Actions):
 #   ANDROID_KEYSTORE_B64         : android.p12 파일을 base64로 인코딩한 값
 #   BUBBLEWRAP_KEYSTORE_PASSWORD : keystore 비밀번호
 #   BUBBLEWRAP_KEY_PASSWORD      : key 비밀번호
+#
+# 주의: Bubblewrap은 ~/.bubblewrap/config.json이 없으면 첫 실행 때
+# JDK/SDK 설치 여부를 묻는 대화형 마법사를 띄우고, CI(TTY 없음)에서는
+# stdin이 닫히면서 exit code 130(SIGINT)으로 죽습니다.
+# "Configure Bubblewrap (non-interactive)" 스텝이 이를 미리 막습니다.
 name: TWA Android Build
 
 on:
@@ -31,6 +36,35 @@ jobs:
 
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
+
+      - name: Configure Bubblewrap (non-interactive)
+        run: |
+          set -e
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "SDK_ROOT=$SDK_ROOT"
+          echo "JAVA_HOME=$JAVA_HOME"
+
+          # 1) Bubblewrap 첫 실행 마법사 방지: config를 미리 작성
+          mkdir -p ~/.bubblewrap
+          printf '{"jdkPath":"%s","androidSdkPath":"%s"}' "$JAVA_HOME" "$SDK_ROOT" \
+            > ~/.bubblewrap/config.json
+          python3 -c "import json; json.load(open('$HOME/.bubblewrap/config.json')); print('config.json ok')"
+
+          # 2) Bubblewrap SDK 경로 검증자는 $ANDROID_HOME/tools 또는 /bin 을 요구.
+          #    러너 이미지는 cmdline-tools/<버전>/ 구조이므로 심볼릭 링크로 맞춰줌
+          if [ ! -e "$SDK_ROOT/tools" ] && [ ! -e "$SDK_ROOT/bin" ]; then
+            LATEST_CT=$(ls -d "$SDK_ROOT"/cmdline-tools/*/ 2>/dev/null | sort -V | tail -n1)
+            if [ -n "$LATEST_CT" ]; then
+              SUDO=""
+              [ -w "$SDK_ROOT" ] || SUDO="sudo -n"
+              $SUDO ln -s "$LATEST_CT" "$SDK_ROOT/tools"
+              echo "symlinked $LATEST_CT -> $SDK_ROOT/tools"
+            fi
+          fi
+
+          # 3) Android SDK 라이선스 미리 동의 (빌드 중 프롬프트 방지)
+          yes | "$SDK_ROOT/tools/bin/sdkmanager" --licenses > /dev/null || true
+          echo "sdkmanager licenses accepted"
 
       - name: Prepare project files
         run: |
