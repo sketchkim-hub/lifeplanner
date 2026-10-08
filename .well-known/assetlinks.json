@@ -1,1 +1,15 @@
-[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"com.sketchkimhub.lifeplanner","sha256_cert_fingerprints":["BC:5F:13:EB:C5:4E:27:D4:4A:DC:72:B9:8D:5A:FF:3F:34:E3:F3:A1:28:28:E4:7C:CD:AD:40:11:42:96:B4:87"]}}]
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sketchkimhub.lifeplanner",
+      "sha256_cert_fingerprints": [
+        "52:20:C5:EA:12:16:70:68:0B:1E:9E:20:26:12:36:94:35:DA:2A:BF:42:ED:78:16:E4:97:17:03:E1:E3:99:8A",
+        "BC:5F:13:EB:C5:4E:27:D4:4A:DC:72:B9:8D:5A:FF:3F:34:E3:F3:A1:28:28:E4:7C:CD:AD:40:11:42:96:B4:87"
+      ]
+    }
+  }
+]
