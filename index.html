@@ -795,7 +795,8 @@ const TODAY = new Date();
 /* =========================================================
    상태 & 저장
    ========================================================= */
-let state = {
+function defaultState(){
+  return {
   readingProgress: {},
   memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
   dailyEntries: {},
@@ -807,7 +808,9 @@ let state = {
   testLog: [],
   settings: {tzOffsetMinutes: 540},
   gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
-};
+  };
+}
+let state = defaultState();
 let ui = {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
@@ -818,6 +821,8 @@ let recognition = null;
 
 async function loadAllFromFirestore(){
   if(!currentUser) return;
+  // 이전 사용자의 데이터가 화면에 남거나 새 계정으로 복사되지 않게 먼저 비운다
+  state = defaultState();
   try{
     const snap = await db.collection("users").doc(currentUser.uid).get();
     if(snap.exists){
@@ -888,12 +893,7 @@ async function importDataFromFile(file){
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
 }
 async function resetAllData(){
-  state = {
-    readingProgress: {}, memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
-    dailyEntries: {}, fellowship: [], prayers: [], journal: [], gratitudes: [], bibleText: {}, testLog: [],
-    settings: {tzOffsetMinutes: 540},
-    gamifyCounts: {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
-  };
+  state = defaultState();
   await db.collection("users").doc(currentUser.uid).update(state);
   showToast("모든 데이터를 초기화했어요.");
   renderAll();
@@ -3730,6 +3730,7 @@ auth.onAuthStateChanged(async (user)=>{
     renderAll();
   } else {
     currentUser = null;
+    state = defaultState();
     document.getElementById("mainApp").style.display = "none";
     document.getElementById("authScreen").style.display = "flex";
   }
