@@ -562,6 +562,10 @@ input,textarea,select{font-family:inherit;}
 .auth-tab.active{background:var(--navy);color:#F7F1E1;}
 .auth-error{font-size:12.5px;color:var(--brick);margin-top:8px;min-height:16px;}
 .auth-loading{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft);z-index:100;}
+.data-status{flex-direction:column;gap:12px;text-align:center;padding:24px;line-height:1.6;}
+.auth-consent{font-size:12px;color:var(--ink-soft);margin-top:10px;text-align:center;line-height:1.6;}
+.auth-links{font-size:12px;color:var(--ink-soft);margin-top:14px;text-align:center;line-height:1.8;}
+.auth-links a, .auth-consent a, .account-links a{color:var(--gold);}
 
 /* ---------- Account tab ---------- */
 .account-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
@@ -664,6 +668,13 @@ input,textarea,select{font-family:inherit;}
 </head>
 <body>
 <div class="auth-loading" id="authLoading">불을 밝히는 중…</div>
+<div class="auth-loading data-status" id="dataStatus" style="display:none;">
+  <div id="dataStatusMsg">기록을 불러오는 중…</div>
+  <div id="dataStatusActions" style="display:none;gap:8px;">
+    <button class="btn gold small" id="dataRetryBtn">다시 시도</button>
+    <button class="btn ghost small" id="dataLogoutBtn">로그아웃</button>
+  </div>
+</div>
 
 <div class="auth-screen" id="authScreen" style="display:none;">
   <div class="auth-card">
@@ -682,6 +693,14 @@ input,textarea,select{font-family:inherit;}
     <button class="btn gold" id="authSubmit" style="width:100%;">로그인</button>
     <button class="btn ghost small" id="authResetPw" style="width:100%;margin-top:8px;">비밀번호를 잊으셨나요?</button>
     <div class="auth-error" id="authError"></div>
+    <div class="auth-consent" id="authConsent" style="display:none;">
+      회원가입을 누르면 <a href="privacy-policy.html" target="_blank" rel="noopener">개인정보처리방침</a>에 동의하는 것으로 봐요.
+    </div>
+    <div class="auth-links">
+      <a href="privacy-policy.html" target="_blank" rel="noopener">개인정보처리방침</a> ·
+      <a href="delete-account.html" target="_blank" rel="noopener">계정 삭제 안내</a> ·
+      <a href="mailto:kimsketch@naver.com">문의 kimsketch@naver.com</a>
+    </div>
   </div>
 </div>
 
@@ -728,6 +747,8 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
+const APP_VERSION = "1.0.2";
+const CONTACT_EMAIL = "kimsketch@naver.com";
 
 /* =========================================================
    유튜브 숏폼 설정
@@ -811,20 +832,30 @@ function defaultState(){
   };
 }
 let state = defaultState();
-let ui = {
+function defaultUi(){
+  return {
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
   listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null, testBulkMode:false
-};
+  };
+}
+let ui = defaultUi();
 let recognition = null;
+// 클라우드에서 기록을 정상적으로 불러온 뒤에만 true. false인 동안에는 저장을 막아서
+// 불러오기 실패로 비어 있는 상태가 기존 기록을 덮어쓰지 않게 해요.
+let dataLoaded = false;
 
 async function loadAllFromFirestore(){
-  if(!currentUser) return;
+  if(!currentUser) return false;
+  const uid = currentUser.uid;
+  dataLoaded = false;
   // 이전 사용자의 데이터가 화면에 남거나 새 계정으로 복사되지 않게 먼저 비운다
   state = defaultState();
   try{
-    const snap = await db.collection("users").doc(currentUser.uid).get();
+    const snap = await db.collection("users").doc(uid).get();
+    // 불러오는 사이에 로그아웃·계정 전환이 일어났다면 결과를 버린다
+    if(!currentUser || currentUser.uid !== uid) return false;
     if(snap.exists){
       const d = snap.data() || {};
       state = {
@@ -842,14 +873,26 @@ async function loadAllFromFirestore(){
       };
     } else {
       // 최초 로그인: 기본 상태로 문서 생성
-      await db.collection("users").doc(currentUser.uid).set({
+      await db.collection("users").doc(uid).set({
         email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...state
       });
+      if(!currentUser || currentUser.uid !== uid) return false;
     }
-  }catch(e){ showToast("데이터를 불러오지 못했어요. 네트워크를 확인해 주세요."); }
+    dataLoaded = true;
+    return true;
+  }catch(e){
+    state = defaultState();
+    return false;
+  }
+}
+function blockedUntilLoaded(){
+  if(currentUser && dataLoaded) return false;
+  showToast("기록을 아직 불러오지 못해 저장하지 않았어요. 다시 시도해 주세요.");
+  return true;
 }
 async function persist(prop){
   if(!currentUser) return;
+  if(blockedUntilLoaded()) return;
   try{
     // update()는 지정한 필드 값을 통째로 교체해요 (set+merge와 달리, 지워진 키가
     // 이전 값과 병합되어 되살아나지 않고 실제로 삭제가 반영돼요)
@@ -869,6 +912,7 @@ function exportData(){
   showToast("데이터를 내보냈어요.");
 }
 async function importDataFromFile(file){
+  if(blockedUntilLoaded()) return;
   try{
     const text = await file.text();
     const d = JSON.parse(text);
@@ -893,23 +937,69 @@ async function importDataFromFile(file){
   }catch(e){ showToast("파일을 읽는 데 실패했어요. 올바른 백업 파일인지 확인해 주세요."); }
 }
 async function resetAllData(){
-  state = defaultState();
-  await db.collection("users").doc(currentUser.uid).update(state);
-  showToast("모든 데이터를 초기화했어요.");
+  if(blockedUntilLoaded()) return;
+  try{
+    await db.collection("users").doc(currentUser.uid).update(defaultState());
+    state = defaultState();
+    showToast("모든 데이터를 초기화했어요.");
+  }catch(e){ showToast("초기화에 실패했어요. 잠시 후 다시 시도해 주세요."); }
   renderAll();
 }
+// 회원 탈퇴: 비밀번호로 본인 확인(재인증)을 먼저 한 뒤에 기록 → 계정 순서로 삭제해요.
+// (재인증 없이 기록부터 지우면, 로그인한 지 오래된 경우 계정 삭제만 실패해서
+//  기록은 사라지고 계정은 남는 문제가 생겨요)
+function openDeleteAccountModal(){
+  if(!currentUser) return;
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>⚠️ 회원 탈퇴</h3><button class="close-x" id="modalClose">✕</button></div>
+    <p class="section-desc">본인 확인을 위해 비밀번호를 다시 입력해 주세요. 확인되면 계정과 모든 기록이 즉시 영구 삭제되며, 되돌릴 수 없어요.</p>
+    <div class="field"><label>로그인 이메일</label><input type="text" value="${escapeAttr(currentUser.email||"")}" disabled></div>
+    <div class="field"><label>비밀번호</label><input type="password" id="del_pw" autocomplete="current-password" placeholder="비밀번호"></div>
+    <div class="auth-error" id="del_err"></div>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn danger" id="del_confirm" style="flex:1;">탈퇴하기</button>
+      <button class="btn ghost" id="del_cancel">취소</button>
+    </div>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("del_cancel").addEventListener("click", closeModal);
+  document.getElementById("del_confirm").addEventListener("click", deleteAccountAndData);
+}
 async function deleteAccountAndData(){
+  const user = currentUser;
+  const pwEl = document.getElementById("del_pw");
+  const errEl = document.getElementById("del_err");
+  const btn = document.getElementById("del_confirm");
+  if(!user || !pwEl) return;
+  const pw = pwEl.value;
+  errEl.textContent = "";
+  if(!pw){ errEl.textContent = "비밀번호를 입력해 주세요."; return; }
+  btn.disabled = true;
+  // 1) 재인증
   try{
-    await db.collection("users").doc(currentUser.uid).delete();
-    await currentUser.delete();
-    showToast("계정을 삭제했어요.");
+    const cred = firebase.auth.EmailAuthProvider.credential(user.email, pw);
+    await user.reauthenticateWithCredential(cred);
   }catch(e){
-    if(e.code==="auth/requires-recent-login"){
-      showToast("보안을 위해 재로그인 후 다시 시도해 주세요.");
-      await auth.signOut();
-    } else {
-      showToast("계정 삭제에 실패했어요: "+e.message);
-    }
+    const wrong = ["auth/wrong-password","auth/invalid-credential","auth/invalid-login-credentials"].includes(e.code);
+    errEl.textContent = wrong ? "비밀번호가 일치하지 않아요." : authErrorMessage(e.code);
+    btn.disabled = false;
+    return;
+  }
+  // 2) 기록 삭제
+  try{
+    await db.collection("users").doc(user.uid).delete();
+  }catch(e){
+    errEl.textContent = "기록을 삭제하지 못했어요. 계정과 기록은 그대로예요. 잠시 후 다시 시도해 주세요.";
+    btn.disabled = false;
+    return;
+  }
+  // 3) 계정 삭제 (성공하면 로그아웃 처리되어 로그인 화면으로 돌아가요)
+  try{
+    await user.delete();
+    showToast("계정과 모든 기록을 삭제했어요.");
+  }catch(e){
+    errEl.textContent = `기록은 삭제됐지만 계정 삭제에 실패했어요. 다시 시도하시거나 ${CONTACT_EMAIL}로 알려주세요.`;
+    btn.disabled = false;
   }
 }
 
@@ -3457,6 +3547,21 @@ function renderAccount(){
       <button class="btn outline small" id="logoutBtn">로그아웃</button>
     </div>
   </div>
+  <div class="card account-links" style="margin-bottom:16px;">
+    <div class="section-title">ℹ️ 앱 정보</div>
+    <div class="account-row">
+      <div><div class="ar-label">앱 버전</div><div class="ar-desc">${APP_VERSION}</div></div>
+    </div>
+    <div class="account-row">
+      <div><div class="ar-label">개인정보처리방침</div><div class="ar-desc"><a href="privacy-policy.html" target="_blank" rel="noopener">처리방침 보기</a></div></div>
+    </div>
+    <div class="account-row">
+      <div><div class="ar-label">계정 및 데이터 삭제 안내</div><div class="ar-desc"><a href="delete-account.html" target="_blank" rel="noopener">삭제 안내 보기</a></div></div>
+    </div>
+    <div class="account-row">
+      <div><div class="ar-label">문의</div><div class="ar-desc"><a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></div></div>
+    </div>
+  </div>
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">⏰ 시간대 설정</div>
     <p class="section-desc">오늘 날짜, 캘린더, 성경읽기 진도 등 앱 전체의 기준 시간대예요. 한국에서 쓰신다면 기본값(서울) 그대로 두시면 돼요.</p>
@@ -3524,7 +3629,7 @@ function bindAccount(){
   });
   document.getElementById("deleteAccBtn").addEventListener("click",()=>{
     if(confirm("정말 회원 탈퇴하시겠어요? 계정과 모든 데이터가 영구히 삭제돼요.")){
-      if(confirm("마지막 확인이에요. 되돌릴 수 없어요. 계속할까요?")) deleteAccountAndData();
+      openDeleteAccountModal();
     }
   });
   bindEbookSection();
@@ -3663,6 +3768,8 @@ function setAuthMode(mode){
   document.getElementById("authTabLogin").classList.toggle("active", mode==="login");
   document.getElementById("authTabSignup").classList.toggle("active", mode==="signup");
   document.getElementById("authSubmit").textContent = mode==="login" ? "로그인" : "회원가입";
+  document.getElementById("authConsent").style.display = mode==="signup" ? "block" : "none";
+  document.getElementById("authPw").setAttribute("autocomplete", mode==="signup" ? "new-password" : "current-password");
   document.getElementById("authError").textContent = "";
 }
 function authErrorMessage(code){
@@ -3716,21 +3823,58 @@ function bindAuthScreen(){
 /* =========================================================
    부트스트랩
    ========================================================= */
+// 로그아웃·계정 전환 시 이전 사용자의 흔적(화면, 진행 중인 테스트, 표지 사진, 모달, 음성 인식 등)을 모두 지워요
+function resetSession(){
+  dataLoaded = false;
+  state = defaultState();
+  if(recognition){ try{ recognition.onend=null; recognition.abort(); }catch(e){} recognition = null; }
+  try{ stopTTS(); }catch(e){}
+  ui = defaultUi();
+  ebkCoverPhotoData = null;
+  shopAdminEditId = null; shopAdminPhotoData = null; quoteAdminEditId = null;
+  closeModal();
+  document.getElementById("modalBody").innerHTML = "";
+  document.getElementById("panels").innerHTML = "";
+  document.getElementById("tabbar").innerHTML = "";
+}
+function showDataStatus(mode){
+  const box = document.getElementById("dataStatus");
+  if(mode==="hide"){ box.style.display = "none"; return; }
+  document.getElementById("dataStatusMsg").textContent = mode==="error"
+    ? "기록을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 시도해 주세요."
+    : "기록을 불러오는 중…";
+  document.getElementById("dataStatusActions").style.display = mode==="error" ? "flex" : "none";
+  box.style.display = "flex";
+}
+async function startSession(){
+  if(!currentUser) return;
+  const uid = currentUser.uid;
+  document.getElementById("mainApp").style.display = "none";
+  showDataStatus("loading");
+  const ok = await loadAllFromFirestore();
+  if(!currentUser || currentUser.uid !== uid) return; // 그 사이 계정이 바뀜
+  if(!ok){ showDataStatus("error"); return; }
+  showDataStatus("hide");
+  document.getElementById("mainApp").style.display = "block";
+  migrateReadingProgressIfNeeded();
+  migrateJournalIfNeeded();
+  loadAdminQuotes().then(()=>{ if(dataLoaded && (ui.tab==="home"||ui.tab==="quotes")) renderAll(); });
+  renderAll();
+}
+document.getElementById("dataRetryBtn").addEventListener("click", startSession);
+document.getElementById("dataLogoutBtn").addEventListener("click", ()=> auth.signOut());
+
 bindAuthScreen();
 auth.onAuthStateChanged(async (user)=>{
   document.getElementById("authLoading").style.display = "none";
+  resetSession();
   if(user){
     currentUser = user;
     document.getElementById("authScreen").style.display = "none";
-    document.getElementById("mainApp").style.display = "block";
-    await loadAllFromFirestore();
-    migrateReadingProgressIfNeeded();
-    migrateJournalIfNeeded();
-    loadAdminQuotes().then(()=>{ if(ui.tab==="home"||ui.tab==="quotes") renderAll(); });
-    renderAll();
+    await startSession();
   } else {
     currentUser = null;
-    state = defaultState();
+    showDataStatus("hide");
     document.getElementById("mainApp").style.display = "none";
     document.getElementById("authScreen").style.display = "flex";
   }
