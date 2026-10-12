@@ -436,6 +436,21 @@ input,textarea,select{font-family:inherit;}
 .prayer-text{font-family:'Noto Serif KR',serif;font-size:13.5px;color:var(--navy-soft);line-height:1.85;margin-top:10px;padding:12px 15px;background:var(--paper-deep);border-radius:8px;white-space:pre-wrap;border-left:3px solid var(--gold-soft);}
 .prayer-answer{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:13px;color:var(--sage);white-space:pre-wrap;line-height:1.7;}
 
+/* ---------- 날짜별 목록: 이번 달은 펼침, 지난 달은 월별로 접기 ---------- */
+.date-group{margin-bottom:10px;}
+.date-group-head{width:100%;display:flex;align-items:center;gap:8px;padding:12px 14px;border:1px solid var(--line);background:var(--paper-deep);border-radius:10px;font-family:'Noto Serif KR',serif;font-weight:700;font-size:14px;color:var(--navy);text-align:left;cursor:pointer;}
+.date-group-head .dg-arrow{width:14px;color:var(--gold);flex:none;}
+.date-group-head .dg-count{font-family:'Noto Sans KR',sans-serif;font-weight:500;font-size:12.5px;color:var(--ink-soft);}
+.date-group-body{display:none;padding-top:10px;}
+.date-group.open .date-group-body{display:block;}
+.date-group.open .date-group-head{border-color:var(--gold-soft);}
+.past-label{font-size:12px;font-weight:600;color:var(--ink-soft);margin:18px 2px 8px;}
+.entry-clamp{max-height:4.6em;overflow:hidden;position:relative;}
+.entry-clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1.6em;background:linear-gradient(rgba(255,253,247,0),var(--card));}
+.clamp-wrap.open .entry-clamp{max-height:none;}
+.clamp-wrap.open .entry-clamp::after{display:none;}
+.entry-more{border:none;background:none;padding:6px 0 0;font-size:12.5px;font-weight:600;color:var(--gold);cursor:pointer;}
+
 /* ---------- Quotes ---------- */
 .quote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
 .quote-card{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px;}
@@ -747,7 +762,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.3";
 const CONTACT_EMAIL = "kimsketch@naver.com";
 
 /* =========================================================
@@ -837,7 +852,8 @@ function defaultUi(){
   tab:"home", memTab:"five", planMonthFilter:0, calYear:TODAY.getFullYear(), calMonth:TODAY.getMonth(),
   testCat:null, testQueue:[], testIdx:0, testFlipped:false,
   testMode:"text", recording:false, transcriptFinal:"", transcriptInterim:"",
-  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null, testBulkMode:false
+  listMode:"day", listRefDate: dstr(TODAY), prayerFilter:"all", bibleBook:"디모데전서", editingCardId:null, testBulkMode:false,
+  openGroups:{}, openEntries:{}
   };
 }
 let ui = defaultUi();
@@ -2598,36 +2614,108 @@ function renderJournal(){
     <button class="btn gold" id="newJournalBtn">+ 묵상 추가</button>
   </div>
   <div id="journalList">
-    ${entries.length? entries.map(e=>`
-      <div class="journal-entry">
-        <div class="journal-date"><span>${fmtDateKor(e.date)}</span><button class="btn ghost small" data-edit="${e.id}">편집</button></div>
+    ${renderDatedList("journal", entries, renderJournalCard, `<div class="empty">아직 작성된 묵상 노트가 없어요. 오늘의 은혜부터 기록해 보세요.</div>`)}
+  </div>`;
+}
+function renderJournalCard(e, compact){
+  const bodyHtml = `
         ${e.qt||e.verse?`<div class="journal-row"><div class="jr-label">QT / 암송</div><div class="jr-val">${escapeHtml([e.qt,e.verse].filter(Boolean).join(" · "))}</div></div>`:""}
         ${e.grace?`<div class="journal-row"><div class="jr-label">받은 은혜 (이해, 발견)</div><div class="jr-val">${escapeHtml(e.grace)}</div></div>`:""}
         ${e.application?`<div class="journal-row"><div class="jr-label">삶의 적용</div><div class="jr-val">${escapeHtml(e.application)}</div></div>`:""}
-        ${e.prayer?`<div class="journal-row"><div class="jr-label">기도제목</div><div class="jr-val">${escapeHtml(e.prayer)}</div></div>`:""}
-      </div>`).join("") : `<div class="empty">아직 작성된 묵상 노트가 없어요. 오늘의 은혜부터 기록해 보세요.</div>`}
-  </div>`;
+        ${e.prayer?`<div class="journal-row"><div class="jr-label">기도제목</div><div class="jr-val">${escapeHtml(e.prayer)}</div></div>`:""}`;
+  const plain = [e.qt, e.verse, e.grace, e.application, e.prayer].filter(Boolean).join("\n");
+  return `
+      <div class="journal-entry">
+        <div class="journal-date"><span>${e.date?fmtDateKor(e.date):"날짜 미정"}</span><button class="btn ghost small" data-edit="${e.id}">편집</button></div>
+        ${clampWrap(compact, "jn_"+e.id, bodyHtml, plain)}
+      </div>`;
 }
 function bindJournal(){
+  bindDatedLists();
   document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(null, dstr(TODAY)));
   document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openQtModal(b.dataset.edit); }));
 }
 
 /* =========================================================
+   날짜별 목록 공통: 이번 달(과 이후) 기록은 그대로 펼쳐 보여주고,
+   지난 기록은 "2026년 9월 (5)"처럼 월별로 묶어 접어둬요.
+   열림/닫힘 상태는 ui에만 기억해요(계정 전환 시 초기화).
+   ========================================================= */
+function renderDatedList(listKey, items, cardFn, emptyHtml){
+  if(!items.length) return emptyHtml;
+  const curMonth = dstr(TODAY).slice(0,7);
+  const recent = [], groups = [], byKey = {};
+  items.forEach(it=>{
+    const m = (it.date||"").slice(0,7);
+    if(m && m >= curMonth){ recent.push(it); return; }
+    const key = m || "none";
+    if(!byKey[key]){ byKey[key] = []; groups.push(key); }
+    byKey[key].push(it);
+  });
+  // 날짜 미정 묶음은 맨 아래로
+  groups.sort((a,b)=> a==="none" ? 1 : b==="none" ? -1 : b.localeCompare(a));
+  let html = recent.map(it=>cardFn(it,false)).join("");
+  if(groups.length){
+    if(recent.length) html += `<div class="past-label">지난 기록</div>`;
+    html += groups.map(key=>{
+      const gid = `${listKey}|${key}`;
+      const open = !!ui.openGroups[gid];
+      const [y,m] = key.split("-").map(Number);
+      const label = key==="none" ? "날짜 미정" : `${y}년 ${m}월`;
+      return `
+      <div class="date-group ${open?"open":""}">
+        <button type="button" class="date-group-head" data-grp="${escapeAttr(gid)}" aria-expanded="${open}">
+          <span class="dg-arrow">${open?"▾":"▸"}</span><span>${label}</span><span class="dg-count">(${byKey[key].length})</span>
+        </button>
+        <div class="date-group-body">${byKey[key].map(it=>cardFn(it,true)).join("")}</div>
+      </div>`;
+    }).join("");
+  }
+  return html;
+}
+// 지난 기록(접힌 묶음 안)의 긴 본문은 두세 줄만 미리 보여주고 펼치기/접기
+function clampWrap(compact, id, html, plainText){
+  const long = (plainText||"").length > 60 || ((plainText||"").match(/\n/g)||[]).length >= 2;
+  if(!compact || !long) return html;
+  const open = !!ui.openEntries[id];
+  return `<div class="clamp-wrap ${open?"open":""}"><div class="entry-clamp">${html}</div><button type="button" class="entry-more" data-more="${escapeAttr(id)}">${open?"접기 ▴":"펼치기 ▾"}</button></div>`;
+}
+function bindDatedLists(){
+  document.querySelectorAll("[data-grp]").forEach(b=>b.addEventListener("click",()=>{
+    const gid = b.dataset.grp;
+    const open = !ui.openGroups[gid];
+    if(open) ui.openGroups[gid] = true; else delete ui.openGroups[gid];
+    b.closest(".date-group").classList.toggle("open", open);
+    b.setAttribute("aria-expanded", String(open));
+    b.querySelector(".dg-arrow").textContent = open ? "▾" : "▸";
+  }));
+  document.querySelectorAll("[data-more]").forEach(b=>b.addEventListener("click",()=>{
+    const id = b.dataset.more;
+    const open = !ui.openEntries[id];
+    if(open) ui.openEntries[id] = true; else delete ui.openEntries[id];
+    b.closest(".clamp-wrap").classList.toggle("open", open);
+    b.textContent = open ? "접기 ▴" : "펼치기 ▾";
+  }));
+}
+
+/* =========================================================
    기도노트
    ========================================================= */
-function renderPrayerCard(p){
+function renderPrayerCard(p, compact){
   const statusBadge = p.status==="answered" ? '<span class="badge">응답됨</span>' : '<span class="badge gold">기도 중</span>';
+  const bodyHtml = `
+    ${p.request?`<div class="prayer-body">${escapeHtml(p.request)}</div>`:""}
+    ${p.prayerText?`<div class="prayer-text">"${escapeHtml(p.prayerText)}"</div>`:""}
+    ${p.status==="answered" && p.answer?`<div class="prayer-answer">🌾 응답: ${escapeHtml(p.answer)}${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div>`:""}
+    ${p.thanks?`<div class="prayer-answer" style="color:var(--gold);">🙏 감사: ${escapeHtml(p.thanks)}</div>`:""}`;
+  const plain = [p.request, p.prayerText, p.status==="answered"?p.answer:"", p.thanks].filter(Boolean).join("\n");
   return `
   <div class="prayer-item">
     <div class="prayer-top">
       <div class="prayer-title">🙏 ${escapeHtml(p.title||"제목 없음")} ${statusBadge}</div>
       <div class="prayer-meta">${p.date?fmtDateKor(p.date):"날짜 미정"}</div>
     </div>
-    ${p.request?`<div class="prayer-body">${escapeHtml(p.request)}</div>`:""}
-    ${p.prayerText?`<div class="prayer-text">"${escapeHtml(p.prayerText)}"</div>`:""}
-    ${p.status==="answered" && p.answer?`<div class="prayer-answer">🌾 응답: ${escapeHtml(p.answer)}${p.answeredDate?` (${fmtDateKor(p.answeredDate)})`:""}</div>`:""}
-    ${p.thanks?`<div class="prayer-answer" style="color:var(--gold);">🙏 감사: ${escapeHtml(p.thanks)}</div>`:""}
+    ${clampWrap(compact, "pr_"+p.id, bodyHtml, plain)}
     <div style="margin-top:10px;display:flex;gap:6px;">
       <button class="btn ghost small" data-predit="${p.id}">편집</button>
       <button class="btn danger small" data-predel="${p.id}">삭제</button>
@@ -2649,7 +2737,7 @@ function renderPrayer(){
     <button class="btn sage" id="newGratitudeBtn">+ 감사 추가</button>
   </div>
   <div id="gratitudeList" style="margin-bottom:20px;">
-    ${gratitudes.length ? gratitudes.map(renderGratitudeCard).join("") : `<div class="empty">아직 기록된 감사가 없어요. 오늘 감사한 일을 적어보세요.</div>`}
+    ${renderDatedList("gratitude", gratitudes, renderGratitudeCard, `<div class="empty">아직 기록된 감사가 없어요. 오늘 감사한 일을 적어보세요.</div>`)}
   </div>
 
   <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -2665,16 +2753,16 @@ function renderPrayer(){
     <button class="memtab ${ui.prayerFilter==="answered"?"active":""}" data-pf="answered">응답됨 ${answered}</button>
   </div>
   <div id="prayerList">
-    ${sorted.length ? sorted.map(renderPrayerCard).join("") : `<div class="empty">아직 기록된 기도제목이 없어요. 오늘의 기도부터 적어보세요.</div>`}
+    ${renderDatedList("prayer", sorted, renderPrayerCard, `<div class="empty">아직 기록된 기도제목이 없어요. 오늘의 기도부터 적어보세요.</div>`)}
   </div>`;
 }
-function renderGratitudeCard(g){
+function renderGratitudeCard(g, compact){
   return `
   <div class="prayer-item">
     <div class="prayer-top">
       <div class="prayer-title">🌾 ${g.date?fmtDateKor(g.date):"날짜 미정"}</div>
     </div>
-    <div class="prayer-body">${escapeHtml(g.content||"")}</div>
+    ${clampWrap(compact, "gr_"+g.id, `<div class="prayer-body">${escapeHtml(g.content||"")}</div>`, g.content)}
     <div style="margin-top:10px;display:flex;gap:6px;">
       <button class="btn ghost small" data-gredit="${g.id}">편집</button>
       <button class="btn danger small" data-grdel="${g.id}">삭제</button>
@@ -2708,6 +2796,7 @@ function openGratitudeModal(id){
   });
 }
 function bindPrayer(){
+  bindDatedLists();
   document.getElementById("newPrayerBtn").addEventListener("click",()=>openPrayerModal());
   document.querySelectorAll("[data-pf]").forEach(b=>b.addEventListener("click",()=>{ ui.prayerFilter=b.dataset.pf; renderAll(); }));
   document.querySelectorAll("[data-predit]").forEach(b=>b.addEventListener("click",()=>openPrayerModal(b.dataset.predit)));
@@ -2797,22 +2886,28 @@ function renderFellowship(){
     <button class="btn gold" id="newFelBtn">교제 약속 추가</button>
   </div>
   <div id="felList">
-    ${list.length? list.map(f=>`
+    ${renderDatedList("fellowship", list, renderFellowshipCard, `<div class="empty">아직 등록된 교제 약속이 없어요.</div>`)}
+  </div>`;
+}
+function renderFellowshipCard(f, compact){
+  const bodyHtml = `
+        ${f.content?`<div class="fel-body">${escapeHtml(f.content)}</div>`:""}
+        ${f.lessons?`<div class="fel-lesson">💡 배운 것: ${escapeHtml(f.lessons)}</div>`:""}`;
+  return `
       <div class="fel-item">
         <div class="fel-top">
           <div class="fel-person">${escapeHtml(f.person||"이름 미정")}</div>
           <div class="fel-meta">${f.date?fmtDateKor(f.date):"날짜 미정"} ${f.place?" · "+escapeHtml(f.place):""}</div>
         </div>
-        ${f.content?`<div class="fel-body">${escapeHtml(f.content)}</div>`:""}
-        ${f.lessons?`<div class="fel-lesson">💡 배운 것: ${escapeHtml(f.lessons)}</div>`:""}
+        ${clampWrap(compact, "fe_"+f.id, bodyHtml, [f.content, f.lessons].filter(Boolean).join("\n"))}
         <div style="margin-top:10px;display:flex;gap:6px;">
           <button class="btn ghost small" data-feledit="${f.id}">편집</button>
           <button class="btn danger small" data-feldel="${f.id}">삭제</button>
         </div>
-      </div>`).join("") : `<div class="empty">아직 등록된 교제 약속이 없어요.</div>`}
-  </div>`;
+      </div>`;
 }
 function bindFellowship(){
+  bindDatedLists();
   document.getElementById("newFelBtn").addEventListener("click",()=>openFellowshipModal());
   document.querySelectorAll("[data-feledit]").forEach(b=>b.addEventListener("click",()=>openFellowshipModal(b.dataset.feledit)));
   document.querySelectorAll("[data-feldel]").forEach(b=>b.addEventListener("click",()=>{

@@ -1,4 +1,4 @@
-const CACHE_NAME = "deungbul-cache-v3";
+const CACHE_NAME = "deungbul-cache-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
