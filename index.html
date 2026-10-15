@@ -7,7 +7,12 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#212B42">
+<meta name="theme-color" content="#212B42" id="metaThemeColor">
+<script>
+/* 첫 화면부터 저장된 화면 테마를 적용해 깜빡임을 줄여요 (계정별 설정은 로그인 후 다시 맞춰요) */
+(function(){try{var t=JSON.parse(localStorage.getItem("lp_theme")||"null");
+if(t&&t.theme&&t.theme!=="cream"){document.documentElement.setAttribute("data-theme",t.theme);}}catch(e){}})();
+</script>
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <!-- Firebase (회원가입/로그인 + 데이터 저장) -->
@@ -26,15 +31,28 @@
   --ink-soft:#5B5A4E;
   --navy:#212B42;
   --navy-soft:#3B4560;
-  --gold:#B8863E;
+  --gold:#8F6A2E; /* 예전 #B8863E는 흰 바탕/흰 글자 대비가 3.2:1이라 WCAG AA(4.5:1)를 넘도록 조금 진하게 */
   --gold-soft:#D9AE6E;
   --sage:#5B6B4F;
   --sage-soft:#7C8C6D;
   --brick:#8B4A42;
   --line:#DED2B4;
+  --input:#FFFEF9;
+  --on-navy:#F7F1E1;   /* navy 바탕 위 글자 */
+  --on-accent:#FFFFFF; /* gold·sage 바탕 버튼 위 글자 */
+  --hero:#212B42; --hero-2:#2B3652;
   --radius:14px;
   --shadow:0 2px 10px rgba(33,27,10,0.08), 0 1px 2px rgba(33,27,10,0.06);
 }
+
+/* ---------- 화면 테마 (계정 탭에서 선택) ---------- */
+html[data-theme="white"]{--paper:#F6F6F4;--paper-deep:#ECECE8;--card:#FFFFFF;--input:#FFFFFF;--line:#E0E0DA;--ink:#1F2328;--ink-soft:#55595F;--navy:#212B42;--navy-soft:#3B4560;--gold:#8C6528;--gold-soft:#D3B07A;--sage:#4F6145;--sage-soft:#7C8C6D;--brick:#8B3F37;--on-navy:#FFFFFF;--on-accent:#FFFFFF;--hero:#212B42;--hero-2:#2B3652;}
+html[data-theme="sage"]{--paper:#EAF0E6;--paper-deep:#DCE6D5;--card:#FAFCF8;--input:#FCFDFB;--line:#C9D6C0;--ink:#1F2A1F;--ink-soft:#4D5849;--navy:#233127;--navy-soft:#3C4D40;--gold:#7E5F27;--gold-soft:#C9AE76;--sage:#45603D;--sage-soft:#7A9270;--brick:#8B4239;--on-navy:#F1F6EE;--on-accent:#FFFFFF;--hero:#2A3B2E;--hero-2:#34483A;}
+html[data-theme="sky"]{--paper:#E8F0F7;--paper-deep:#D8E4EF;--card:#FAFCFE;--input:#FCFDFF;--line:#C6D5E3;--ink:#1C2533;--ink-soft:#4A5767;--navy:#1E3350;--navy-soft:#36506F;--gold:#835E27;--gold-soft:#CDB07C;--sage:#45604A;--sage-soft:#77907B;--brick:#8E4038;--on-navy:#F0F5FA;--on-accent:#FFFFFF;--hero:#1E3350;--hero-2:#2A4467;}
+html[data-theme="lavender"]{--paper:#EFEBF5;--paper-deep:#E2DCEC;--card:#FCFBFE;--input:#FDFCFF;--line:#D3CAE2;--ink:#251F2E;--ink-soft:#554E66;--navy:#352A52;--navy-soft:#4E4370;--gold:#835E27;--gold-soft:#CDB07C;--sage:#4A6046;--sage-soft:#7A8F76;--brick:#8C3F45;--on-navy:#F4F1FA;--on-accent:#FFFFFF;--hero:#352A52;--hero-2:#453866;}
+html[data-theme="dark"]{--paper:#14181F;--paper-deep:#1C212B;--card:#212733;--input:#1A1F29;--line:#353D4D;--ink:#E9E6E0;--ink-soft:#AEB3BE;--navy:#DCE3F1;--navy-soft:#BEC7D9;--gold:#D9AE6E;--gold-soft:#A9843F;--sage:#A3BC92;--sage-soft:#7C9070;--brick:#EBA197;--on-navy:#14181F;--on-accent:#14181F;--hero:#262E42;--hero-2:#2B3550;}
+html[data-theme="dark"]{color-scheme:dark;--shadow:0 2px 10px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.3);}
+html[data-theme="dark"] body{background-image:none;}
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;}
 body{
@@ -96,7 +114,7 @@ input,textarea,select{font-family:inherit;}
 }
 .tab-btn:hover{background:rgba(184,134,62,0.1);color:var(--navy);}
 .tab-btn.active{
-  background:var(--navy);color:#F7F1E1;font-weight:600;
+  background:var(--navy);color:var(--on-navy);font-weight:600;
   box-shadow:var(--shadow);
 }
 .panel{display:none;animation:fadein .25s ease;}
@@ -117,14 +135,14 @@ input,textarea,select{font-family:inherit;}
 .section-desc{font-size:13px;color:var(--ink-soft);margin:0 0 16px;line-height:1.6;}
 
 .btn{
-  border:1px solid var(--navy);background:var(--navy);color:#F7F1E1;
+  border:1px solid var(--navy);background:var(--navy);color:var(--on-navy);
   padding:9px 16px;border-radius:9px;font-size:13.5px;font-weight:600;
   transition:transform .12s ease, box-shadow .12s ease;
 }
 .btn:hover{transform:translateY(-1px);box-shadow:var(--shadow);}
 .btn.outline{background:transparent;color:var(--navy);}
-.btn.gold{background:var(--gold);border-color:var(--gold);color:#fff;}
-.btn.sage{background:var(--sage);border-color:var(--sage);color:#fff;}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:var(--on-accent);}
+.btn.sage{background:var(--sage);border-color:var(--sage);color:var(--on-accent);}
 .btn.ghost{background:transparent;border-color:var(--line);color:var(--ink-soft);}
 .btn.small{padding:6px 11px;font-size:12.5px;border-radius:7px;}
 .btn.danger{background:transparent;border-color:var(--brick);color:var(--brick);}
@@ -141,7 +159,7 @@ input,textarea,select{font-family:inherit;}
 .mic-btn .rec-dot{background:var(--brick);}
 .field input,.field textarea,.field select{
   width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;
-  font-size:13.5px;background:#fffef9;color:var(--ink);
+  font-size:13.5px;background:var(--input);color:var(--ink);
 }
 .field textarea{resize:vertical;min-height:70px;line-height:1.6;}
 .field input:focus,.field textarea:focus,.field select:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
@@ -160,7 +178,7 @@ input,textarea,select{font-family:inherit;}
 
 /* ---------- Home ---------- */
 .hero{
-  background:linear-gradient(135deg,var(--navy) 0%,#2B3652 100%);
+  background:linear-gradient(135deg,var(--hero) 0%,var(--hero-2) 100%);
   color:#F3EDDC;border-radius:18px;padding:30px 26px;position:relative;overflow:hidden;
   box-shadow:var(--shadow);
 }
@@ -200,7 +218,7 @@ input,textarea,select{font-family:inherit;}
 }
 .flip-back{
   transform:rotateY(180deg);
-  background:linear-gradient(160deg,var(--navy),#2B3652);color:#F3EDDC;
+  background:linear-gradient(160deg,var(--hero),var(--hero-2));color:#F3EDDC;
 }
 .flip-hint{position:absolute;bottom:8px;right:12px;font-size:10.5px;color:var(--ink-soft);opacity:.65;}
 .flip-back .flip-hint{color:#CBC2A8;}
@@ -256,7 +274,7 @@ input,textarea,select{font-family:inherit;}
   border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
   padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:600;
 }
-.memtab.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+.memtab.active{background:var(--gold);border-color:var(--gold);color:var(--on-accent);}
 .mem-list{display:grid;gap:10px;}
 .mem-item{
   border:1px solid var(--line);background:var(--card);border-radius:10px;padding:13px 15px;
@@ -325,32 +343,32 @@ input,textarea,select{font-family:inherit;}
 .todo-title2{flex:1;color:var(--ink);}
 .done-text2{text-decoration:line-through;color:var(--ink-soft);}
 .doing-tag{
-  flex:none;font-size:10.5px;font-weight:800;color:#fff;background:var(--gold);
+  flex:none;font-size:10.5px;font-weight:800;color:var(--on-accent);background:var(--gold);
   padding:2px 9px;border-radius:999px;letter-spacing:.2px;
 }
 .todo-dot{
   width:25px;height:25px;flex:none;border-radius:50%;position:relative;cursor:pointer;
-  border:2.5px solid #D8CEB4;background:#fff;transition:transform .15s ease, border-color .2s ease, background .2s ease;
+  border:2.5px solid var(--line);background:var(--input);transition:transform .15s ease, border-color .2s ease, background .2s ease;
 }
 .todo-dot:active{transform:scale(0.88);}
-.todo-dot.state-todo{border-color:#D8CEB4;background:#fff;}
+.todo-dot.state-todo{border-color:var(--line);background:var(--input);}
 .todo-dot.state-doing{
   border-color:var(--gold);
   background:conic-gradient(var(--gold) 0deg 180deg, transparent 180deg 360deg);
   box-shadow:0 0 0 3px rgba(184,134,62,0.14);
 }
-.todo-dot.state-doing::after{content:"";position:absolute;inset:5px;border-radius:50%;background:#fffef9;}
+.todo-dot.state-doing::after{content:"";position:absolute;inset:5px;border-radius:50%;background:var(--input);}
 .todo-dot.state-done{
   border-color:var(--sage);background:var(--sage);box-shadow:0 0 0 3px rgba(91,107,79,0.16);
 }
 .todo-dot.state-done::after{
   content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  color:#fff;font-size:13px;font-weight:900;
+  color:var(--on-accent);font-size:13px;font-weight:900;
 }
 .subsection-title{font-size:13px;font-weight:700;color:var(--navy);margin:16px 0 8px;display:flex;align-items:center;gap:6px;}
 .mini-add-row{display:flex;gap:6px;margin-top:8px;}
 .mini-add-row input[type="text"], .mini-add-row input[type="time"]{
-  border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fffef9;
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12.5px;background:var(--input);
 }
 .mini-add-row input[type="text"]{flex:1;}
 .mini-add-row input[type="time"]{max-width:108px;}
@@ -364,6 +382,7 @@ input,textarea,select{font-family:inherit;}
 .test-log-score{font-weight:800;flex:none;font-size:13px;}
 
 /* ---------- PDF 책자 (오프스크린 렌더용, html2canvas가 캡처) ---------- */
+.booklet-page{--paper:#F5F0E4;--paper-deep:#EDE5D2;--card:#FFFDF7;--input:#FFFEF9;--line:#DED2B4;--ink:#22271F;--ink-soft:#5B5A4E;--navy:#212B42;--navy-soft:#3B4560;--gold:#8F6A2E;--gold-soft:#D9AE6E;--sage:#5B6B4F;--sage-soft:#7C8C6D;--brick:#8B4A42;--on-navy:#F7F1E1;--on-accent:#FFFFFF;--hero:#212B42;--hero-2:#2B3652;}
 .booklet-page{width:794px;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif;color:var(--ink);background:var(--paper);}
 .booklet-cover{
   min-height:1123px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
@@ -380,6 +399,14 @@ input,textarea,select{font-family:inherit;}
 .booklet-entry{min-height:1123px;padding:80px 64px;background:var(--card);}
 .booklet-entry-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:21px;border-bottom:2px solid var(--gold);padding-bottom:12px;margin-bottom:26px;}
 .booklet-row{margin-bottom:20px;}
+.booklet-flow{background:var(--card);}
+.booklet-flow-page{background:var(--card);}
+.booklet-flow .flow-entry + .flow-entry{border-top:1px dashed var(--line);margin-top:20px;padding-top:22px;}
+.booklet-flow .booklet-entry-date{font-size:17px;border-bottom-width:1.5px;padding-bottom:8px;margin-bottom:14px;}
+.booklet-flow .booklet-row{margin-bottom:12px;}
+.booklet-flow .booklet-row:last-child{margin-bottom:0;}
+.booklet-flow .booklet-row .br-label{font-size:11px;margin-bottom:3px;}
+.booklet-flow .booklet-row .br-val{font-size:14.5px;line-height:1.8;}
 .booklet-row .br-label{font-size:12px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;}
 .booklet-row .br-val{font-size:15.5px;line-height:1.95;white-space:pre-wrap;color:var(--ink);}
 .ebook-checks{display:flex;gap:16px;font-size:13px;color:var(--ink);flex-wrap:wrap;}
@@ -396,7 +423,19 @@ input,textarea,select{font-family:inherit;}
 .theme-swatch.theme-sage{background:linear-gradient(165deg,#33402D,#5B6B4F);}
 .theme-swatch.selected{border-color:var(--gold);box-shadow:0 0 0 2px rgba(184,134,62,0.32);}
 
+/* 화면 테마 선택 */
+.skin-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px;}
+.skin-opt{border:2px solid var(--line);border-radius:12px;padding:6px 6px 8px;background:var(--card);color:var(--ink);font-size:12.5px;font-weight:600;cursor:pointer;text-align:center;}
+.skin-opt.selected{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold-soft);}
+.skin-prev{display:block;height:46px;border-radius:8px;margin-bottom:6px;padding:7px;position:relative;border:1px solid rgba(0,0,0,0.08);}
+.skin-prev i{display:block;height:9px;border-radius:3px;margin-bottom:5px;}
+.skin-prev b{position:absolute;right:7px;bottom:7px;width:14px;height:14px;border-radius:50%;}
+
 /* ---------- Modal ---------- */
+.modal.shake{animation:modal-shake .32s ease;}
+@keyframes modal-shake{0%,100%{transform:translateX(0);}25%{transform:translateX(-6px);}50%{transform:translateX(5px);}75%{transform:translateX(-3px);}}
+.draft-notice{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px;}
+.draft-discard{border:none;background:none;padding:0 2px;color:var(--brick);font-weight:700;font-size:12.5px;text-decoration:underline;cursor:pointer;flex:none;}
 .modal-backdrop{
   position:fixed;inset:0;background:rgba(33,27,10,0.45);display:none;
   align-items:center;justify-content:center;z-index:50;padding:16px;
@@ -446,7 +485,7 @@ input,textarea,select{font-family:inherit;}
 .date-group.open .date-group-head{border-color:var(--gold-soft);}
 .past-label{font-size:12px;font-weight:600;color:var(--ink-soft);margin:18px 2px 8px;}
 .entry-clamp{max-height:4.6em;overflow:hidden;position:relative;}
-.entry-clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1.6em;background:linear-gradient(rgba(255,253,247,0),var(--card));}
+.entry-clamp::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1.6em;background:linear-gradient(transparent,var(--card));}
 .clamp-wrap.open .entry-clamp{max-height:none;}
 .clamp-wrap.open .entry-clamp::after{display:none;}
 .entry-more{border:none;background:none;padding:6px 0 0;font-size:12.5px;font-weight:600;color:var(--gold);cursor:pointer;}
@@ -474,7 +513,7 @@ input,textarea,select{font-family:inherit;}
 .chapter-block-head h4{font-family:'Noto Serif KR',serif;font-size:14.5px;color:var(--navy);margin:0;}
 .chapter-block textarea{
   display:block;width:100%;min-height:130px;padding:12px 14px;border:1px solid var(--line);border-radius:9px;
-  font-size:14px;line-height:1.8;background:#fffef9;color:var(--ink);resize:vertical;box-sizing:border-box;
+  font-size:14px;line-height:1.8;background:var(--input);color:var(--ink);resize:vertical;box-sizing:border-box;
 }
 .chapter-block textarea:focus{outline:2px solid var(--gold-soft);outline-offset:1px;border-color:var(--gold);}
 .chapter-modal-textarea, textarea.chapter-modal-textarea{min-height:56vh;width:100%;font-size:15.5px;line-height:1.9;}
@@ -485,7 +524,7 @@ input,textarea,select{font-family:inherit;}
   border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
   padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;
 }
-.speed-btn.active{background:var(--gold);border-color:var(--gold);color:#fff;}
+.speed-btn.active{background:var(--gold);border-color:var(--gold);color:var(--on-accent);}
 .ch-read-check input{accent-color:var(--sage);}
 .chapter-view-text{
   font-size:15.5px;line-height:2;color:var(--ink);white-space:pre-wrap;
@@ -501,14 +540,14 @@ input,textarea,select{font-family:inherit;}
 }
 .book-select-box select{
   width:100%;padding:14px 16px;font-size:17px;font-weight:700;
-  border:2px solid var(--gold);border-radius:10px;background:#fffef9;color:var(--navy);
+  border:2px solid var(--gold);border-radius:10px;background:var(--input);color:var(--navy);
   cursor:pointer;
 }
 .book-select-box select:focus{outline:2px solid var(--gold-soft);outline-offset:2px;}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:var(--navy);color:#F3EDDC;padding:10px 20px;border-radius:999px;font-size:13px;
+  background:var(--navy);color:var(--on-navy);padding:10px 20px;border-radius:999px;font-size:13px;
   box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .25s ease;z-index:80;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -552,7 +591,7 @@ input,textarea,select{font-family:inherit;}
 .rec-dot{width:9px;height:9px;border-radius:50%;background:#fff;display:inline-block;margin-right:6px;animation:pulse-dot 1s infinite;}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.3;}}
 .transcript-box{
-  border:1px solid var(--line);border-radius:10px;background:#fffef9;min-height:70px;
+  border:1px solid var(--line);border-radius:10px;background:var(--input);min-height:70px;
   padding:12px 14px;font-size:13.5px;line-height:1.7;margin:10px 0;color:var(--ink);
 }
 .mode-toggle{display:flex;gap:6px;margin:12px 0;}
@@ -574,7 +613,7 @@ input,textarea,select{font-family:inherit;}
 .auth-brand-title{font-family:'Noto Serif KR',serif;font-weight:700;font-size:19px;color:var(--navy);}
 .auth-tabs{display:flex;gap:6px;margin-bottom:16px;background:var(--paper-deep);padding:4px;border-radius:10px;}
 .auth-tab{flex:1;border:none;background:transparent;padding:8px;border-radius:8px;font-size:13px;font-weight:700;color:var(--ink-soft);}
-.auth-tab.active{background:var(--navy);color:#F7F1E1;}
+.auth-tab.active{background:var(--navy);color:var(--on-navy);}
 .auth-error{font-size:12.5px;color:var(--brick);margin-top:8px;min-height:16px;}
 .auth-loading{position:fixed;inset:0;background:var(--paper);display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--ink-soft);z-index:100;}
 .data-status{flex-direction:column;gap:12px;text-align:center;padding:24px;line-height:1.6;}
@@ -762,7 +801,29 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4";
+/* ---------- 화면 테마 ---------- */
+const SKINS = [
+  {id:"cream", label:"기본(크림)", paper:"#F5F0E4", card:"#FFFDF7", navy:"#212B42", ink:"#22271F", gold:"#8F6A2E", meta:"#212B42"},
+  {id:"white", label:"화이트", paper:"#F6F6F4", card:"#FFFFFF", navy:"#212B42", ink:"#1F2328", gold:"#8C6528", meta:"#212B42"},
+  {id:"sage", label:"세이지 그린", paper:"#EAF0E6", card:"#FAFCF8", navy:"#233127", ink:"#1F2A1F", gold:"#7E5F27", meta:"#233127"},
+  {id:"sky", label:"하늘 블루", paper:"#E8F0F7", card:"#FAFCFE", navy:"#1E3350", ink:"#1C2533", gold:"#835E27", meta:"#1E3350"},
+  {id:"lavender", label:"라벤더", paper:"#EFEBF5", card:"#FCFBFE", navy:"#352A52", ink:"#251F2E", gold:"#835E27", meta:"#352A52"},
+  {id:"dark", label:"다크(밤)", paper:"#14181F", card:"#212733", navy:"#262E42", ink:"#E9E6E0", gold:"#D9AE6E", meta:"#14181F"}
+];
+function applyTheme(id, remember){
+  const skin = SKINS.find(x=>x.id===id) || SKINS[0];
+  if(skin.id==="cream") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", skin.id);
+  const meta = document.getElementById("metaThemeColor");
+  if(meta) meta.setAttribute("content", skin.meta);
+  if(remember){
+    try{ localStorage.setItem("lp_theme", JSON.stringify({uid: currentUser ? currentUser.uid : null, theme: skin.id})); }catch(e){}
+  }
+}
+function storedThemeOwner(){
+  try{ const t = JSON.parse(localStorage.getItem("lp_theme")||"null"); return t ? t.uid : null; }catch(e){ return null; }
+}
 const CONTACT_EMAIL = "kimsketch@naver.com";
 
 /* =========================================================
@@ -977,7 +1038,7 @@ function openDeleteAccountModal(){
       <button class="btn ghost" id="del_cancel">취소</button>
     </div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
   document.getElementById("del_cancel").addEventListener("click", closeModal);
   document.getElementById("del_confirm").addEventListener("click", deleteAccountAndData);
 }
@@ -1521,7 +1582,7 @@ function openChapterViewModal(bookName, chapterNum){
     <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 12px;">재생하면 책 이름과 장을 먼저 안내하고, 본문을 저장해 두신 다음 장까지 이어서 읽어드려요.</p>
     <div class="chapter-view-text">${text?escapeHtml(text).replace(/\n/g,"<br>"):'<span style="color:var(--ink-soft)">아직 저장된 본문이 없어요. "성경 본문" 화면의 입력칸에 붙여넣어 저장해 주세요.</span>'}</div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); closeModal(); });
+  document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); requestCloseModal(); });
   const ttsBtn = document.getElementById("ttsBtn");
   if(text) ttsBtn.addEventListener("click",()=> toggleTTS(bookName, chapterNum, ttsBtn));
   document.querySelectorAll("[data-speed]").forEach(b=>b.addEventListener("click",()=>{
@@ -2406,7 +2467,7 @@ function openDayModal(dateKey){
       <div class="empty" style="padding:10px;font-size:12px;">등록된 교제 약속은 '교제노트' 탭에서 모아 볼 수 있어요.</div>
     </div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
   bindEventTodoLists(dateKey);
   document.getElementById("openAddEvent").addEventListener("click", ()=> openEventModal(dateKey));
   document.getElementById("openAddTodo").addEventListener("click", ()=> openTodoModal(dateKey));
@@ -2430,8 +2491,9 @@ function openEventModal(dateKey, eventId){
       <button class="btn ghost" id="backToDay">‹ 뒤로</button>
     </div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
-  document.getElementById("backToDay").addEventListener("click", ()=> openDayModal(dateKey));
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("event", existing ? existing.id : "new@"+dateKey);
+  document.getElementById("backToDay").addEventListener("click", ()=> leaveFormModal(()=> openDayModal(dateKey)));
   document.getElementById("saveEvent").addEventListener("click",()=>{
     const title = document.getElementById("ev_title").value.trim();
     if(!title){ showToast("일정 제목을 입력해 주세요."); return; }
@@ -2464,8 +2526,9 @@ function openTodoModal(dateKey, todoId){
       <button class="btn ghost" id="backToDay">‹ 뒤로</button>
     </div>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
-  document.getElementById("backToDay").addEventListener("click", ()=> openDayModal(dateKey));
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("todo", existing ? existing.id : "new@"+dateKey);
+  document.getElementById("backToDay").addEventListener("click", ()=> leaveFormModal(()=> openDayModal(dateKey)));
   document.getElementById("saveTodo").addEventListener("click",()=>{
     const title = document.getElementById("td_title").value.trim();
     if(!title){ showToast("할 일을 입력해 주세요."); return; }
@@ -2530,6 +2593,7 @@ function startFieldVoiceInput(btn, textareaId){
       const cur = ta.value;
       const sep = cur && !/[\s\n]$/.test(cur) ? " " : "";
       ta.value = cur + sep + added;
+      ta.dispatchEvent(new Event("input", {bubbles:true})); // 임시 저장·변경 감지에 반영
     }
   };
   rec.onerror = (e)=>{
@@ -2570,7 +2634,8 @@ function openQtModal(entryId, presetDate){
     <button class="btn gold" id="saveDaily">저장하기</button>
     <p style="font-size:11px;color:var(--ink-soft);margin-top:10px;">하루에 여러 번 기록할 수 있어요 — "묵상 추가"를 다시 누르면 새 기록이 하나 더 생겨요.</p>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("journal", existing ? existing.id : "new");
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveDaily").addEventListener("click",()=>{
     const newDate = document.getElementById("m_date").value;
@@ -2595,8 +2660,118 @@ function openQtModal(entryId, presetDate){
   });
 }
 function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
-function openModal(){ document.getElementById("modalBackdrop").classList.add("open"); }
-function closeModal(){ document.getElementById("modalBackdrop").classList.remove("open"); }
+/* ---------- 모달 & 작성 중 보호 ----------
+   입력용 모달(묵상·기도·감사·교제·일정·할 일)은 armFormModal()로 등록해요.
+   - 바깥 클릭: 바뀐 내용이 있으면 닫지 않아요(살짝 흔들림)
+   - ✕ / Esc: 바뀐 내용이 있으면 확인 후 닫고, 내용은 임시 저장돼요
+   - 입력하면 1초 뒤 localStorage에 임시 저장 → 같은 폼을 다시 열면 복원
+   - 저장 성공으로 모달이 닫히거나 다른 화면으로 바뀌면 임시 저장을 지워요 */
+let modalForm = null;   // {key, initial}
+let draftTimer = null;
+const DRAFT_PREFIX = "lp_draft:";
+function draftKeyFor(type, id){ return currentUser ? `${DRAFT_PREFIX}${currentUser.uid}:${type}:${id||"new"}` : null; }
+function formFields(){
+  return [...document.querySelectorAll("#modalBody input, #modalBody textarea, #modalBody select")]
+    .filter(el=> !el.disabled && !["password","file","hidden","button","submit"].includes(el.type) && (el.id || el.name));
+}
+function fieldKey(el){ return el.type==="radio" ? `${el.name}=${el.value}` : (el.id || el.name); }
+function readForm(){
+  const v = {};
+  formFields().forEach(el=>{ v[fieldKey(el)] = (el.type==="checkbox"||el.type==="radio") ? el.checked : el.value; });
+  return v;
+}
+function writeForm(v){
+  formFields().forEach(el=>{
+    const k = fieldKey(el);
+    if(!(k in v)) return;
+    if(el.type==="checkbox"||el.type==="radio") el.checked = !!v[k]; else el.value = v[k];
+  });
+}
+function sameForm(a, b){ return Object.keys(a).every(k=> a[k]===b[k]); }
+function isFormDirty(){
+  if(!modalForm || !document.getElementById("modalBackdrop").classList.contains("open")) return false;
+  return !sameForm(readForm(), modalForm.initial);
+}
+function saveDraftNow(){
+  clearTimeout(draftTimer); draftTimer = null;
+  if(!modalForm || !modalForm.key) return;
+  try{
+    if(isFormDirty()) localStorage.setItem(modalForm.key, JSON.stringify({v: readForm(), t: Date.now()}));
+    else localStorage.removeItem(modalForm.key);
+  }catch(e){}
+}
+function removeDraft(key){ try{ if(key) localStorage.removeItem(key); }catch(e){} }
+function clearAllDrafts(uid){
+  try{
+    const pre = `${DRAFT_PREFIX}${uid}:`;
+    Object.keys(localStorage).filter(k=>k.startsWith(pre)).forEach(k=>localStorage.removeItem(k));
+  }catch(e){}
+}
+function armFormModal(type, id){
+  modalForm = {key: draftKeyFor(type, id), initial: readForm()};
+  let draft = null;
+  try{ draft = JSON.parse(localStorage.getItem(modalForm.key)||"null"); }catch(e){}
+  if(draft && draft.v){
+    writeForm(draft.v);
+    if(isFormDirty()){
+      const head = document.querySelector("#modalBody .modal-head");
+      const note = document.createElement("div");
+      note.className = "notice draft-notice";
+      note.innerHTML = `임시 저장된 내용을 불러왔어요. <button type="button" class="draft-discard" id="draftDiscard">버리기</button>`;
+      if(head) head.insertAdjacentElement("afterend", note);
+      note.querySelector("#draftDiscard").addEventListener("click",()=>{
+        writeForm(modalForm.initial);
+        removeDraft(modalForm.key);
+        note.remove();
+      });
+    } else removeDraft(modalForm.key);
+  }
+}
+// 저장(또는 다른 화면으로 전환)으로 폼을 떠날 때: 임시 저장 삭제
+function finishForm(){
+  if(!modalForm) return;
+  clearTimeout(draftTimer); draftTimer = null;
+  removeDraft(modalForm.key);
+  modalForm = null;
+}
+// 사용자가 작성 중에 떠날 때: 임시 저장은 남겨둬요
+function leaveFormModal(next){
+  if(isFormDirty() && !confirm("작성 중인 내용이 있어요. 닫을까요? (임시 저장돼요)")) return;
+  saveDraftNow();
+  modalForm = null;
+  next();
+}
+function openModal(){
+  finishForm();
+  document.getElementById("modalBackdrop").classList.add("open");
+}
+function closeModal(){
+  finishForm();
+  document.getElementById("modalBackdrop").classList.remove("open");
+}
+function requestCloseModal(){
+  if(typeof stopTTS==="function" && ttsState && ttsState.playing) stopTTS();
+  leaveFormModal(()=> document.getElementById("modalBackdrop").classList.remove("open"));
+}
+function shakeModal(){
+  const m = document.getElementById("modalBody");
+  m.classList.remove("shake"); void m.offsetWidth; m.classList.add("shake");
+}
+document.getElementById("modalBody").addEventListener("input", ()=>{
+  if(!modalForm) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraftNow, 1000);
+});
+document.getElementById("modalBody").addEventListener("change", ()=>{
+  if(!modalForm) return;
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraftNow, 1000);
+});
+document.addEventListener("keydown",(e)=>{
+  if(e.key==="Escape" && document.getElementById("modalBackdrop").classList.contains("open")) requestCloseModal();
+});
+document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") saveDraftNow(); });
+window.addEventListener("pagehide", saveDraftNow);
 
 /* =========================================================
    묵상노트 (연대기 저널 뷰)
@@ -2781,7 +2956,8 @@ function openGratitudeModal(id){
     </div>
     <button class="btn sage" id="saveGratitude">저장하기</button>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("gratitude", existing ? existing.id : "new");
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveGratitude").addEventListener("click",()=>{
     const content = document.getElementById("gr_content").value.trim();
@@ -2846,7 +3022,8 @@ function openPrayerModal(id){
     </div>
     <button class="btn gold" id="savePrayer">저장하기</button>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("prayer", existing ? existing.id : "new");
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("savePrayer").addEventListener("click",()=>{
     const title = document.getElementById("p_title").value.trim();
@@ -2936,7 +3113,8 @@ function openFellowshipModal(id, presetDate){
     <button class="btn gold" id="saveFel">저장하기</button>
     <p style="font-size:11px;color:var(--ink-soft);margin-top:10px;">저장하면 캘린더의 그 날짜 "일정" 칸에도 자동으로 추가돼요.</p>`;
   openModal();
-  document.getElementById("modalClose").addEventListener("click", closeModal);
+  document.getElementById("modalClose").addEventListener("click", requestCloseModal);
+  armFormModal("fellowship", existing ? existing.id : "new");
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
   document.getElementById("saveFel").addEventListener("click",()=>{
     const before = snapshotGamify();
@@ -3190,6 +3368,78 @@ function makeClosingNode(){
     <div class="sub">디모데전서 4:7</div>
   `);
 }
+/* ---------- PDF 본문: 기록을 이어서 배치 (한 쪽에 여러 건) ----------
+   섹션의 모든 기록을 한 줄기(flow)로 그린 뒤, "끊어도 되는 위치"를 재서 A4 쪽 단위로 잘라요.
+   - 짧은 기록은 통째로 다음 쪽으로 넘기고(쪼개지 않음)
+   - 긴 기록은 줄 사이에서만 넘기되, 날짜 제목과 첫 두 줄은 항상 같은 쪽에 둬요. */
+const BK_PAGE_H = 1123, BK_PAD_Y = 70, BK_PAD_X = 64;
+const BK_CONTENT_W = 794 - BK_PAD_X*2, BK_CONTENT_H = BK_PAGE_H - BK_PAD_Y*2;
+function makeFlowNode(htmlList){
+  const div = document.createElement("div");
+  div.className = "booklet-page booklet-flow";
+  div.style.position = "fixed"; div.style.left = "-9999px"; div.style.top = "0";
+  div.style.width = BK_CONTENT_W+"px";
+  div.innerHTML = htmlList.map(h=>`<div class="flow-entry">${h}</div>`).join("");
+  return div;
+}
+function lineTops(el, base){
+  const range = document.createRange();
+  range.selectNodeContents(el);
+  const tops = [...range.getClientRects()].filter(r=>r.height>0).map(r=>Math.round(r.top - base));
+  return [...new Set(tops)].sort((x,y)=>x-y);
+}
+function flowBreakPoints(flow){
+  const base = flow.getBoundingClientRect().top;
+  const pts = [];
+  flow.querySelectorAll(".flow-entry").forEach(en=>{
+    const first = en.firstElementChild || en;
+    const entryStart = Math.round(first.getBoundingClientRect().top - base);
+    pts.push(entryStart); // 기록과 기록 사이(구분선 아래)
+    const h = en.getBoundingClientRect().height;
+    if(h <= BK_CONTENT_H*0.45) return; // 짧은 기록은 쪼개지 않아요
+    const inner = [];
+    let keepUntil = entryStart;
+    en.querySelectorAll(".booklet-row").forEach((row, ri)=>{
+      const rowTop = Math.round(row.getBoundingClientRect().top - base);
+      if(ri>0) inner.push(rowTop); // 항목 라벨 위
+      const val = row.querySelector(".br-val");
+      const tops = val ? lineTops(val, base) : [];
+      tops.slice(1).forEach(t=>inner.push(t)); // 라벨과 첫 줄은 붙여 둬요
+      if(ri===0){
+        // 날짜 제목 + 첫 두 줄은 함께: 세 번째 줄(없으면 다음 항목) 전까지는 끊지 않음
+        keepUntil = tops.length>=3 ? tops[2] : Math.round(row.getBoundingClientRect().bottom - base);
+      }
+    });
+    inner.forEach(t=>{ if(t >= keepUntil) pts.push(t); });
+  });
+  return [...new Set(pts)].sort((x,y)=>x-y);
+}
+function paginateFlow(points, totalH){
+  const pages = [];
+  let start = 0;
+  while(start < totalH - 1){
+    const limit = start + BK_CONTENT_H;
+    if(limit >= totalH){ pages.push([start, totalH]); break; }
+    let end = 0;
+    for(const pt of points){ if(pt > start + 40 && pt <= limit) end = pt; }
+    if(!end) end = limit; // 끊을 곳이 없을 만큼 긴 경우의 안전장치
+    pages.push([start, end]);
+    start = end;
+  }
+  return pages;
+}
+function makeFlowPage(flow, start, end){
+  const page = makeBookletNode("booklet-flow-page", "");
+  page.style.height = BK_PAGE_H+"px";
+  page.style.padding = `${BK_PAD_Y}px ${BK_PAD_X}px`;
+  const win = document.createElement("div");
+  win.style.cssText = `height:${end-start}px;overflow:hidden;position:relative;`;
+  const clone = flow.cloneNode(true);
+  clone.style.cssText = `position:absolute;left:0;top:${-start}px;width:${BK_CONTENT_W}px;`;
+  win.appendChild(clone);
+  page.appendChild(win);
+  return page;
+}
 async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, gratitudes, onProgress){
   if(!window.html2canvas || !window.jspdf){ throw new Error("PDF 라이브러리를 불러오지 못했어요."); }
   const { jsPDF } = window.jspdf;
@@ -3197,10 +3447,14 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, grati
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
   let first = true;
-  const total = 2 + journal.length + fellowship.length + prayers.length + gratitudes.length
-    + (journal.length?1:0) + (fellowship.length?1:0) + (prayers.length?1:0) + (gratitudes.length?1:0);
-  let done = 0;
 
+  const sections = [];
+  if(journal.length) sections.push({title:"묵상노트", sub:"그날 받은 은혜와 삶의 적용, 감사의 기록", html: journal.map(journalEntryHTML)});
+  if(prayers.length) sections.push({title:"기도노트", sub:"드린 기도와 그 응답의 기록", html: prayers.map(prayerEntryHTML)});
+  if(gratitudes.length) sections.push({title:"감사 목록", sub:"기도제목과 상관없이, 따로 감사했던 순간들", html: gratitudes.map(gratitudeEntryHTML)});
+  if(fellowship.length) sections.push({title:"교제와 배운 것", sub:"만남을 통해 나누고 깨달은 것들", html: fellowship.map(fellowshipEntryHTML)});
+
+  let done = 0, total = 0;
   async function addNode(node){
     document.body.appendChild(node);
     const canvas = await html2canvas(node, {scale:2, backgroundColor:"#ffffff", useCORS:true});
@@ -3225,24 +3479,27 @@ async function buildAndDownloadBooklet(opts, journal, fellowship, prayers, grati
     done++; if(onProgress) onProgress(done, total);
   }
 
-  await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length, gratitudes.length));
-  if(journal.length){
-    await addNode(makeDividerNode("묵상노트", "그날 받은 은혜와 삶의 적용, 감사의 기록"));
-    for(const e of journal) await addNode(makeBookletNode("booklet-entry", journalEntryHTML(e)));
+  try{
+    // 1) 섹션별로 미리 그려서 쪽 나누기를 계산
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    for(const sec of sections){
+      sec.flow = makeFlowNode(sec.html);
+      document.body.appendChild(sec.flow);
+      const totalH = Math.ceil(sec.flow.getBoundingClientRect().height);
+      sec.pages = paginateFlow(flowBreakPoints(sec.flow), totalH);
+    }
+    total = 2 + sections.reduce((n,sec)=> n + 1 + sec.pages.length, 0);
+
+    // 2) 표지 → (섹션 표지 → 본문 쪽들) → 마무리
+    await addNode(makeCoverNode(opts, journal.length, fellowship.length, prayers.length, gratitudes.length));
+    for(const sec of sections){
+      await addNode(makeDividerNode(sec.title, sec.sub));
+      for(const [st, en] of sec.pages) await addNode(makeFlowPage(sec.flow, st, en));
+    }
+    await addNode(makeClosingNode());
+  } finally {
+    sections.forEach(sec=>{ if(sec.flow) sec.flow.remove(); });
   }
-  if(prayers.length){
-    await addNode(makeDividerNode("기도노트", "드린 기도와 그 응답의 기록"));
-    for(const p of prayers) await addNode(makeBookletNode("booklet-entry", prayerEntryHTML(p)));
-  }
-  if(gratitudes.length){
-    await addNode(makeDividerNode("감사 목록", "기도제목과 상관없이, 따로 감사했던 순간들"));
-    for(const g of gratitudes) await addNode(makeBookletNode("booklet-entry", gratitudeEntryHTML(g)));
-  }
-  if(fellowship.length){
-    await addNode(makeDividerNode("교제와 배운 것", "만남을 통해 나누고 깨달은 것들"));
-    for(const f of fellowship) await addNode(makeBookletNode("booklet-entry", fellowshipEntryHTML(f)));
-  }
-  await addNode(makeClosingNode());
 
   const safeTitle = (opts.title||"은혜의 기록").replace(/[\\/:*?"<>|]/g,"");
   pdf.save(`${safeTitle}_${dstr(TODAY)}.pdf`);
@@ -3633,6 +3890,7 @@ async function saveQuoteFromForm(){
    계정
    ========================================================= */
 function renderAccount(){
+  const curTheme = (state.settings && state.settings.theme) || "cream";
   const tzMin = (state.settings && typeof state.settings.tzOffsetMinutes==="number") ? state.settings.tzOffsetMinutes : 540;
   return `
   <div class="card" style="margin-bottom:16px;">
@@ -3676,6 +3934,19 @@ function renderAccount(){
     </div>
   </div>
   <div class="card" style="margin-bottom:16px;">
+    <div class="section-title">🎨 화면 테마</div>
+    <p class="section-desc">앱 배경과 글자 색을 골라요. 모든 테마는 글자가 잘 읽히도록 명암 대비를 맞췄어요.</p>
+    <div class="skin-grid">
+      ${SKINS.map(k=>`
+        <button type="button" class="skin-opt ${curTheme===k.id?"selected":""}" data-skin="${k.id}" aria-pressed="${curTheme===k.id}">
+          <span class="skin-prev" style="background:${k.paper};">
+            <i style="background:${k.card};width:80%;"></i><i style="background:${k.ink};width:55%;opacity:.75;"></i>
+            <b style="background:${k.navy};"></b><b style="background:${k.gold};right:26px;"></b>
+          </span>${k.label}
+        </button>`).join("")}
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:16px;">
     <div class="section-title">🗂️ 데이터 관리</div>
     <div class="account-row">
       <div><div class="ar-label">데이터 내보내기</div><div class="ar-desc">모든 기록을 JSON 파일로 내려받아요.</div></div>
@@ -3715,6 +3986,15 @@ function bindAccount(){
     showToast("시간대를 변경했어요.");
     renderAll();
   });
+  document.querySelectorAll("[data-skin]").forEach(b=>b.addEventListener("click",()=>{
+    if(!state.settings) state.settings = {tzOffsetMinutes: 540};
+    state.settings.theme = b.dataset.skin;
+    applyTheme(b.dataset.skin, true);
+    document.querySelectorAll("[data-skin]").forEach(x=>{
+      const on = x===b; x.classList.toggle("selected", on); x.setAttribute("aria-pressed", String(on));
+    });
+    persist("settings");
+  }));
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("importFile").addEventListener("change",(e)=>{
     const f = e.target.files[0]; if(f) importDataFromFile(f);
@@ -3851,7 +4131,9 @@ function renderAll(){
 }
 
 document.getElementById("modalBackdrop").addEventListener("click",(e)=>{
-  if(e.target.id==="modalBackdrop") closeModal();
+  if(e.target.id!=="modalBackdrop") return;
+  if(isFormDirty()){ shakeModal(); return; } // 작성 중이면 바깥 클릭으로 닫지 않아요
+  requestCloseModal();
 });
 
 /* =========================================================
@@ -3920,6 +4202,8 @@ function bindAuthScreen(){
    ========================================================= */
 // 로그아웃·계정 전환 시 이전 사용자의 흔적(화면, 진행 중인 테스트, 표지 사진, 모달, 음성 인식 등)을 모두 지워요
 function resetSession(){
+  if(currentUser) clearAllDrafts(currentUser.uid); // 로그아웃·계정 전환 시 작성 중 임시 저장도 삭제
+  modalForm = null; clearTimeout(draftTimer); draftTimer = null;
   dataLoaded = false;
   state = defaultState();
   if(recognition){ try{ recognition.onend=null; recognition.abort(); }catch(e){} recognition = null; }
@@ -3950,6 +4234,7 @@ async function startSession(){
   if(!currentUser || currentUser.uid !== uid) return; // 그 사이 계정이 바뀜
   if(!ok){ showDataStatus("error"); return; }
   showDataStatus("hide");
+  applyTheme((state.settings && state.settings.theme) || "cream", true);
   document.getElementById("mainApp").style.display = "block";
   migrateReadingProgressIfNeeded();
   migrateJournalIfNeeded();
@@ -3963,12 +4248,15 @@ bindAuthScreen();
 auth.onAuthStateChanged(async (user)=>{
   document.getElementById("authLoading").style.display = "none";
   resetSession();
+  // 다른 계정이면 그 사람의 테마를 불러올 때까지 기본 테마로 보여줘요
+  if(!user || storedThemeOwner() !== user.uid) applyTheme("cream", false);
   if(user){
     currentUser = user;
     document.getElementById("authScreen").style.display = "none";
     await startSession();
   } else {
     currentUser = null;
+    try{ localStorage.removeItem("lp_theme"); }catch(e){}
     showDataStatus("hide");
     document.getElementById("mainApp").style.display = "none";
     document.getElementById("authScreen").style.display = "flex";
