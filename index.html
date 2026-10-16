@@ -454,6 +454,19 @@ input,textarea,select{font-family:inherit;}
 .journal-date{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:14.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
 .journal-date span{min-width:0;overflow-wrap:break-word;}
 .journal-date button{flex:none;white-space:nowrap;}
+.journal-date .jd-btns{display:flex;gap:6px;flex:none;}
+/* 하루 묵상 이미지(오프스크린 캡처용) */
+.shot-card{box-sizing:border-box;padding:30px 22px 22px;background:var(--paper);color:var(--ink);font-family:'Noto Sans KR',sans-serif;}
+.shot-app{font-size:11.5px;font-weight:700;letter-spacing:1px;color:var(--gold);}
+.shot-date{font-family:'Noto Serif KR',serif;font-weight:700;font-size:24px;color:var(--navy);margin-top:6px;}
+.shot-date span{font-size:16px;color:var(--ink-soft);font-weight:600;}
+.shot-sub{font-size:12.5px;color:var(--ink-soft);margin:2px 0 18px;padding-bottom:14px;border-bottom:2px solid var(--gold);}
+.shot-entry{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 4px;margin-bottom:16px;}
+.shot-entry-no{font-family:'Noto Serif KR',serif;font-weight:700;font-size:14px;color:var(--navy);margin-bottom:10px;}
+.shot-row{margin-bottom:14px;}
+.shot-label{font-size:11.5px;font-weight:700;color:var(--gold);margin-bottom:4px;}
+.shot-val{font-size:14.5px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink);}
+.shot-foot{text-align:center;font-size:11px;color:var(--ink-soft);margin-top:4px;line-height:1.7;}
 .journal-row{margin-bottom:8px;}
 .journal-row .jr-label{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px;}
 .journal-row .jr-val{font-size:13.5px;line-height:1.65;white-space:pre-wrap;color:var(--ink);}
@@ -801,7 +814,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 /* ---------- 화면 테마 ---------- */
 const SKINS = [
   {id:"cream", label:"기본(크림)", paper:"#F5F0E4", card:"#FFFDF7", navy:"#212B42", ink:"#22271F", gold:"#8F6A2E", meta:"#212B42"},
@@ -2801,7 +2814,7 @@ function renderJournalCard(e, compact){
   const plain = [e.qt, e.verse, e.grace, e.application, e.prayer].filter(Boolean).join("\n");
   return `
       <div class="journal-entry">
-        <div class="journal-date"><span>${e.date?fmtDateKor(e.date):"날짜 미정"}</span><button class="btn ghost small" data-edit="${e.id}">편집</button></div>
+        <div class="journal-date"><span>${e.date?fmtDateKor(e.date):"날짜 미정"}</span><span class="jd-btns">${e.date?`<button class="btn ghost small" data-dayshot="${e.date}" title="이 날의 묵상 전체를 이미지로 저장">📷 이미지</button>`:""}<button class="btn ghost small" data-edit="${e.id}">편집</button></span></div>
         ${clampWrap(compact, "jn_"+e.id, bodyHtml, plain)}
       </div>`;
 }
@@ -2809,6 +2822,122 @@ function bindJournal(){
   bindDatedLists();
   document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(null, dstr(TODAY)));
   document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openQtModal(b.dataset.edit); }));
+  document.querySelectorAll("[data-dayshot]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); exportJournalDayImage(b.dataset.dayshot, b); }));
+}
+
+/* ---------- 하루 묵상 기록을 모바일용 이미지(PNG)로 저장 ----------
+   400px 폭으로 그려 2.7배(=1080px)로 캡처해요. 현재 화면 테마 색을 그대로 써요.
+   아주 길면 여러 장으로 나눠요(한 장 최대 약 16000px). */
+const SHOT_W = 400, SHOT_SCALE = 2.7, SHOT_MAX_PX = 16000;
+function weekdayKor(iso){
+  const [y,m,d] = iso.split("-").map(Number);
+  return "일월화수목금토"[new Date(y, m-1, d).getDay()];
+}
+function shotEntryHTML(e, idx, total){
+  const row = (label, val)=> val ? `<div class="shot-row"><div class="shot-label">${label}</div><div class="shot-val">${escapeHtml(val)}</div></div>` : "";
+  return `<div class="shot-entry">
+    ${total>1?`<div class="shot-entry-no">묵상 ${idx+1}</div>`:""}
+    ${row("QT 본문", e.qt)}${row("암송구절", e.verse)}
+    ${row("받은 은혜 (이해, 발견)", e.grace)}${row("삶의 적용", e.application)}${row("기도제목", e.prayer)}
+  </div>`;
+}
+function makeShotCard(dateKey, entriesHtml, partNo, partTotal){
+  const div = document.createElement("div");
+  div.className = "shot-card";
+  div.style.cssText = `position:fixed;left:-10000px;top:0;width:${SHOT_W}px;`;
+  div.innerHTML = `
+    <div class="shot-app">라이프플래너 · 경건에 이르는 훈련</div>
+    <div class="shot-date">${fmtDateKor(dateKey)} <span>(${weekdayKor(dateKey)})</span></div>
+    <div class="shot-sub">오늘의 묵상${partTotal>1?` · ${partNo}/${partTotal}`:""}</div>
+    ${entriesHtml.join("")}
+    <div class="shot-foot">${partTotal>1 && partNo<partTotal ? "다음 이미지에 이어져요 ›<br>" : ""}🔥 라이프플래너 — 경건에 이르도록 네 자신을 연단하라 (딤전 4:7)</div>`;
+  return div;
+}
+async function renderShotCanvas(node){
+  document.body.appendChild(node);
+  try{
+    const bg = getComputedStyle(node).backgroundColor;
+    return await html2canvas(node, {scale: SHOT_SCALE, backgroundColor: bg, useCORS:true});
+  } finally { node.remove(); }
+}
+function canvasToBlob(canvas){ return new Promise(r=>canvas.toBlob(r, "image/png")); }
+// 한 항목이 너무 길어 한 장을 넘으면 캔버스를 세로로 잘라요(드문 경우)
+function sliceCanvas(canvas){
+  if(canvas.height <= SHOT_MAX_PX) return [canvas];
+  const out = [];
+  for(let y=0; y<canvas.height; y+=SHOT_MAX_PX){
+    const h = Math.min(SHOT_MAX_PX, canvas.height - y);
+    const c = document.createElement("canvas");
+    c.width = canvas.width; c.height = h;
+    c.getContext("2d").drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+    out.push(c);
+  }
+  return out;
+}
+async function buildJournalDayImages(dateKey){
+  const entries = state.journal
+    .filter(e=> e.date===dateKey && (e.grace||e.application||e.qt||e.verse||e.prayer))
+    .sort((a,b)=> (a.id||"").localeCompare(b.id||""));
+  if(!entries.length) return [];
+  if(document.fonts && document.fonts.ready) await document.fonts.ready;
+  const htmls = entries.map((e,i)=> shotEntryHTML(e, i, entries.length));
+  // 항목 높이를 재서 한 장(약 16000px)에 들어갈 만큼씩 묶어요
+  const probe = makeShotCard(dateKey, htmls, 1, 1);
+  document.body.appendChild(probe);
+  const baseH = probe.getBoundingClientRect().height - [...probe.querySelectorAll(".shot-entry")].reduce((n,el)=>n+el.getBoundingClientRect().height+16, 0);
+  const hs = [...probe.querySelectorAll(".shot-entry")].map(el=> el.getBoundingClientRect().height + 16);
+  probe.remove();
+  const limit = SHOT_MAX_PX / SHOT_SCALE - baseH - 40;
+  const parts = []; let cur = [], curH = 0;
+  htmls.forEach((h,i)=>{
+    if(cur.length && curH + hs[i] > limit){ parts.push(cur); cur = []; curH = 0; }
+    cur.push(h); curH += hs[i];
+  });
+  if(cur.length) parts.push(cur);
+  const canvases = [];
+  for(let i=0;i<parts.length;i++){
+    const c = await renderShotCanvas(makeShotCard(dateKey, parts[i], i+1, parts.length));
+    canvases.push(...sliceCanvas(c));
+  }
+  const files = [];
+  for(let i=0;i<canvases.length;i++){
+    const blob = await canvasToBlob(canvases[i]);
+    const name = canvases.length>1 ? `묵상_${dateKey}_${i+1}.png` : `묵상_${dateKey}.png`;
+    files.push(new File([blob], name, {type:"image/png"}));
+  }
+  return files;
+}
+async function exportJournalDayImage(dateKey, btn){
+  if(!window.html2canvas){ showToast("이미지 기능을 불러오지 못했어요. 인터넷 연결을 확인해 주세요."); return; }
+  const orig = btn ? btn.innerHTML : "";
+  if(btn){ btn.disabled = true; btn.innerHTML = "만드는 중…"; }
+  try{
+    const files = await buildJournalDayImages(dateKey);
+    if(!files.length){ showToast("이 날짜의 묵상 기록이 없어요."); return; }
+    if(files.length>1) showToast(`내용이 길어서 ${files.length}장으로 나눠 저장해요.`);
+    // 안드로이드 앱(TWA)·모바일: 공유 시트로 갤러리 저장·카카오톡 전송
+    if(navigator.canShare && navigator.canShare({files})){
+      try{
+        await navigator.share({files, title:`${fmtDateKor(dateKey)} 묵상`});
+        return;
+      }catch(err){
+        if(err && err.name==="AbortError") return; // 사용자가 공유 창을 닫음
+      }
+    }
+    // PC 등: 파일로 내려받기
+    for(const f of files){
+      const url = URL.createObjectURL(f);
+      const a = document.createElement("a");
+      a.href = url; a.download = f.name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    }
+    showToast("이미지를 저장했어요.");
+  }catch(e){
+    showToast("이미지를 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+  }finally{
+    if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+  }
 }
 
 /* =========================================================
