@@ -731,6 +731,51 @@ input,textarea,select{font-family:inherit;}
   .cal-cell{min-height:50px;}
   .brand-sub{display:none;}
 }
+/* 본문(페세지) 사진 */
+.journal-head-btns{display:flex;gap:8px;flex-wrap:wrap;}
+.jr-passages{display:flex;gap:8px;margin:2px 0 10px;flex-wrap:wrap;}
+.pthumb{position:relative;width:78px;height:96px;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--cream,#f3ece0);cursor:zoom-in;flex:none;}
+.pthumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.pthumb img:not([src]){visibility:hidden;}
+.pthumb.missing::after{content:"사진 없음";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--ink-soft);}
+.pthumb .pnum{position:absolute;right:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;border-radius:8px;padding:1px 5px;}
+.passage-edit{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.passage-edit:empty{display:none;}
+.pe-item{position:relative;}
+.pe-busy{width:78px;height:96px;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink-soft);}
+.pe-del{position:absolute;top:-7px;right:-7px;width:24px;height:24px;border-radius:50%;border:none;background:#333;color:#fff;font-size:12px;cursor:pointer;line-height:24px;padding:0;}
+.passage-add{display:inline-flex;width:auto;align-items:center;gap:4px;cursor:pointer;}
+.passage-add.disabled{opacity:.45;pointer-events:none;}
+.passage-hint{font-size:11px;color:var(--ink-soft);margin-top:6px;}
+.journal-entry[data-entry]{scroll-margin-top:72px;}
+.journal-entry.flash{animation:entryFlash 2.2s ease;}
+@keyframes entryFlash{0%,40%{box-shadow:0 0 0 3px var(--gold);}100%{box-shadow:0 0 0 0 transparent;}}
+.pg-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:4px 0 14px;}
+.pg-nav .btn{font-size:20px;line-height:1;padding:6px 14px;}
+.pg-month{font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:16px;}
+.pg-count{font-family:inherit;font-weight:400;font-size:12px;color:var(--ink-soft);margin-left:4px;}
+.pg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pg-item{position:relative;padding:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;aspect-ratio:3/4;background:var(--cream,#f3ece0);cursor:zoom-in;}
+.pg-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.pg-item img:not([src]){visibility:hidden;}
+.pg-date{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,0,.65));color:#fff;font-size:11.5px;font-weight:700;padding:14px 6px 5px;text-align:left;}
+.pg-date.dim{opacity:.75;font-weight:400;}
+.pg-other{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px;font-size:12px;color:var(--ink-soft);}
+.chip-btn{border:1px solid var(--line);background:transparent;color:var(--navy);border-radius:14px;padding:3px 10px;font-size:12px;cursor:pointer;}
+body.pv-open{overflow:hidden;}
+.pv{position:fixed;inset:0;z-index:70;background:#000;display:flex;flex-direction:column;color:#fff;touch-action:none;}
+.pv-top{display:flex;align-items:center;gap:10px;padding:10px 12px;padding-top:max(10px, env(safe-area-inset-top));background:rgba(0,0,0,.6);z-index:2;font-size:13px;}
+.pv-count{font-weight:700;}
+.pv-date{opacity:.85;}
+.pv-btn{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:16px;padding:7px 12px;font-size:13px;cursor:pointer;}
+.pv-close{width:36px;height:36px;padding:0;border-radius:50%;font-size:16px;}
+.pv-stage{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.pv-stage img{max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;user-select:none;-webkit-user-drag:none;}
+.pv-loading{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);font-size:12px;background:rgba(0,0,0,.5);padding:4px 10px;border-radius:10px;}
+.pv-nav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:64px;border:none;background:rgba(0,0,0,.45);color:#fff;font-size:30px;cursor:pointer;z-index:2;}
+.pv-nav.prev{left:0;border-radius:0 10px 10px 0;}
+.pv-nav.next{right:0;border-radius:10px 0 0 10px;}
+.pv-hint{text-align:center;font-size:11px;opacity:.6;padding:6px 10px calc(8px + env(safe-area-inset-bottom));}
 </style>
 </head>
 <body>
@@ -814,7 +859,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 /* ---------- 화면 테마 ---------- */
 const SKINS = [
   {id:"cream", label:"기본(크림)", paper:"#F5F0E4", card:"#FFFDF7", navy:"#212B42", ink:"#22271F", gold:"#8F6A2E", meta:"#212B42"},
@@ -1031,7 +1076,8 @@ async function resetAllData(){
   try{
     await db.collection("users").doc(currentUser.uid).update(defaultState());
     state = defaultState();
-    showToast("모든 데이터를 초기화했어요.");
+    try{ await deleteAllPassages(); showToast("모든 데이터를 초기화했어요."); }
+    catch(e){ showToast("데이터는 초기화했지만 본문 사진 일부를 지우지 못했어요. 다시 초기화해 주세요."); }
   }catch(e){ showToast("초기화에 실패했어요. 잠시 후 다시 시도해 주세요."); }
   renderAll();
 }
@@ -1075,8 +1121,9 @@ async function deleteAccountAndData(){
     btn.disabled = false;
     return;
   }
-  // 2) 기록 삭제
+  // 2) 기록 삭제 (본문 사진 하위 컬렉션 → 사용자 문서 순서. 하위 컬렉션은 상위 문서를 지워도 남아요)
   try{
+    await deleteAllPassages();
     await db.collection("users").doc(user.uid).delete();
   }catch(e){
     errEl.textContent = "기록을 삭제하지 못했어요. 계정과 기록은 그대로예요. 잠시 후 다시 시도해 주세요.";
@@ -2633,6 +2680,12 @@ function openQtModal(entryId, presetDate){
     <div class="field"><label>QT 본문</label><input type="text" id="m_qt" value="${escapeAttr(entry.qt)}" placeholder="예: 디모데전서 4장"></div>
     <div class="field"><label>오늘의 암송구절</label><input type="text" id="m_verse" value="${escapeAttr(entry.verse)}" placeholder="예: 딤전 4:8"></div>
     <div class="field">
+      <div class="field-label-row"><label>📖 본문 사진 <span style="font-weight:400;color:var(--ink-soft);">(최대 ${PASSAGE_MAX}장)</span></label></div>
+      <div class="passage-edit" id="m_passages"></div>
+      <label class="btn outline small passage-add" id="m_passageAdd">📖 본문 사진 추가<input type="file" accept="image/*" id="m_passageFile" multiple hidden></label>
+      <div class="passage-hint">경건의시간 본문 페이지를 카메라로 찍거나 갤러리에서 골라요. 자동으로 줄여서 저장돼요.</div>
+    </div>
+    <div class="field">
       <div class="field-label-row"><label>오늘 받은 은혜 (이해, 발견)</label><button type="button" class="mic-btn" data-mic="m_grace">🎙️ 음성 입력</button></div>
       <textarea id="m_grace" placeholder="말씀과 삶 가운데 받은 은혜" style="min-height:140px;">${escapeHtml(entry.grace||"")}</textarea>
     </div>
@@ -2645,14 +2698,68 @@ function openQtModal(entryId, presetDate){
       <textarea id="m_prayer" placeholder="오늘의 기도제목 (저장하면 기도노트에도 자동으로 추가돼요)">${escapeHtml(entry.prayer||"")}</textarea>
     </div>
     <button class="btn gold" id="saveDaily">저장하기</button>
+    ${existing?`<button class="btn ghost small" id="deleteDaily" style="margin-top:10px;color:var(--danger,#b3412e);">이 묵상 기록 삭제</button>`:""}
     <p style="font-size:11px;color:var(--ink-soft);margin-top:10px;">하루에 여러 번 기록할 수 있어요 — "묵상 추가"를 다시 누르면 새 기록이 하나 더 생겨요.</p>`;
   openModal();
   document.getElementById("modalClose").addEventListener("click", requestCloseModal);
   armFormModal("journal", existing ? existing.id : "new");
   document.querySelectorAll("[data-mic]").forEach(b=>b.addEventListener("click",()=>startFieldVoiceInput(b, b.dataset.mic)));
-  document.getElementById("saveDaily").addEventListener("click",()=>{
+  // 본문 사진: kept=이미 저장된 사진, pending=새로 고른 사진(아직 업로드 전), removed=지울 사진
+  const photos = {kept:[...(entry.passages||[])], pending:[], removed:[]};
+  let busy = 0;
+  const renderPhotos = ()=>{
+    const box = document.getElementById("m_passages");
+    if(!box) return;
+    const all = [...photos.kept.map(p=>({kind:"kept", id:p.id})), ...photos.pending.map(p=>({kind:"pending", id:p.tmp, src:p.thumb}))];
+    box.innerHTML = all.map((p,i)=>`<div class="pe-item"><button type="button" class="pthumb" data-peview="${i}">${p.src?`<img src="${p.src}" alt="본문 사진 ${i+1}">`:`<img data-pthumb="${escapeAttr(p.id)}" alt="본문 사진 ${i+1}">`}</button><button type="button" class="pe-del" data-pedel="${p.kind}:${escapeAttr(p.id)}" aria-label="사진 ${i+1} 빼기">✕</button></div>`).join("")
+      + (busy ? `<div class="pe-item pe-busy">줄이는 중…</div>` : "");
+    const full = all.length + busy >= PASSAGE_MAX;
+    document.getElementById("m_passageAdd").classList.toggle("disabled", full);
+    document.getElementById("m_passageFile").disabled = full;
+    hydratePassageThumbs(box);
+    box.querySelectorAll("[data-pedel]").forEach(b=>b.addEventListener("click",()=>{
+      const [kind, id] = b.dataset.pedel.split(/:(.*)/s);
+      if(kind==="kept"){ photos.kept = photos.kept.filter(p=>p.id!==id); photos.removed.push(id); }
+      else photos.pending = photos.pending.filter(p=>p.tmp!==id);
+      markFormDirty(); renderPhotos();
+    }));
+    box.querySelectorAll("[data-peview]").forEach(b=>b.addEventListener("click",()=>{
+      const items = all.map(p=>{ if(p.kind==="pending"){ const pp = photos.pending.find(x=>x.tmp===p.id); passageFullCache[p.id] = pp.full; passageThumbCache[p.id] = pp.thumb; } return {pid:p.id, entryId:entry.id, date:document.getElementById("m_date").value}; });
+      openPassageViewer(items, Number(b.dataset.peview));
+    }));
+  };
+  renderPhotos();
+  document.getElementById("m_passageFile").addEventListener("change", async (ev)=>{
+    const input = ev.target;
+    const files = [...input.files];
+    input.value = "";
+    const room = PASSAGE_MAX - photos.kept.length - photos.pending.length - busy;
+    if(files.length > room) showToast(`본문 사진은 한 기록에 ${PASSAGE_MAX}장까지 올릴 수 있어요.`);
+    for(const f of files.slice(0, Math.max(0, room))){
+      busy++; renderPhotos();
+      try{
+        const c = await compressPassageFile(f);
+        photos.pending.push({tmp: "tmp_"+uid(), ...c});
+        markFormDirty();
+      }catch(e){ showToast(passageErrorMessage(e)); }
+      busy--; renderPhotos();
+    }
+  });
+  if(existing) document.getElementById("deleteDaily").addEventListener("click", async ()=>{
+    const n = (existing.passages||[]).length;
+    if(!confirm(`이 묵상 기록을 삭제할까요?${n?`\n첨부한 본문 사진 ${n}장도 함께 삭제돼요.`:""}\n(연결된 기도노트 항목은 그대로 남아요)`)) return;
+    state.journal = state.journal.filter(j=>j.id!==existing.id);
+    persist("journal");
+    const ids = (existing.passages||[]).map(p=>p.id);
+    closeModal(); renderAll();
+    try{ await deletePassageIds(ids); showToast("묵상 기록을 삭제했어요."); }
+    catch(e){ showToast("기록은 삭제됐지만 사진 일부를 지우지 못했어요. 잠시 후 다시 시도해 주세요."); }
+  });
+  document.getElementById("saveDaily").addEventListener("click", async ()=>{
     const newDate = document.getElementById("m_date").value;
     if(!newDate){ showToast("날짜를 선택해 주세요."); return; }
+    if(busy){ showToast("사진을 줄이는 중이에요. 잠시만 기다려 주세요."); return; }
+    const saveBtn = document.getElementById("saveDaily");
     const prayerText = document.getElementById("m_prayer").value;
     const updated = {
       ...entry,
@@ -2663,14 +2770,304 @@ function openQtModal(entryId, presetDate){
       application: document.getElementById("m_app").value,
       prayer: prayerText
     };
+    // 1) 새 사진 업로드 → 2) 기록 저장 → 3) 뺀 사진 삭제 (중간에 실패해도 글은 지켜요)
+    const passages = [...photos.kept];
+    let failMsg = "";
+    if(photos.pending.length){
+      saveBtn.disabled = true; saveBtn.textContent = "사진 올리는 중…";
+      let fail = null;
+      for(const [i,p] of photos.pending.entries()){
+        const pid = newPassageId(entry.id, photos.kept.length + i);
+        try{ await uploadPassage(pid, updated, p); passages.push({id:pid, w:p.w, h:p.h}); }
+        catch(e){ fail = e; }
+      }
+      if(!currentUser || !document.getElementById("saveDaily")) return; // 업로드 중 로그아웃·화면 전환
+      if(fail) failMsg = passageErrorMessage(fail) + " 글은 저장했어요.";
+    }
+    if(passages.length) updated.passages = passages; else delete updated.passages;
+    if(newDate !== entry.date && photos.kept.length){
+      const meta = {date:newDate, month:newDate.slice(0,7)};
+      Promise.all(photos.kept.flatMap(p=>[passageCol("full").doc(p.id).update(meta), passageCol("thumb").doc(p.id).update(meta)])).catch(()=>{});
+    }
     const before = snapshotGamify();
     const idx = state.journal.findIndex(j=>j.id===entry.id);
     if(idx>=0) state.journal[idx] = updated; else state.journal.push(updated);
     syncJournalPrayer(updated, prayerText);
     persist("journal");
     closeModal(); renderAll();
-    announceGamify(before, "묵상을 저장했어요.");
+    if(failMsg){ showToast(failMsg); setTimeout(()=>announceGamify(before), 2600); } // 사진 실패 안내를 먼저 보여줘요
+    else announceGamify(before, "묵상을 저장했어요.");
+    if(photos.removed.length) deletePassageIds(photos.removed).catch(()=>showToast("뺀 사진 일부를 지우지 못했어요."));
   });
+}
+/* ---------- 본문(페세지) 사진 ----------
+   경건의시간 본문 페이지 사진을 묵상 기록에 1~3장 붙여요.
+   - 사진은 users/{uid} 문서(1MB 제한)에 넣지 않고, 하위 컬렉션에 한 장씩 따로 저장해요.
+       users/{uid}/passages/{사진id}      : 원본(긴 변 최대 1600px JPEG, base64)
+       users/{uid}/passageThumbs/{사진id} : 목록용 작은 썸네일(긴 변 360px)
+   - 묵상 기록(journal)에는 사진 id와 크기만 남아요: passages:[{id,w,h}]
+   - 임시 저장(localStorage)에는 사진을 넣지 않아요. */
+const PASSAGE_MAX = 3;
+const PASSAGE_FULL_MAX_CHARS = 700000;  // base64 글자 수 ≈ 파일 약 510KB (Firestore 문서 1MiB 제한보다 충분히 작게)
+let passageThumbCache = {};  // 사진id -> dataURL
+let passageFullCache = {};
+let passageViewer = null;    // 열린 전체 화면 보기 상태
+function passageCol(kind){
+  return db.collection("users").doc(currentUser.uid).collection(kind==="thumb" ? "passageThumbs" : "passages");
+}
+function newPassageId(entryId, n){ return `${entryId}_${n}${Date.now().toString(36)}`; }
+function loadImageFile(file){
+  return new Promise((resolve,reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{ URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("decode")); };
+    img.src = url;
+  });
+}
+function drawScaledJpeg(img, maxSide, quality){
+  const w0 = img.naturalWidth, h0 = img.naturalHeight;
+  const r = Math.min(1, maxSide / Math.max(w0, h0));
+  const w = Math.max(1, Math.round(w0*r)), h = Math.max(1, Math.round(h0*r));
+  const c = document.createElement("canvas"); c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#fff"; ctx.fillRect(0,0,w,h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return {data: c.toDataURL("image/jpeg", quality), w, h};
+}
+async function compressPassageFile(file){
+  if(!file || !/^image\//.test(file.type||"image/")) throw new Error("type");
+  const img = await loadImageFile(file);
+  let side = 1600, q = 0.8;
+  let full = drawScaledJpeg(img, side, q);
+  // 목표: 대부분 400KB 이하, 최대 약 510KB. 크면 화질 → 크기 순으로 줄여요.
+  while(full.data.length > 540000 && (q > 0.56 || side > 1000)){
+    if(q > 0.56) q = Math.round((q-0.08)*100)/100; else side = Math.round(side*0.85);
+    full = drawScaledJpeg(img, side, q);
+  }
+  if(full.data.length > PASSAGE_FULL_MAX_CHARS) throw new Error("too-big");
+  const thumb = drawScaledJpeg(img, 360, 0.72);
+  return {full: full.data, thumb: thumb.data, w: full.w, h: full.h};
+}
+async function uploadPassage(pid, entry, p){
+  const meta = {entryId: entry.id, date: entry.date||"", month: (entry.date||"").slice(0,7),
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()};
+  await passageCol("full").doc(pid).set({...meta, data: p.full, w: p.w, h: p.h});
+  await passageCol("thumb").doc(pid).set({...meta, data: p.thumb});
+  passageFullCache[pid] = p.full; passageThumbCache[pid] = p.thumb;
+}
+async function deletePassageIds(ids){
+  if(!ids || !ids.length || !currentUser) return;
+  await Promise.all(ids.flatMap(id=>{
+    delete passageFullCache[id]; delete passageThumbCache[id];
+    return [passageCol("full").doc(id).delete(), passageCol("thumb").doc(id).delete()];
+  }));
+}
+// 회원 탈퇴·전체 초기화 때: 하위 컬렉션은 상위 문서를 지워도 남기 때문에 따로 모두 지워요.
+async function deleteAllPassages(){
+  for(const kind of ["full","thumb"]){
+    const snap = await passageCol(kind).get();
+    await Promise.all(snap.docs.map(d=>d.ref.delete()));
+  }
+  passageFullCache = {}; passageThumbCache = {};
+}
+async function getPassageData(pid, kind){
+  const cache = kind==="thumb" ? passageThumbCache : passageFullCache;
+  if(cache[pid]) return cache[pid];
+  const owner = currentUser && currentUser.uid;
+  const doc = await passageCol(kind).doc(pid).get();
+  if(!currentUser || currentUser.uid !== owner) return null; // 기다리는 동안 계정이 바뀌었으면 버려요
+  const data = doc.exists ? (doc.data()||{}).data : null;
+  if(data) cache[pid] = data;
+  return data || null;
+}
+function hydratePassageThumbs(root){
+  (root||document).querySelectorAll("img[data-pthumb]").forEach(img=>{
+    const pid = img.dataset.pthumb;
+    if(img.dataset.loaded) return;
+    img.dataset.loaded = "1";
+    getPassageData(pid, "thumb")
+      .then(d=>{ if(d) img.src = d; else img.closest(".pthumb")?.classList.add("missing"); })
+      .catch(()=>{ img.dataset.loaded = ""; img.closest(".pthumb")?.classList.add("missing"); });
+  });
+}
+function passageThumbsHtml(e){
+  const list = Array.isArray(e.passages) ? e.passages : [];
+  if(!list.length) return "";
+  return `<div class="jr-passages">${list.map((p,i)=>`<button type="button" class="pthumb" data-pview="${escapeAttr(e.id)}" data-pidx="${i}" aria-label="본문 사진 ${i+1} 크게 보기"><img data-pthumb="${escapeAttr(p.id)}" alt="본문 사진 ${i+1}">${list.length>1?`<span class="pnum">${i+1}/${list.length}</span>`:""}</button>`).join("")}</div>`;
+}
+function passageItemsForEntry(e){
+  return (e.passages||[]).map(p=>({pid:p.id, entryId:e.id, date:e.date}));
+}
+function passageItemsForMonth(month){
+  return [...state.journal]
+    .filter(e=>(e.date||"").slice(0,7)===month && e.passages && e.passages.length)
+    .sort((a,b)=> (a.date||"").localeCompare(b.date||"") || (a.id||"").localeCompare(b.id||""))
+    .flatMap(passageItemsForEntry);
+}
+function passageErrorMessage(e){
+  const code = (e && (e.code||e.message)) || "";
+  if(/permission/.test(code)) return "사진을 저장할 권한이 없어요. (관리자: Firestore 보안 규칙 업데이트 필요)";
+  if(/too-big/.test(code)) return "사진이 너무 커서 줄일 수 없었어요. 다른 사진을 골라 주세요.";
+  if(/type|decode/.test(code)) return "이 파일은 사진으로 읽을 수 없어요.";
+  if(/unavailable|network/.test(code)) return "인터넷 연결을 확인한 뒤 다시 시도해 주세요.";
+  return "사진을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.";
+}
+
+/* ----- 이달의 본문 (월별 모아보기) ----- */
+function openPassageGallery(month){
+  if(blockedUntilLoaded()) return;
+  ui.galleryMonth = month || ui.galleryMonth || dstr(TODAY).slice(0,7);
+  const m = ui.galleryMonth;
+  const [y, mo] = m.split("-").map(Number);
+  const items = passageItemsForMonth(m);
+  const monthsWith = [...new Set(state.journal.filter(e=>e.passages&&e.passages.length&&e.date).map(e=>e.date.slice(0,7)))].sort();
+  let lastDate = "";
+  const grid = items.map((it,i)=>{
+    const showDate = it.date !== lastDate; lastDate = it.date;
+    const d = new Date(it.date+"T00:00:00");
+    return `<button type="button" class="pg-item" data-gidx="${i}" aria-label="${fmtDateKor(it.date)} 본문 사진">
+      <img data-pthumb="${escapeAttr(it.pid)}" alt="">
+      <span class="pg-date ${showDate?"":"dim"}">${d.getMonth()+1}/${d.getDate()} (${"일월화수목금토"[d.getDay()]})</span>
+    </button>`;
+  }).join("");
+  const other = monthsWith.filter(x=>x!==m).slice(-6).reverse();
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-head"><h3>📚 이달의 본문</h3><button class="close-x" id="modalClose">✕</button></div>
+    <div class="pg-nav">
+      <button type="button" class="btn ghost small" id="pgPrev" aria-label="이전 달">‹</button>
+      <div class="pg-month">${y}년 ${mo}월 <span class="pg-count">${items.length}장</span></div>
+      <button type="button" class="btn ghost small" id="pgNext" aria-label="다음 달">›</button>
+    </div>
+    ${items.length ? `<div class="pg-grid">${grid}</div>`
+      : `<div class="empty" style="padding:28px 10px;">이 달에 올린 본문 사진이 없어요.<br><span style="font-size:12px;">묵상을 추가하거나 편집할 때 <b>📖 본문 사진 추가</b>로 올릴 수 있어요.</span></div>`}
+    ${other.length ? `<div class="pg-other"><span>사진이 있는 달:</span>${other.map(x=>{const [a,b]=x.split("-").map(Number);return `<button type="button" class="chip-btn" data-gmonth="${x}">${a}.${b}</button>`;}).join("")}</div>` : ""}`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  const shift = (k)=>{ const d = new Date(y, mo-1+k, 1); openPassageGallery(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`); };
+  document.getElementById("pgPrev").addEventListener("click", ()=>shift(-1));
+  document.getElementById("pgNext").addEventListener("click", ()=>shift(1));
+  document.querySelectorAll("[data-gmonth]").forEach(b=>b.addEventListener("click",()=>openPassageGallery(b.dataset.gmonth)));
+  document.querySelectorAll("[data-gidx]").forEach(b=>b.addEventListener("click",()=>openPassageViewer(items, Number(b.dataset.gidx), {jump:true})));
+  hydratePassageThumbs(document.getElementById("modalBody"));
+}
+
+/* ----- 전체 화면 보기 (두 손가락 확대, 좌우 넘기기, 두 번 탭 확대) ----- */
+function openPassageViewer(items, index, opts){
+  if(!items || !items.length) return;
+  closePassageViewer();
+  const el = document.createElement("div");
+  el.id = "passageViewer"; el.className = "pv"; el.setAttribute("role","dialog"); el.setAttribute("aria-modal","true");
+  el.innerHTML = `
+    <div class="pv-top">
+      <span class="pv-count" id="pvCount"></span>
+      <span class="pv-date" id="pvDate"></span>
+      <span style="flex:1"></span>
+      ${opts && opts.jump ? `<button type="button" class="pv-btn" id="pvJump">이 날 묵상 보기 ›</button>` : ""}
+      <button type="button" class="pv-btn pv-close" id="pvClose" aria-label="닫기">✕</button>
+    </div>
+    <div class="pv-stage" id="pvStage"><img id="pvImg" alt="본문 사진" draggable="false"><div class="pv-loading" id="pvLoading">불러오는 중…</div></div>
+    ${items.length>1 ? `<button type="button" class="pv-nav prev" id="pvPrev" aria-label="이전 사진">‹</button><button type="button" class="pv-nav next" id="pvNext" aria-label="다음 사진">›</button>` : ""}
+    <div class="pv-hint">두 손가락으로 확대 · 두 번 탭하면 확대/축소${items.length>1?" · 좌우로 넘겨 보기":""}</div>`;
+  document.body.appendChild(el);
+  document.body.classList.add("pv-open");
+  const v = passageViewer = {el, items, index: Math.max(0, Math.min(index, items.length-1)), scale:1, tx:0, ty:0, opts: opts||{}};
+  const img = el.querySelector("#pvImg");
+  const apply = ()=>{ img.style.transform = `translate(${v.tx}px, ${v.ty}px) scale(${v.scale})`; };
+  const reset = ()=>{ v.scale = 1; v.tx = 0; v.ty = 0; apply(); };
+  const show = async (i)=>{
+    v.index = (i + items.length) % items.length;
+    const it = items[v.index];
+    reset();
+    el.querySelector("#pvCount").textContent = items.length>1 ? `${v.index+1} / ${items.length}` : "";
+    el.querySelector("#pvDate").textContent = it.date ? fmtDateKor(it.date) : "";
+    const loading = el.querySelector("#pvLoading");
+    img.removeAttribute("src");
+    if(passageThumbCache[it.pid]) img.src = passageThumbCache[it.pid]; // 먼저 썸네일, 원본이 오면 교체
+    loading.textContent = "불러오는 중…"; loading.style.display = passageFullCache[it.pid] ? "none" : "";
+    try{
+      const d = await getPassageData(it.pid, "full");
+      if(passageViewer !== v || items[v.index] !== it) return;
+      if(d){ img.src = d; loading.style.display = "none"; }
+      else loading.textContent = "사진을 찾을 수 없어요.";
+    }catch(e){ if(passageViewer===v) loading.textContent = "사진을 불러오지 못했어요."; }
+  };
+  v.show = show;
+  el.querySelector("#pvClose").addEventListener("click", closePassageViewer);
+  el.querySelector("#pvPrev")?.addEventListener("click", (e)=>{ e.stopPropagation(); show(v.index-1); });
+  el.querySelector("#pvNext")?.addEventListener("click", (e)=>{ e.stopPropagation(); show(v.index+1); });
+  el.querySelector("#pvJump")?.addEventListener("click", ()=>{ const it = items[v.index]; closePassageViewer(); jumpToJournalEntry(it.entryId); });
+  // 터치: 한 손가락 = 넘기기(확대 안 했을 때) 또는 이동(확대했을 때), 두 손가락 = 확대
+  const stage = el.querySelector("#pvStage");
+  let t0 = null, lastTap = 0;
+  const dist = (a,b)=>Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY);
+  stage.addEventListener("touchstart", (e)=>{
+    if(e.touches.length===2){ t0 = {pinch:true, d:dist(e.touches[0],e.touches[1]), s:v.scale}; }
+    else if(e.touches.length===1){
+      const t = e.touches[0];
+      t0 = {pinch:false, x:t.clientX, y:t.clientY, tx:v.tx, ty:v.ty, moved:false};
+    }
+  }, {passive:true});
+  stage.addEventListener("touchmove", (e)=>{
+    if(!t0) return;
+    e.preventDefault();
+    if(t0.pinch && e.touches.length===2){
+      v.scale = Math.max(1, Math.min(5, t0.s * dist(e.touches[0],e.touches[1]) / t0.d)); apply();
+    }else if(!t0.pinch && e.touches.length===1){
+      const t = e.touches[0], dx = t.clientX-t0.x, dy = t.clientY-t0.y;
+      if(Math.abs(dx)>6 || Math.abs(dy)>6) t0.moved = true;
+      if(v.scale>1){ v.tx = t0.tx+dx; v.ty = t0.ty+dy; apply(); }
+      else { img.style.transform = `translateX(${dx}px)`; }
+    }
+  }, {passive:false});
+  stage.addEventListener("touchend", (e)=>{
+    if(!t0) return;
+    const s = t0; if(e.touches.length) { if(s.pinch && e.touches.length===1){ t0 = null; } return; }
+    t0 = null;
+    if(s.pinch){ if(v.scale<1.05) reset(); return; }
+    const t = e.changedTouches[0], dx = t.clientX-s.x;
+    if(v.scale===1){
+      if(items.length>1 && Math.abs(dx)>50) { show(v.index + (dx<0?1:-1)); return; }
+      apply();
+    }
+    if(!s.moved){
+      const now = Date.now();
+      if(now-lastTap < 300){ if(v.scale>1) reset(); else { v.scale = 2.5; apply(); } lastTap = 0; }
+      else lastTap = now;
+    }
+  });
+  stage.addEventListener("dblclick", ()=>{ if(v.scale>1) reset(); else { v.scale = 2.5; apply(); } });
+  stage.addEventListener("wheel", (e)=>{ e.preventDefault(); v.scale = Math.max(1, Math.min(5, v.scale * (e.deltaY<0?1.15:1/1.15))); if(v.scale===1){v.tx=0;v.ty=0;} apply(); }, {passive:false});
+  // 마우스로 확대 상태 이동
+  let drag = null;
+  stage.addEventListener("mousedown", (e)=>{ if(v.scale>1){ drag = {x:e.clientX, y:e.clientY, tx:v.tx, ty:v.ty}; e.preventDefault(); } });
+  window.addEventListener("mousemove", v.onMove = (e)=>{ if(drag){ v.tx = drag.tx + e.clientX-drag.x; v.ty = drag.ty + e.clientY-drag.y; apply(); } });
+  window.addEventListener("mouseup", v.onUp = ()=>{ drag = null; });
+  show(v.index);
+  el.querySelector("#pvClose").focus();
+}
+function closePassageViewer(){
+  const v = passageViewer;
+  if(!v) return;
+  window.removeEventListener("mousemove", v.onMove);
+  window.removeEventListener("mouseup", v.onUp);
+  v.el.remove();
+  document.body.classList.remove("pv-open");
+  passageViewer = null;
+}
+function jumpToJournalEntry(entryId){
+  const e = state.journal.find(j=>j.id===entryId);
+  closeModal();
+  if(!e) { showToast("그 묵상 기록을 찾을 수 없어요."); return; }
+  ui.tab = "journal";
+  const m = (e.date||"").slice(0,7) || "none";
+  if(m < dstr(TODAY).slice(0,7) || m==="none") ui.openGroups[`journal|${m}`] = true;
+  renderAll();
+  const card = document.querySelector(`.journal-entry[data-entry="${CSS.escape(entryId)}"]`);
+  if(card){
+    card.scrollIntoView({behavior:"smooth", block:"start"});
+    card.classList.add("flash"); setTimeout(()=>card.classList.remove("flash"), 2200);
+  }
 }
 function escapeAttr(s){ return (s||"").replace(/"/g,"&quot;"); }
 /* ---------- 모달 & 작성 중 보호 ----------
@@ -2701,8 +3098,10 @@ function writeForm(v){
   });
 }
 function sameForm(a, b){ return Object.keys(a).every(k=> a[k]===b[k]); }
+function markFormDirty(){ if(modalForm) modalForm.extraDirty = true; } // 사진처럼 입력칸 밖에서 바뀐 내용
 function isFormDirty(){
   if(!modalForm || !document.getElementById("modalBackdrop").classList.contains("open")) return false;
+  if(modalForm.extraDirty) return true;
   return !sameForm(readForm(), modalForm.initial);
 }
 function saveDraftNow(){
@@ -2781,6 +3180,12 @@ document.getElementById("modalBody").addEventListener("change", ()=>{
   draftTimer = setTimeout(saveDraftNow, 1000);
 });
 document.addEventListener("keydown",(e)=>{
+  if(passageViewer){
+    if(e.key==="Escape"){ closePassageViewer(); return; }
+    if(e.key==="ArrowLeft") passageViewer.show(passageViewer.index-1);
+    if(e.key==="ArrowRight") passageViewer.show(passageViewer.index+1);
+    return;
+  }
   if(e.key==="Escape" && document.getElementById("modalBackdrop").classList.contains("open")) requestCloseModal();
 });
 document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="hidden") saveDraftNow(); });
@@ -2791,7 +3196,7 @@ window.addEventListener("pagehide", saveDraftNow);
    ========================================================= */
 function renderJournal(){
   const entries = [...state.journal]
-    .filter(e=> e.grace||e.application||e.qt||e.verse||e.prayer)
+    .filter(e=> e.grace||e.application||e.qt||e.verse||e.prayer||(e.passages&&e.passages.length))
     .sort((a,b)=> (b.date||"").localeCompare(a.date||"") || (b.id||"").localeCompare(a.id||""));
   return `
   <div class="card" style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
@@ -2799,7 +3204,10 @@ function renderJournal(){
       <div class="section-title" style="margin-bottom:2px;">📝 묵상 메모</div>
       <p class="section-desc" style="margin-bottom:0;">그날 받은 은혜(이해, 발견)와 적용점을 기록하는 코너예요. 하루에도 여러 번 쓸 수 있어요.</p>
     </div>
-    <button class="btn gold" id="newJournalBtn">+ 묵상 추가</button>
+    <div class="journal-head-btns">
+      <button class="btn outline" id="passageGalleryBtn">📚 이달의 본문</button>
+      <button class="btn gold" id="newJournalBtn">+ 묵상 추가</button>
+    </div>
   </div>
   <div id="journalList">
     ${renderDatedList("journal", entries, renderJournalCard, `<div class="empty">아직 작성된 묵상 노트가 없어요. 오늘의 은혜부터 기록해 보세요.</div>`)}
@@ -2813,9 +3221,10 @@ function renderJournalCard(e, compact){
         ${e.prayer?`<div class="journal-row"><div class="jr-label">기도제목</div><div class="jr-val">${escapeHtml(e.prayer)}</div></div>`:""}`;
   const plain = [e.qt, e.verse, e.grace, e.application, e.prayer].filter(Boolean).join("\n");
   return `
-      <div class="journal-entry">
+      <div class="journal-entry" data-entry="${escapeAttr(e.id)}">
         <div class="journal-date"><span>${e.date?fmtDateKor(e.date):"날짜 미정"}</span><span class="jd-btns">${e.date?`<button class="btn ghost small" data-dayshot="${e.date}" title="이 날의 묵상 전체를 이미지로 저장">📷 이미지</button>`:""}<button class="btn ghost small" data-edit="${e.id}">편집</button></span></div>
-        ${clampWrap(compact, "jn_"+e.id, bodyHtml, plain)}
+        ${passageThumbsHtml(e)}
+        ${bodyHtml.trim() ? clampWrap(compact, "jn_"+e.id, bodyHtml, plain) : ""}
       </div>`;
 }
 function bindJournal(){
@@ -2823,6 +3232,12 @@ function bindJournal(){
   document.getElementById("newJournalBtn").addEventListener("click",()=>openQtModal(null, dstr(TODAY)));
   document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); openQtModal(b.dataset.edit); }));
   document.querySelectorAll("[data-dayshot]").forEach(b=>b.addEventListener("click",(e)=>{ e.stopPropagation(); exportJournalDayImage(b.dataset.dayshot, b); }));
+  document.getElementById("passageGalleryBtn")?.addEventListener("click", ()=>openPassageGallery(dstr(TODAY).slice(0,7)));
+  document.querySelectorAll("[data-pview]").forEach(b=>b.addEventListener("click",()=>{
+    const e = state.journal.find(j=>j.id===b.dataset.pview);
+    if(e) openPassageViewer(passageItemsForEntry(e), Number(b.dataset.pidx));
+  }));
+  hydratePassageThumbs(document.getElementById("journalList"));
 }
 
 /* ---------- 하루 묵상 기록을 모바일용 이미지(PNG)로 저장 ----------
@@ -4339,6 +4754,7 @@ function resetSession(){
   try{ stopTTS(); }catch(e){}
   ui = defaultUi();
   ebkCoverPhotoData = null;
+  closePassageViewer(); passageThumbCache = {}; passageFullCache = {};
   shopAdminEditId = null; shopAdminPhotoData = null; quoteAdminEditId = null;
   closeModal();
   document.getElementById("modalBody").innerHTML = "";

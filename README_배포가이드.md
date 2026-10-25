@@ -28,6 +28,16 @@ Google Play 개발자 계정(1회 $25), 쿠팡 파트너스 승인 계정이 필
        match /users/{userId} {
          allow read, write: if request.auth != null && request.auth.uid == userId;
        }
+       match /users/{userId}/{kind}/{photoId} {
+         // 묵상노트 본문 사진 (passages: 원본, passageThumbs: 썸네일)
+         allow read, delete: if request.auth != null && request.auth.uid == userId
+                             && kind in ['passages', 'passageThumbs'];
+         allow create, update: if request.auth != null && request.auth.uid == userId
+                             && kind in ['passages', 'passageThumbs']
+                             && request.resource.data.keys().hasOnly(['data','entryId','date','month','createdAt','w','h'])
+                             && request.resource.data.data is string
+                             && request.resource.data.data.size() < 750000;
+       }
      }
    }
    ```
@@ -149,6 +159,16 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /users/{userId}/{kind}/{photoId} {
+      // 묵상노트 본문 사진 (passages: 원본, passageThumbs: 썸네일)
+      allow read, delete: if request.auth != null && request.auth.uid == userId
+                          && kind in ['passages', 'passageThumbs'];
+      allow create, update: if request.auth != null && request.auth.uid == userId
+                          && kind in ['passages', 'passageThumbs']
+                          && request.resource.data.keys().hasOnly(['data','entryId','date','month','createdAt','w','h'])
+                          && request.resource.data.data is string
+                          && request.resource.data.data.size() < 750000;
     }
     match /shopProducts/{productId} {
       allow read: if request.auth != null;
