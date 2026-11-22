@@ -557,6 +557,29 @@ input,textarea,select{font-family:inherit;}
   cursor:pointer;
 }
 .book-select-box select:focus{outline:2px solid var(--gold-soft);outline-offset:2px;}
+.bible-attr{font-size:12px;line-height:1.55;color:var(--ink-soft);}
+.hero .bible-attr{color:#E4D7B8;margin-top:8px;}
+.brand-sub .bible-attr{display:block;margin-top:2px;font-size:11px;}
+.chapter-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:6px;}
+.ch-cell{
+  position:relative;border:1px solid var(--line);background:var(--card);color:var(--navy);
+  border-radius:9px;min-height:44px;font-weight:700;font-size:13px;cursor:pointer;
+}
+.ch-cell.read{background:rgba(91,107,79,0.16);border-color:var(--sage-soft);color:var(--sage);}
+.ch-cell.noted::after{
+  content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--gold);
+}
+.ch-cell:focus{outline:2px solid var(--gold-soft);outline-offset:1px;}
+.verse{display:flex;gap:8px;align-items:flex-start;margin:0 0 9px;}
+.verse-num{flex:none;min-width:1.7em;font-size:11px;font-weight:700;color:var(--gold);padding-top:6px;}
+.verse-body{font-family:'Noto Serif KR',serif;font-size:15.5px;line-height:1.85;}
+.verse.placeholder .verse-body{color:var(--ink-soft);font-family:'Noto Sans KR',sans-serif;font-size:13px;}
+.ch-link{
+  border:none;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;
+  padding:3px 2px;text-decoration:underline;text-underline-offset:2px;line-height:1.35;
+}
+.bible-note{margin-top:14px;}
+.bible-note textarea{min-height:88px;}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -825,7 +848,7 @@ body.pv-open{overflow:hidden;}
       </div>
       <div>
         <div class="brand-title">라이프플래너 - 경건에 이르는 훈련</div>
-        <div class="brand-sub">디모데전서 4:7 · "경건에 이르도록 네 자신을 연단하라"</div>
+        <div class="brand-sub">디모데전서 4:7 · "망령되고 허탄한 신화를 버리고 오직 경건에 이르기를 연습하라"<span class="bible-attr">성경전서 개역한글판의 저작권은 대한성서공회에 있습니다.</span></div>
       </div>
     </div>
     <div class="today-pill" id="todayPill"></div>
@@ -915,6 +938,54 @@ const NT_BOOKS = [
  ["베드로전서",5],["베드로후서",3],["요한1서",5],["요한2서",1],["요한3서",1],
  ["유다서",1],["요한계시록",22]
 ];
+/* 개역한글 본문. bible/<id>.json 은 연 책만 불러오고, 절 문구는 파일 그대로 보여 줘요. */
+const BIBLE_ATTRIBUTION = "성경전서 개역한글판의 저작권은 대한성서공회에 있습니다.";
+const TIMOTHY_4_7 = "망령되고 허탄한 신화를 버리고 오직 경건에 이르기를 연습하라";
+const BIBLE_FILE_IDS = [
+  "gn","ex","lv","nu","dt","jos","jdg","ru","1sa","2sa","1ki","2ki","1ch","2ch","ezr","neh","est","job","ps","prv","ec","sng","isa","jer","lam","ezk","dan","hos","jol","amo","oba","jon","mic","nam","hab","zep","hag","zec","mal",
+  "mat","mrk","luk","jhn","act","rom","1co","2co","gal","eph","php","col","1th","2th","1ti","2ti","tit","phm","heb","jas","1pe","2pe","1jn","2jn","3jn","jud","rev"
+];
+const bibleBookCache = {};
+const bibleBookLoading = {};
+function bibleFileId(name){
+  const i = [...BOOKS, ...NT_BOOKS].findIndex(b=>b[0]===name);
+  return i>=0 ? BIBLE_FILE_IDS[i] : "";
+}
+function loadBibleBook(name){
+  if(bibleBookCache[name]) return Promise.resolve(bibleBookCache[name]);
+  if(bibleBookLoading[name]) return bibleBookLoading[name];
+  const id = bibleFileId(name);
+  if(!id) return Promise.reject(new Error("unknown book"));
+  const p = fetch("bible/"+id+".json").then(res=>{
+    if(!res.ok) throw new Error(String(res.status));
+    return res.json();
+  }).then(data=>{
+    bibleBookCache[name] = data;
+    delete bibleBookLoading[name];
+    return data;
+  }).catch(err=>{
+    delete bibleBookLoading[name];
+    throw err;
+  });
+  bibleBookLoading[name] = p;
+  return p;
+}
+function bibleVerses(name, chapterNum){
+  const book = bibleBookCache[name];
+  if(!book || !Array.isArray(book.chapters)) return null;
+  const verses = book.chapters[chapterNum-1];
+  return Array.isArray(verses) ? verses : null;
+}
+function isVerseMarker(text){
+  return text==="(없음)" || /^\(\d+절에 포함되어 있음\)$/.test(text);
+}
+function userBibleNote(bookName, chapterNum){
+  const data = state.bibleText[bookName] || {};
+  const v = data[chapterNum];
+  if(typeof v==="string") return v;
+  const s = data[String(chapterNum)];
+  return typeof s==="string" ? s : "";
+}
 
 const MEM_CATEGORIES = [
   {id:"five", title:"그리스도와 새 출발 · 확신", sub:"5구절", desc:"처음 믿는 이를 위한 구원의 확신 카드 (5확신)"},
@@ -1391,6 +1462,7 @@ function renderHome(){
     <div class="hero-verse">"육체의 연습은 약간의 유익이 있으나 경건은 범사에 유익하니
     금생과 내생에 약속이 있느니라"</div>
     <div class="hero-verse-ref">디모데전서 4:8 · ${fmtDateKor(dstr(TODAY))}</div>
+    <div class="bible-attr">${escapeHtml(BIBLE_ATTRIBUTION)}</div>
     <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;">
       <span class="level-chip">🕯️ Lv.${lv.level}</span>
       <span class="points-chip">${m.points}P</span>
@@ -1453,17 +1525,14 @@ function bindHome(){
 }
 
 /* =========================================================
-   성경 본문 (저작권 안내 + 사용자 입력형 본문 저장)
+   성경 본문 (개역한글 + 개인 메모)
    ========================================================= */
 function renderBible(){
   return `
   <div class="card">
     <div class="section-title">📖 성경 본문</div>
-    <p class="section-desc">평소 곁에 두고 읽고 싶은 본문을 골라 담아두는 공간이에요. 책을 고르면 그 책의 모든 장이 나타나요.</p>
-    <div class="notice">
-      <b>안내</b> · 개역한글판 성경은 대한성서공회가 저작권을 보유한 번역본이라 원문 전체를 이 화면에 대신 채워드릴 수는 없어요.
-      아래 각 장 칸에 소장하신 성경 앱이나 책에서 본문을 직접 붙여넣어 저장하면, 이후에는 이 플래너 안에서 언제든 꺼내 읽고 묵상할 수 있어요.
-    </div>
+    <p class="section-desc">책을 고른 뒤 장을 누르면 개역한글 본문이 열려요. 읽음 표시는 성경읽기표와 함께 저장되고, 장마다 개인 메모를 남겨 둘 수 있어요.</p>
+    <div class="notice">${escapeHtml(BIBLE_ATTRIBUTION)}</div>
     <div class="book-select-box">
       <label for="bibleBookSelect">📚 어느 책을 읽으시겠어요?</label>
       <select id="bibleBookSelect">
@@ -1476,51 +1545,43 @@ function renderBible(){
       </select>
     </div>
     <div id="bibleBookProgress" class="progress-label" style="margin-bottom:10px;"></div>
-    <div id="chapterBlocks" class="bible-chapters-scroll"></div>
-    <button class="btn gold" id="saveBibleBtn" style="margin-top:12px;">본문 저장하기</button>
+    <div id="chapterGrid" class="chapter-grid"></div>
   </div>`;
 }
 function getBookChapterCount(name){
   const found = [...BOOKS, ...NT_BOOKS].find(b=>b[0]===name);
   return found ? found[1] : 1;
 }
+function bibleProgressLabel(bookName){
+  const chCount = getBookChapterCount(bookName);
+  let read = 0, notes = 0;
+  for(let c=1;c<=chCount;c++){
+    if(state.readingProgress[chapterKey(bookName,c)]) read++;
+    if(userBibleNote(bookName,c).trim()) notes++;
+  }
+  return `${bookName} — ${read} / ${chCount}장 읽음 · 메모 ${notes}장`;
+}
 function renderBibleChapters(){
-  const wrap = document.getElementById("chapterBlocks");
+  const wrap = document.getElementById("chapterGrid");
+  if(!wrap) return;
   const bookName = ui.bibleBook;
   const chCount = getBookChapterCount(bookName);
-  const data = state.bibleText[bookName] || {};
   wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>{
     const isRead = !!state.readingProgress[chapterKey(bookName,c)];
-    return `
-    <div class="chapter-block">
-      <div class="chapter-block-head">
-        <h4>${bookName} ${c}장</h4>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <label class="ch-read-check"><input type="checkbox" data-readch="${c}" ${isRead?"checked":""}> 읽음</label>
-          <button class="btn outline small" data-expandch="${c}">🔍 크게 보기</button>
-        </div>
-      </div>
-      <textarea data-ch="${c}" placeholder="${c}장 본문을 붙여넣어 주세요…">${escapeHtml(data[c]||"")}</textarea>
-    </div>`;
+    const noted = !!userBibleNote(bookName,c).trim();
+    return `<button type="button" class="ch-cell${isRead?" read":""}${noted?" noted":""}" data-opench="${c}" aria-label="${escapeAttr(bookName)} ${c}장">${c}</button>`;
   }).join("");
-  const filled = Object.values(data).filter(v=>v && v.trim()).length;
   const prog = document.getElementById("bibleBookProgress");
-  if(prog) prog.textContent = `${bookName} — ${filled} / ${chCount}장 저장됨`;
-  wrap.querySelectorAll("[data-expandch]").forEach(el=>el.addEventListener("click",()=>{
-    openChapterViewModal(bookName, Number(el.dataset.expandch));
-  }));
-  wrap.querySelectorAll("[data-readch]").forEach(cb=>cb.addEventListener("change",()=>{
-    const before = snapshotGamify();
-    const key = chapterKey(bookName, Number(cb.dataset.readch));
-    if(cb.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
-    persist("readingProgress");
-    if(cb.checked) announceGamify(before);
+  if(prog) prog.textContent = bibleProgressLabel(bookName);
+  wrap.querySelectorAll("[data-opench]").forEach(el=>el.addEventListener("click",()=>{
+    openChapterViewModal(bookName, Number(el.dataset.opench));
   }));
 }
 /* ---------- 본문 음성으로 읽어주기 (TTS) ---------- */
 let cachedVoices = [];
 let ttsState = { queue:[], idx:0, playing:false, btn:null, voice:null };
 let ttsSpeed = 1;
+let chapterViewSeq = 0;
 function stripVerseNumbersForTTS(text){
   let t = text;
   // 줄 시작의 절 번호 제거 (예: "1 태초에", "1. 태초에", "1절 태초에", "1) 태초에")
@@ -1550,12 +1611,19 @@ function pickKoreanVoice(voices){
       || ko.find(v=>/여성|female|yuna|서현|지민/i.test(v.name))
       || ko[0];
 }
-// 시작 장부터 그 책 끝까지, 본문이 저장되어 있는 장까지 이어 읽을 낭독 큐를 만들어요.
-// 각 장 시작 전에 안내 문구(책+장 또는 장 번호)를, 각 절(줄) 사이·장 사이에 텀을 둬요.
 function splitIntoSentences(line){
   // 마침표·물음표·느낌표·말줄임표 뒤에서 문장을 나눠요.
   // 문장부호가 전혀 없는 절이면 그 줄 전체가 한 문장으로 취급돼요.
   return line.split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(Boolean);
+}
+// 개역한글이 있으면 그 절을 읽고, 아직 못 불러온 경우에만 저장해 둔 메모로 이어 읽어요.
+// "(없음)" 같은 출처 표지는 소리 내어 읽지 않아요.
+function chapterSpeechText(bookName, chapterNum){
+  const verses = bibleVerses(bookName, chapterNum);
+  if(verses){
+    return verses.map((t,i)=>({n:i+1,t})).filter(v=>!isVerseMarker(v.t)).map(v=>`${v.n} ${v.t}`).join("\n");
+  }
+  return userBibleNote(bookName, chapterNum);
 }
 function buildReadQueue(bookName, startChapter){
   const queue = [];
@@ -1563,7 +1631,7 @@ function buildReadQueue(bookName, startChapter){
   let ch = startChapter;
   let first = true;
   while(ch <= maxCh){
-    const raw = (state.bibleText[bookName]||{})[ch];
+    const raw = chapterSpeechText(bookName, ch);
     if(!raw || !raw.trim()) break;
     queue.push({type:"announce", text: first ? `${bookName} ${ch}장` : `${ch}장`});
     const cleaned = stripVerseNumbersForTTS(raw);
@@ -1607,7 +1675,12 @@ function playNextTTS(){
 async function toggleTTS(bookName, chapterNum, btn){
   if(!("speechSynthesis" in window)){ showToast("이 브라우저는 음성 읽기를 지원하지 않아요."); return; }
   if(ttsState.playing){ stopTTS(); return; }
-  const text = (state.bibleText[bookName]||{})[chapterNum];
+  if(!bibleBookCache[bookName]){
+    btn.disabled = true;
+    try{ await loadBibleBook(bookName); }catch(e){}
+    btn.disabled = false;
+  }
+  const text = chapterSpeechText(bookName, chapterNum);
   if(!text || !text.trim()){ showToast("읽어줄 본문이 없어요."); return; }
   btn.disabled = true;
   const voices = cachedVoices.length ? cachedVoices : await loadVoicesOnce();
@@ -1623,56 +1696,148 @@ function stopTTS(){
   if("speechSynthesis" in window) speechSynthesis.cancel();
   if(ttsState.btn) ttsState.btn.innerHTML = "🔊 읽어주기";
 }
-function openChapterViewModal(bookName, chapterNum){
-  const data = state.bibleText[bookName] || {};
-  const text = data[chapterNum] || "";
+function setChapterRead(bookName, chapterNum, checked){
+  const key = chapterKey(bookName, chapterNum);
+  if(checked) state.readingProgress[key] = dstr(TODAY);
+  else delete state.readingProgress[key];
+  persist("readingProgress");
+  syncChapterReadUi(bookName, chapterNum, checked);
+}
+function syncChapterReadUi(bookName, chapterNum, checked){
+  if(ui.bibleBook===bookName){
+    const cell = document.querySelector(`#chapterGrid [data-opench="${chapterNum}"]`);
+    if(cell) cell.classList.toggle("read", checked);
+    const prog = document.getElementById("bibleBookProgress");
+    if(prog) prog.textContent = bibleProgressLabel(bookName);
+  }
+  const key = chapterKey(bookName, chapterNum);
+  const sel = window.CSS && CSS.escape ? CSS.escape(key) : key;
+  document.querySelectorAll(`[data-chkey="${sel}"]`).forEach(cb=>{
+    cb.checked = checked;
+    const dayEl = cb.closest(".plan-day");
+    if(dayEl){
+      const allChecked = [...dayEl.querySelectorAll("[data-chkey]")].every(c=>c.checked);
+      dayEl.classList.toggle("done", allChecked);
+    }
+  });
+  if(typeof renderTopStatsOnly==="function") renderTopStatsOnly();
+}
+function writeBibleNoteFromModal(){
+  const ta = document.getElementById("bibleNote");
+  if(!ta) return false;
+  const bookName = ta.dataset.book;
+  const ch = String(ta.dataset.ch);
+  const next = ta.value.trim() ? ta.value : "";
+  if(!state.bibleText[bookName]) state.bibleText[bookName] = {};
+  const prev = typeof state.bibleText[bookName][ch]==="string" ? state.bibleText[bookName][ch] : "";
+  if(next===prev){
+    if(!Object.keys(state.bibleText[bookName]).length) delete state.bibleText[bookName];
+    return false;
+  }
+  if(next) state.bibleText[bookName][ch] = next;
+  else delete state.bibleText[bookName][ch];
+  if(!Object.keys(state.bibleText[bookName]).length) delete state.bibleText[bookName];
+  persist("bibleText");
+  return true;
+}
+function syncNoteMark(bookName, chapterNum){
+  if(ui.bibleBook!==bookName) return;
+  const cell = document.querySelector(`#chapterGrid [data-opench="${chapterNum}"]`);
+  if(cell) cell.classList.toggle("noted", !!userBibleNote(bookName, chapterNum).trim());
+  const prog = document.getElementById("bibleBookProgress");
+  if(prog) prog.textContent = bibleProgressLabel(bookName);
+}
+function paintChapter(bookName, chapterNum){
+  const verses = bibleVerses(bookName, chapterNum);
+  const note = userBibleNote(bookName, chapterNum);
   const key = chapterKey(bookName, chapterNum);
   const isRead = !!state.readingProgress[key];
+  const maxCh = getBookChapterCount(bookName);
   const speeds = [1, 1.2];
+  const canRead = !!(verses && verses.some(t=>!isVerseMarker(t))) || !!note.trim();
+  const body = verses
+    ? verses.map((t,i)=>{
+        const ph = isVerseMarker(t) ? " placeholder" : "";
+        return `<div class="verse${ph}"><span class="verse-num">${i+1}</span><span class="verse-body">${escapeHtml(t)}</span></div>`;
+      }).join("")
+    : `<p style="color:var(--ink-soft)">이 장의 본문을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 열어 주세요.</p>`;
   document.getElementById("modalBody").innerHTML = `
-    <div class="modal-head"><h3>📖 ${bookName} ${chapterNum}장</h3><button class="close-x" id="modalClose">✕</button></div>
-    <div style="display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
-      <button class="btn sage small" id="ttsBtn" ${text?"":"disabled"}>🔊 읽어주기</button>
-      <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" id="viewReadCheck" ${isRead?"checked":""}> 이 장 읽음</label>
+    <div class="modal-head"><h3>📖 ${escapeHtml(bookName)} ${chapterNum}장</h3><button class="close-x" id="modalClose" type="button">✕</button></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+      <button class="btn outline small" type="button" id="prevCh" ${chapterNum<=1?"disabled":""}>← 이전 장</button>
+      <button class="btn outline small" type="button" id="nextCh" ${chapterNum>=maxCh?"disabled":""}>다음 장 →</button>
+      <button class="btn sage small" type="button" id="ttsBtn" ${canRead?"":"disabled"}>🔊 읽어주기</button>
+      <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" data-viewread="1" ${isRead?"checked":""}> 이 장 읽음</label>
     </div>
     <div class="speed-row">
       <span>재생 속도</span>
-      ${speeds.map(s=>`<button class="speed-btn ${ttsSpeed===s?"active":""}" data-speed="${s}">${s}x</button>`).join("")}
+      ${speeds.map(s=>`<button class="speed-btn ${ttsSpeed===s?"active":""}" type="button" data-speed="${s}">${s}x</button>`).join("")}
     </div>
-    <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 12px;">재생하면 책 이름과 장을 먼저 안내하고, 본문을 저장해 두신 다음 장까지 이어서 읽어드려요.</p>
-    <div class="chapter-view-text">${text?escapeHtml(text).replace(/\n/g,"<br>"):'<span style="color:var(--ink-soft)">아직 저장된 본문이 없어요. "성경 본문" 화면의 입력칸에 붙여넣어 저장해 주세요.</span>'}</div>`;
-  openModal();
+    <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 8px;">재생하면 책 이름과 장을 먼저 안내하고, 이 책의 다음 장까지 이어서 읽어드려요.</p>
+    <p class="bible-attr" style="margin:0 0 12px;">${escapeHtml(BIBLE_ATTRIBUTION)}</p>
+    <div class="reader-verses">${body}</div>
+    <div class="bible-note">
+      <div class="field">
+        <label for="bibleNote">내 메모 · 붙여넣기</label>
+        <textarea id="bibleNote" data-book="${escapeAttr(bookName)}" data-ch="${chapterNum}" placeholder="이 장에 남길 메모를 적어 주세요. 성경 본문과는 따로 저장돼요.">${escapeHtml(note)}</textarea>
+      </div>
+      <button class="btn gold small" type="button" id="saveNoteBtn">메모 저장</button>
+    </div>`;
   document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); requestCloseModal(); });
+  document.getElementById("prevCh").addEventListener("click",()=>{ if(chapterNum>1) openChapterViewModal(bookName, chapterNum-1); });
+  document.getElementById("nextCh").addEventListener("click",()=>{ if(chapterNum<maxCh) openChapterViewModal(bookName, chapterNum+1); });
   const ttsBtn = document.getElementById("ttsBtn");
-  if(text) ttsBtn.addEventListener("click",()=> toggleTTS(bookName, chapterNum, ttsBtn));
-  document.querySelectorAll("[data-speed]").forEach(b=>b.addEventListener("click",()=>{
+  if(canRead) ttsBtn.addEventListener("click",()=> toggleTTS(bookName, chapterNum, ttsBtn));
+  document.querySelectorAll("#modalBody [data-speed]").forEach(b=>b.addEventListener("click",()=>{
     ttsSpeed = Number(b.dataset.speed);
-    document.querySelectorAll(".speed-btn").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll("#modalBody .speed-btn").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
   }));
-  document.getElementById("viewReadCheck").addEventListener("change",(e)=>{
+  document.querySelector("#modalBody [data-viewread]").addEventListener("change",(e)=>{
     const before = snapshotGamify();
-    if(e.target.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
-    persist("readingProgress");
-    renderBibleChapters();
+    setChapterRead(bookName, chapterNum, e.target.checked);
     if(e.target.checked) announceGamify(before);
   });
+  document.getElementById("saveNoteBtn").addEventListener("click",()=>{
+    const changed = writeBibleNoteFromModal();
+    finishForm();
+    armFormModal("bibleNote", key);
+    syncNoteMark(bookName, chapterNum);
+    showToast(changed ? "메모를 저장했어요." : "저장할 변경이 없어요.");
+  });
+  armFormModal("bibleNote", key);
+}
+async function openChapterViewModal(bookName, chapterNum){
+  if(isFormDirty() && !confirm("저장하지 않은 메모가 있어요. 저장하지 않고 다른 장을 열까요?")) return;
+  const seq = ++chapterViewSeq;
+  stopTTS();
+  const modalBody = document.getElementById("modalBody");
+  modalBody.innerHTML = `
+    <div class="modal-head"><h3>📖 ${escapeHtml(bookName)} ${chapterNum}장</h3><button class="close-x" id="modalClose" type="button">✕</button></div>
+    <p style="color:var(--ink-soft)">본문을 불러오는 중…</p>`;
+  openModal();
+  document.getElementById("modalClose").addEventListener("click",()=>{ stopTTS(); requestCloseModal(); });
+  if(!bibleBookCache[bookName]){
+    try{ await loadBibleBook(bookName); }
+    catch(e){}
+  }
+  if(seq!==chapterViewSeq) return;
+  if(!document.getElementById("modalBackdrop").classList.contains("open")) return;
+  paintChapter(bookName, chapterNum);
 }
 function bindBible(){
   const sel = document.getElementById("bibleBookSelect");
+  if(!sel) return;
   sel.value = ui.bibleBook;
-  sel.addEventListener("change",()=>{ ui.bibleBook = sel.value; renderBibleChapters(); });
-  renderBibleChapters();
-  document.getElementById("saveBibleBtn").addEventListener("click",()=>{
-    const bookName = ui.bibleBook;
-    if(!state.bibleText[bookName]) state.bibleText[bookName] = {};
-    const data = state.bibleText[bookName];
-    document.querySelectorAll("#chapterBlocks textarea").forEach(t=>{ data[t.dataset.ch]=t.value; });
-    persist("bibleText");
-    showToast("본문을 저장했어요.");
+  sel.addEventListener("change",()=>{
+    ui.bibleBook = sel.value;
     renderBibleChapters();
+    loadBibleBook(ui.bibleBook).catch(()=>{});
   });
+  renderBibleChapters();
+  loadBibleBook(ui.bibleBook).catch(()=>{});
 }
+
 
 /* =========================================================
    성경읽기표
@@ -1718,7 +1883,7 @@ function renderPlan(){
   return `
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">📅 1년 성경통독표</div>
-    <p class="section-desc">구약 929장 · 신약 260장, 총 1,189장을 365일에 고르게 나눈 통독표예요. 각 장을 읽으면 장마다 체크해 진도를 확인해 보세요. 성경 본문 탭에서 체크해도 여기에 똑같이 반영돼요.</p>
+    <p class="section-desc">구약 929장 · 신약 260장, 총 1,189장을 365일에 고르게 나눈 통독표예요. 장 이름을 누르면 개역한글 본문이 열리고, 칸을 체크하면 읽은 것으로 저장돼요. 성경 본문 탭의 읽음 표시와 같은 기록이에요.</p>
     <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:14px 0;">
       <div class="percent-ring" id="percentRing" style="--pct:${pct};">
         <div class="percent-ring-inner">
@@ -1774,7 +1939,8 @@ function bindPlan(){
         ${parsedRefs.map(p=>{
           const key = p.book ? chapterKey(p.book,p.ch) : "";
           const done = key && !!state.readingProgress[key];
-          return `<label class="ch-check"><input type="checkbox" data-chkey="${key}" ${done?"checked":""}> ${p.ref}</label>`;
+          if(!p.book) return `<div class="ch-check">${escapeHtml(p.ref)}</div>`;
+          return `<div class="ch-check"><input type="checkbox" data-chkey="${escapeAttr(key)}" ${done?"checked":""}><button type="button" class="ch-link" data-openbook="${escapeAttr(p.book)}" data-opench="${p.ch}">${escapeHtml(p.ref)}</button></div>`;
         }).join("")}
       </div>
     </div>`;
@@ -1793,6 +1959,11 @@ function bindPlan(){
     }
     renderTopStatsOnly();
     if(cb.checked) announceGamify(before);
+  }));
+  grid.querySelectorAll("[data-openbook]").forEach(b=>b.addEventListener("click",(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    openChapterViewModal(b.dataset.openbook, Number(b.dataset.opench));
   }));
 }
 function renderTopStatsOnly(){
@@ -1825,7 +1996,8 @@ function renderMemory(){
   <div class="card" style="margin-bottom:16px;">
     <div class="section-title">🗂️ 네비게이토 성경암송</div>
     <p class="section-desc">그리스도인의 확신(5구절) → 생활지침(8구절) → 주제별 암송(60구절) → 암송 시리즈(180구절)로 이어지는 네비게이토 암송 훈련 코너예요.
-    저작권 상 구절 본문은 직접 붙여넣어 저장하며, 카드처럼 뒤집어 테스트하거나 아래 테스트 영역에서 음성으로 직접 암송해 채점할 수 있어요. 복습할 때마다 포인트가 쌓여요.</p>
+    구절 본문은 직접 입력해 저장하며, 카드처럼 뒤집어 테스트하거나 아래 테스트 영역에서 음성으로 직접 암송해 채점할 수 있어요. 복습할 때마다 포인트가 쌓여요.</p>
+    <div class="notice">${escapeHtml(BIBLE_ATTRIBUTION)}</div>
     <div class="memtabs" id="memTabs">
       ${MEM_CATEGORIES.map(c=>`<button class="memtab ${ui.memTab===c.id?"active":""}" data-mc="${c.id}">${c.title} · ${c.sub}</button>`).join("")}
     </div>
@@ -2068,6 +2240,7 @@ function renderTestArea(){
           </div>
           <div class="flip-face flip-back">
             <div class="card-text">${card.text?escapeHtml(card.text):"(등록된 본문이 없어요)"}</div>
+            ${card.text?`<div class="bible-attr" style="margin-top:8px;">${escapeHtml(BIBLE_ATTRIBUTION)}</div>`:""}
             <div class="flip-hint">다시 눌러 되돌리기</div>
           </div>
         </div>
@@ -3265,7 +3438,7 @@ function makeShotCard(dateKey, entriesHtml, partNo, partTotal){
     <div class="shot-date">${fmtDateKor(dateKey)} <span>(${weekdayKor(dateKey)})</span></div>
     <div class="shot-sub">오늘의 묵상${partTotal>1?` · ${partNo}/${partTotal}`:""}</div>
     ${entriesHtml.join("")}
-    <div class="shot-foot">${partTotal>1 && partNo<partTotal ? "다음 이미지에 이어져요 ›<br>" : ""}🔥 라이프플래너 — 경건에 이르도록 네 자신을 연단하라 (딤전 4:7)</div>`;
+    <div class="shot-foot">${partTotal>1 && partNo<partTotal ? "다음 이미지에 이어져요 ›<br>" : ""}🔥 라이프플래너 — ${escapeHtml(TIMOTHY_4_7)} (딤전 4:7)<br>${escapeHtml(BIBLE_ATTRIBUTION)}</div>`;
   return div;
 }
 async function renderShotCanvas(node){
@@ -3908,8 +4081,9 @@ function makeDividerNode(title, sub){
 }
 function makeClosingNode(){
   return makeBookletNode("booklet-cover", `
-    <h1 style="font-size:26px;">경건에 이르도록<br>네 자신을 연단하라</h1>
+    <h1 style="font-size:22px;">망령되고 허탄한 신화를 버리고 오직 경건에 이르기를 연습하라</h1>
     <div class="sub">디모데전서 4:7</div>
+    <div class="sub" style="margin-top:18px;">성경전서 개역한글판의 저작권은 대한성서공회에 있습니다.</div>
   `);
 }
 /* ---------- PDF 본문: 기록을 이어서 배치 (한 쪽에 여러 건) ----------
