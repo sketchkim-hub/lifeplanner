@@ -1,0 +1,22 @@
+{
+  "appId": "com.sketchkimhub.lifeplanner",
+  "appName": "라이프플래너",
+  "webDir": "www",
+  "backgroundColor": "#F5F0E4",
+  "server": {
+    "androidScheme": "https",
+    "hostname": "localhost"
+  },
+  "android": {
+    "appendUserAgent": "LifePlannerCapacitor",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    },
+    "CapacitorCookies": {
+      "enabled": false
+    }
+  }
+}

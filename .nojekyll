@@ -1,1 +1,1 @@
-# Jekyll 비활성화 (TWA assetlinks.json 서빙용)
+# Jekyll 비활성화. GitHub Pages가 index.html, icons/, 이후 추가되는 폴더를 그대로 서빙하게 해요.

@@ -1,0 +1,119 @@
+# Capacitor Android build.
+# 수동 실행 또는 android-v* 태그에서 아티팩트만 만듭니다.
+# Play 업로드, GitHub Release, 태그 생성은 하지 않습니다.
+#
+# 필요 Secrets (Settings > Secrets and variables > Actions):
+#   ANDROID_KEYSTORE_B64         : 기존 TWA와 같은 android.p12 의 base64
+#   BUBBLEWRAP_KEYSTORE_PASSWORD : 키스토어 비밀번호
+#   BUBBLEWRAP_KEY_PASSWORD      : 키 비밀번호
+# 선택 Variable:
+#   ANDROID_KEY_ALIAS            : 비어 있으면 lifeplanner
+#
+# Play 앱 서명을 쓰는 앱이면 이 키스토어는 업로드 키입니다.
+# Google이 앱 서명 키로 다시 서명하므로, 업로드 키만 이전과 같으면 업데이트가 됩니다.
+name: Capacitor Android Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      variant:
+        description: 'debug는 테스트용 APK, release는 Play 업로드용 서명 AAB'
+        type: choice
+        options:
+          - release
+          - debug
+        default: release
+  push:
+    tags:
+      - 'android-v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Check shell and web copy
+        run: npm test
+
+      - name: Bundle web app and sync Capacitor
+        run: npm run sync:android
+
+      - name: Resolve variant
+        id: variant
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.variant }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=release" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Android SDK 36
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_HOME:-}" ]; then
+            echo "ANDROID_HOME is not set on this runner." >&2
+            exit 1
+          fi
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install "platforms;android-36"
+
+      - name: Decode upload keystore
+        if: steps.variant.outputs.name == 'release'
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PATH: ${{ runner.temp }}/android-upload.p12
+        run: |
+          set -euo pipefail
+          if [ -z "${ANDROID_KEYSTORE_B64}" ]; then
+            echo "Secret ANDROID_KEYSTORE_B64 is empty." >&2
+            exit 1
+          fi
+          echo "${ANDROID_KEYSTORE_B64}" | base64 -d > "${KEYSTORE_PATH}"
+          test -s "${KEYSTORE_PATH}"
+
+      - name: Build debug APK
+        if: steps.variant.outputs.name == 'debug'
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Build signed release AAB
+        if: steps.variant.outputs.name == 'release'
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/android-upload.p12
+          BUBBLEWRAP_KEYSTORE_PASSWORD: ${{ secrets.BUBBLEWRAP_KEYSTORE_PASSWORD }}
+          BUBBLEWRAP_KEY_PASSWORD: ${{ secrets.BUBBLEWRAP_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS }}
+        run: ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        if: steps.variant.outputs.name == 'debug'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeplanner-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload signed AAB
+        if: steps.variant.outputs.name == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeplanner-aab
+          path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
