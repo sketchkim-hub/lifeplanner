@@ -859,7 +859,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.6";
+const APP_VERSION = "1.0.7";
 /* ---------- 화면 테마 ---------- */
 const SKINS = [
   {id:"cream", label:"기본(크림)", paper:"#F5F0E4", card:"#FFFDF7", navy:"#212B42", ink:"#22271F", gold:"#8F6A2E", meta:"#212B42"},
@@ -4808,12 +4808,17 @@ auth.onAuthStateChanged(async (user)=>{
   }
 });
 
-if("serviceWorker" in navigator){
+// The Capacitor app bundles this file and sets the LifePlannerCapacitor user agent.
+// A service worker there would cache the shell inside the WebView and serve stale pages.
+var lpNative = (typeof navigator !== "undefined" && navigator.userAgent.indexOf("LifePlannerCapacitor") !== -1)
+  || (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+if("serviceWorker" in navigator && !lpNative){
   window.addEventListener("load", ()=>{
     navigator.serviceWorker.register("sw.js").catch(()=>{});
   });
 }
 
 </script>
+<script src="native-shell.js"></script>
 </body>
 </html>

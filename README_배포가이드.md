@@ -4,11 +4,11 @@
 ① 실제 회원가입/데이터 저장이 되는 웹앱으로 배포하고, ② 안드로이드 앱(Play 스토어)으로
 패키징하고, ③ 쿠팡 파트너스 상품을 연결하는 방법을 순서대로 안내합니다.
 
-먼저 정직하게 말씀드릴 부분이 있어요: 저(Claude)는 여기서 Firebase 프로젝트를 직접
-만들어드리거나, 서명된 안드로이드 APK/AAB를 직접 빌드하거나, 실제 쿠팡 파트너스
-링크를 발급해드릴 수는 없어요. 이 세 가지는 각각 J님 소유의 Firebase 계정,
-Google Play 개발자 계정(1회 $25), 쿠팡 파트너스 승인 계정이 필요한 절차라서요.
-대신 코드 쪽은 전부 준비해 두었고, 아래는 J님이 직접 따라 하시면 되는 순서예요.
+웹앱은 이 저장소 루트의 정적 파일 그대로 GitHub Pages에 올라갑니다.
+안드로이드는 그 파일을 앱 안에 넣고(원격 주소만 여는 방식이 아니에요) 기존 Play 앱을
+업데이트하는 Capacitor 프로젝트예요. 서명된 AAB는 GitHub Actions가 기존 키스토어
+시크릿으로 만들고, Play 비공개 테스트에 올리는 단계만 J님이 하시면 됩니다.
+Firebase 프로젝트와 쿠팡 파트너스 계정은 원래부터 J님 소유예요.
 
 ---
 
@@ -75,67 +75,148 @@ Firestore 문서(`users/{내uid}`)에 저장돼요. 여러 기기에서 같은 �
    동작하니, GitHub Pages처럼 HTTPS가 기본 제공되는 곳에 올리는 게 중요해요.
 
 배포된 주소를 크롬 안드로이드에서 열고 **⋮ 메뉴 → 홈 화면에 추가**를 누르면
-그 자체로 아이콘이 생기고 전체화면 앱처럼 실행돼요(PWA). 아래 3번은 이걸
-Play 스토어에 올릴 수 있는 앱(APK/AAB)으로 한 단계 더 포장하는 방법입니다.
+그 자체로 아이콘이 생기고 전체화면 앱처럼 실행돼요(PWA). 이 웹/PWA 동작은
+그대로 두었어요. 아래 3번은 이미 Play에 올라가 있는 안드로이드 앱을
+Capacitor 업데이트로 바꾸는 방법입니다.
 
 ---
 
-## 3. 안드로이드 앱으로 패키징하기
+## 3. 안드로이드 앱 (Capacitor) — 기존 Play 앱 업데이트
 
-세 가지 방법이 있고, 난이도 순으로 정리했어요. 셋 다 2번에서 배포한
-**HTTPS 주소가 먼저 있어야** 진행할 수 있어요.
+패키지 이름은 **`com.sketchkimhub.lifeplanner`** 입니다.
+(예전 안내의 `com.sketchkim.lifeplanner`는 오타였어요. Play에 올라가 있는 이름과
+같아야 기존 테스터 폰에 업데이트로 깔립니다.)
 
-### 방법 A. PWABuilder (제일 쉬움, 코드 설치 불필요)
-1. https://www.pwabuilder.com 접속 → 배포한 사이트 주소 입력 → "Start".
-2. 매니페스트/아이콘을 자동으로 읽어옵니다(이미 `manifest.json`과 `icons/`를
-   준비해 두었어요).
-3. **Android** 패키지를 선택하면 서명까지 된 `.aab`(Play 스토어 업로드용) 또는
-   테스트용 `.apk`를 바로 내려받을 수 있어요.
-4. Google Play Console(https://play.google.com/console, 1회 $25)에 새 앱을
-   만들고 이 `.aab`를 업로드하면 됩니다.
+| 항목 | 이전 TWA | 이 업데이트 |
+| --- | --- | --- |
+| 패키지 | `com.sketchkimhub.lifeplanner` | 같음 |
+| versionCode | 7 | **8** (`android/app/build.gradle`) |
+| versionName | 1.0.6 | 1.0.7 |
+| 내용 | Chrome이 `https://sketchkim-hub.github.io/lifeplanner/` 를 염 | `index.html`과 같은 폴더의 파일을 앱 안에 넣음 |
+| 서명 | `android.p12` (alias `lifeplanner`) | 같은 업로드 키 |
 
-### 방법 B. Bubblewrap (구글 공식 TWA 도구, 커맨드라인)
+앱은 사이트를 원격으로 띄우지 않아요. `server.url`은 설정하지 않았고,
+`npm run sync:android`가 루트의 정적 파일을 `www/`로 복사한 뒤 Android 자산으로 넣어요.
+나중에 `bible/` 같은 폴더가 저장소 루트에 추가되면 그 폴더도 같이 들어갑니다.
+(`node_modules`, `android`, `.github` 같은 도구 폴더는 빼요.)
+
+### 3-1. 기존 사용자와 데이터
+
+- **같은 패키지 + 더 높은 versionCode + 같은 업로드 키**이면 Play가 새 앱이 아니라
+  업데이트로 받아요. 테스터는 앱을 지우지 않아도 됩니다.
+- 로그인 상태는 TWA 때 **Chrome 쪽**에 있었어요. Capacitor WebView는 그 쿠키를
+  물려받지 못해서, 업데이트 후 **한 번 다시 로그인**해야 해요.
+- 기록은 Firestore `users/{uid}`에 그대로 있어요. 같은 이메일로 로그인하면
+  성경읽기, 암송, 묵상, 기도, 교제, 사진이 다시 따라옵니다.
+- 폰의 앱 전용 폴더는 업데이트 때 유지되지만, TWA는 거기에 로그인 정보를
+  넣어 두지 않았어요.
+
+### 3-2. Play 앱 서명 (업로드 키만 있으면 됩니다)
+
+2021년 8월 이후 만든 앱은 Play 앱 서명이 기본이에요. 이 경우
+
+- GitHub 시크릿의 `android.p12`는 **업로드 키**입니다.
+- AAB를 그 키로 서명해서 올리면, Google이 **앱 서명 키**로 다시 서명해 사용자에게 배포합니다.
+- 사용자 폰에 깔린 앱의 서명은 앱 서명 키라서, 업로드 키만 이전과 같으면 업데이트가 됩니다.
+- 예전 `.well-known/assetlinks.json`에 SHA-256이 두 개 있던 이유가 이거예요.
+  하나는 업로드 인증서, 하나는 Play 앱 서명 인증서입니다. Capacitor는 URL을
+  앱에 연결하지 않으므로 그 파일이 더 이상 필요 없어요.
+
+앱 서명을 쓰지 않는 아주 오래된 앱이라면 그 p12 자체가 앱 서명 키이고,
+역시 같은 파일로 서명하면 업데이트가 됩니다. 어느 쪽이든 **새 키스토어를 만들면 안 됩니다.**
+
+### 3-3. J님이 하실 일
+
+#### (1) GitHub 시크릿 — 이름 그대로
+
+저장소 **Settings → Secrets and variables → Actions**. 새 이름은 없어요.
+TWA 워크플로에 쓰던 세 개가 있으면 됩니다.
+
+| 시크릿 | 내용 |
+| --- | --- |
+| `ANDROID_KEYSTORE_B64` | `android.p12`를 base64로 인코딩한 값 |
+| `BUBBLEWRAP_KEYSTORE_PASSWORD` | 키스토어 비밀번호 |
+| `BUBBLEWRAP_KEY_PASSWORD` | 키 비밀번호 |
+
+키 별칭(alias)은 **`lifeplanner`** 입니다. 빌드 로그에 alias를 찾을 수 없다는
+오류가 나면, 저장소 **Variables**에 `ANDROID_KEY_ALIAS`를 실제 별칭으로 추가하세요.
+비어 있으면 `lifeplanner`를 씁니다.
+
+#### (2) Firebase 콘솔 — 승인된 도메인
+
+앱 안 주소는 `https://localhost` 입니다. (`capacitor://`가 아니에요.)
+
+1. https://console.firebase.google.com → 프로젝트 **deungbul-app**
+2. **Authentication → Settings → Authorized domains**
+3. 목록에 **`localhost`** 가 있는지 확인합니다. 기본값으로 들어 있어요.
+   지워져 있으면 `localhost`만 추가하세요. `https://`는 붙이지 않습니다.
+4. 웹 API 키에 HTTP 리퍼러 제한을 걸어 두었다면, Google Cloud 콘솔
+   **APIs & Services → Credentials**에서 `index.html`의 `firebaseConfig.apiKey`와
+   같은 키를 열고, 웹사이트 제한에 다음을 추가합니다.
+   - `https://sketchkim-hub.github.io/*` (원래 있던 것)
+   - `https://localhost/*`
+5. 로그인이 `auth/unauthorized-domain`이면 3번, `api-key-not-valid`이면 4번입니다.
+
+Firestore 보안 규칙은 바꾸지 않아도 됩니다. 이메일/비밀번호 로그인은
+WebView에서 Firebase JS SDK로 호출하고, 데이터는 같은 `deungbul-app` 프로젝트에 남아요.
+
+#### (3) 서명된 AAB를 만들어 비공개 테스트에 올리기
+
+이 워크플로는 Play에 자동으로 올리지 않아요. 태그도 릴리스를 만들지 않아요.
+
+1. GitHub 저장소 **Actions → Capacitor Android Build → Run workflow**
+2. variant는 **release** (서명된 `.aab`). `debug`는 테스트용 APK만 만듭니다.
+3. 끝난 뒤 Artifacts에서 `lifeplanner-aab`를 받습니다.
+4. https://play.google.com/console 에서 **이미 있는** 라이프플래너 앱을 엽니다.
+   새 앱을 만들면 패키지가 갈라져서 기존 테스터가 업데이트를 받지 못해요.
+5. **테스트 → 비공개 테스트 → 새 버전 만들기**에 AAB를 올리고 기존 테스터 트랙에 출시합니다.
+6. versionCode 8이 7보다 크다고 나오면 정상입니다.
+
+`android-v*` 태그를 푸시해도 같은 서명 AAB 아티팩트가 만들어집니다.
+태그는 Play 업로드나 GitHub Release가 아닙니다. 준비되기 전에는 태그를 푸시하지 마세요.
+
+### 3-4. 앱 안에서 달라지는 동작
+
+- **서비스 워커**는 앱(WebView)에서 등록하지 않아요. 캐시가 예전 화면을 붙잡는 일을
+  막기 위해서입니다. GitHub Pages / PWA에서는 `sw.js`가 이전과 같이 등록됩니다.
+- **쿠팡 링크, 유튜브 페이지 링크**는 시스템 브라우저(Chrome Custom Tabs)로 열어요.
+  본문에 삽입된 유튜브·쿠팡 iframe은 앱 안에 남습니다.
+- **개인정보처리방침**, **계정 삭제 안내**는 앱에 복사본이 있지만, 버튼은
+  공개 주소(`https://sketchkim-hub.github.io/lifeplanner/...`)를 브라우저로 엽니다.
+- **mailto:** 는 기본 메일 앱으로 넘깁니다.
+- **뒤로 가기**: 사진 보기 → 열린 창 → 암송 테스트 → 이전에 보던 탭 → 홈에서
+  한 번 더 누르면 앱이 닫혀요. 홈에서 한 번은 "한 번 더 누르면 앱이 닫혀요" 안내만 나와요.
+
+### 3-5. 로컬에서 디버그 APK
+
 ```bash
-npm install -g @bubblewrap/cli
-bubblewrap init --manifest="https://sketchkim-hub.github.io/저장소이름/manifest.json"
-bubblewrap build
+npm ci
+npm test
+npm run build:debug
 ```
-- 진행 중 서명 키(keystore)를 새로 만들거나 기존 것을 지정합니다.
-- 빌드가 끝나면 `app-release-signed.apk` / `.aab`가 생성돼요.
-- **중요**: 이 방식은 앱이 실제로는 브라우저(TWA)로 여러분의 사이트를 여는
-  방식이라, 주소창 없는 "진짜 앱처럼" 보이려면 사이트 루트에
-  `.well-known/assetlinks.json` 파일을 아래 형태로 올려야 해요.
-  ```json
-  [{
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "com.sketchkim.lifeplanner",
-      "sha256_cert_fingerprints": ["여기에 keystore의 SHA-256 지문"]
-    }
-  }]
-  ```
-  SHA-256 지문은 `bubblewrap fingerprint` 명령이나 Play Console의
-  **설정 → 앱 무결성 → 앱 서명** 페이지에서 확인할 수 있어요.
 
-### 방법 C. Capacitor (네이티브 기능을 더 붙이고 싶을 때)
-```bash
-npm install @capacitor/core @capacitor/cli @capacitor/android
-npx cap init "라이프플래너" com.sketchkim.lifeplanner
-npx cap add android
-npx cap open android   # Android Studio가 열립니다
-```
-- Android Studio에서 서명 후 빌드하면 `.aab`가 나옵니다.
-- 이 방식은 로컬에 Android Studio/SDK 설치가 필요해요(제 작업 환경에는
-  Android SDK가 없어서 이 부분은 직접 진행해 주셔야 해요).
+Android SDK(compileSdk 36)와 JDK 21이 필요합니다. 결과물은
+`android/app/build/outputs/apk/debug/app-debug.apk` 입니다.
+릴리스 AAB는 업로드 키가 있어야 하고, 보통은 Actions에서 만듭니다.
+
+### 3-6. 웹(GitHub Pages)은 그대로
+
+Pages는 저장소 루트의 `index.html`을 계속 서빙합니다. `node_modules/`, `www/`,
+Android 빌드 출력, 서명 파일은 gitignore라 사이트에 섞이지 않아요.
+`.nojekyll`은 Jekyll을 끄기 위해 그대로 둡니다.
+
+`.well-known/assetlinks.json`은 이 저장소에서 뺐어요. TWA가 URL 권한을
+증명하려고 둔 파일이고, Capacitor는 그 증명이 필요 없습니다.
+이 파일의 실제 주소는 `https://sketchkim-hub.github.io/lifeplanner/.well-known/assetlinks.json`
+이라, Android가 확인하는 호스트 루트
+`https://sketchkim-hub.github.io/.well-known/assetlinks.json` 와는 달랐어요.
+호스트 루트 저장소는 건드리지 않았습니다. 거기에 파일이 남아 있어도
+Capacitor 앱은 그 주소의 인텐트 필터를 갖고 있지 않아서, 웹사이트는 브라우저로 열립니다.
 
 ### 공통으로 필요한 것
-- Google Play 개발자 계정 (1회 $25)
-- **개인정보처리방침 URL** — 회원가입·데이터 저장 기능이 있는 앱은 Play
-  등록 시 필수 제출 항목이에요. 수집 항목(이메일, 성경읽기/암송/묵상 기록)과
-  Firebase를 통해 저장된다는 점을 간단히 안내하는 페이지를 만들어 링크하시면 됩니다.
-- 앱 아이콘/스크린샷 — `icons/` 폴더의 아이콘을 활용하시고, 스크린샷은 실행
-  화면을 캡처하시면 돼요.
+- Google Play 개발자 계정 (이미 비공개 테스트 중이라면 추가 가입은 없어요)
+- **개인정보처리방침 URL** — `privacy-policy.html` (Pages 주소 그대로 쓰시면 됩니다)
+- 앱 아이콘 — `icons/`의 마스커블 아이콘을 런처 아이콘으로 넣었어요.
 
 ---
 
@@ -238,8 +319,10 @@ service cloud.firestore {
    새 키를 발급받습니다.
 5. 발급받은 키를 클릭 → **API 제한사항**에서 "키 제한" 선택 →
    `YouTube Data API v3`만 체크 → **애플리케이션 제한사항**에서
-   "HTTP 리퍼러(웹사이트)" 선택 → 본인 배포 주소(`https://sketchkim-hub.github.io/*`)
-   등록 → 저장. (앞서 Firebase API 키를 제한했던 것과 같은 방식이에요.)
+   "HTTP 리퍼러(웹사이트)" 선택 → 본인 배포 주소(`https://sketchkim-hub.github.io/*`)와
+   안드로이드 앱 주소(`https://localhost/*`)를 등록 → 저장.
+   (Firebase API 키를 제한했던 것과 같은 방식이에요. `localhost`를 빼면
+   웹에서는 되고 앱의 성경이야기 탭만 실패해요.)
 6. `index.html` 상단에서 `YOUTUBE_CONFIG`를 검색해 아래처럼 값을 채웁니다.
    ```js
    const YOUTUBE_CONFIG = {
@@ -262,11 +345,16 @@ service cloud.firestore {
 
 ## 파일 구성
 ```
-index.html          앱 본체 (Firebase 회원가입/데이터, 성경읽기표, 성경암송, 캘린더,
-                     묵상노트, 기도노트, 교제노트, 배지·포인트, 성경이야기,
-                     추천 상품, 계정 관리)
-manifest.json        PWA 매니페스트 (앱 이름/아이콘/색상)
-sw.js                 오프라인 캐싱용 서비스워커
-icons/                192px·512px 일반/마스커블 아이콘
-README_배포가이드.md   이 문서
+index.html                 앱 본체 (웹과 안드로이드가 같은 파일)
+native-shell.js            Capacitor에서만 동작하는 링크·뒤로가기 처리 (웹에서는 아무 것도 안 함)
+manifest.json              PWA 매니페스트
+sw.js                      웹/PWA용 서비스워커 (앱 안에서는 등록하지 않음)
+icons/                     192px·512px 일반/마스커블 아이콘
+capacitor.config.json      앱 ID, 로컬 번들(www), https://localhost
+package.json               Capacitor 의존성
+scripts/copy-web.mjs       루트 정적 파일을 www/로 복사 (bible/ 같은 향후 폴더 포함)
+android/                   Capacitor Android 프로젝트 (applicationId, versionCode 8)
+.github/workflows/capacitor-android.yml
+                           수동 실행 또는 android-v* 태그로 서명 AAB
+README_배포가이드.md        이 문서
 ```

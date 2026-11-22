@@ -1,0 +1,30 @@
+# Capacitor / Node tooling. GitHub Pages serves committed files only,
+# so these never replace the root index.html.
+node_modules/
+www/
+
+# Android build outputs and machine-local SDK path
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+android/app/*.iml
+android/capacitor-cordova-android-plugins/build/
+
+# Web assets copied into the APK by `npx cap sync` (regenerated in CI)
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Signing material. CI reconstructs android-upload.p12 from GitHub secrets.
+*.p12
+*.jks
+*.keystore
+*.aab
+*.apk
+android-upload.p12
+
+.DS_Store
