@@ -3,12 +3,12 @@
  * The GitHub Pages site keeps serving the repo root. This script only
  * builds the bundled copy that the Android WebView loads.
  *
- * Everything at the repo root is copied except tooling, so a future
- * folder such as bible/*.json is included without a script change.
+ * Everything at the repo root is copied except tooling, so bible/
+ * (each book JSON and NOTICE) is included without a file list.
  *
  * WEB_SRC / WEB_DEST override the paths (used by the copy test).
  */
-import { cp, mkdir, readdir, rm } from "node:fs/promises";
+import { access, cp, mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -83,17 +83,31 @@ for (const ent of entries) {
 
 const indexPath = path.join(dest, "index.html");
 try {
-  await readdir(dest);
-} catch (err) {
-  console.error(err);
-  process.exit(1);
-}
-const { access } = await import("node:fs/promises");
-try {
   await access(indexPath);
 } catch {
   console.error("copy-web: index.html was not copied to " + dest);
   process.exit(1);
 }
 
-console.log(`copy-web: ${copied} entries -> ${dest}`);
+let bibleNote = "";
+try {
+  await access(path.join(root, "bible", "NOTICE"));
+  const srcJson = (await readdir(path.join(root, "bible"))).filter((n) => n.endsWith(".json")).sort();
+  let destJson = [];
+  try {
+    await access(path.join(dest, "bible", "NOTICE"));
+    destJson = (await readdir(path.join(dest, "bible"))).filter((n) => n.endsWith(".json")).sort();
+  } catch {
+    console.error("copy-web: bible/NOTICE was not copied into the bundle");
+    process.exit(1);
+  }
+  if (srcJson.join("\n") !== destJson.join("\n")) {
+    console.error("copy-web: bible book JSON was not copied completely");
+    process.exit(1);
+  }
+  bibleNote = `; bible/ ${srcJson.length} books + NOTICE`;
+} catch (err) {
+  if (!err || err.code !== "ENOENT") throw err;
+}
+
+console.log(`copy-web: ${copied} entries -> ${dest}${bibleNote}`);

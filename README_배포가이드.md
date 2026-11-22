@@ -346,6 +346,7 @@ service cloud.firestore {
 ## 파일 구성
 ```
 index.html                 앱 본체 (웹과 안드로이드가 같은 파일)
+bible/                     개역한글 책별 JSON과 NOTICE. 앱 번들에 같이 들어감
 native-shell.js            Capacitor에서만 동작하는 링크·뒤로가기 처리 (웹에서는 아무 것도 안 함)
 manifest.json              PWA 매니페스트
 sw.js                      웹/PWA용 서비스워커 (앱 안에서는 등록하지 않음)

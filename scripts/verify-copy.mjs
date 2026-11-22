@@ -22,6 +22,7 @@ await mkdir(path.join(src, ".github"), { recursive: true });
 await writeFile(path.join(src, "index.html"), "<html>ok</html>");
 await writeFile(path.join(src, "native-shell.js"), "/* shell */");
 await writeFile(path.join(src, "bible", "gen.json"), "{\"book\":1}");
+await writeFile(path.join(src, "bible", "NOTICE"), "copyright notice");
 await writeFile(path.join(src, "icons", "icon-192.png"), "png");
 await writeFile(path.join(src, "node_modules", "pkg", "secret.js"), "nope");
 await writeFile(path.join(src, "android", "upload.p12"), "key");
@@ -35,6 +36,7 @@ assert.equal(run.status, 0, run.stderr && run.stderr.toString());
 
 assert.equal(await readFile(path.join(dest, "index.html"), "utf8"), "<html>ok</html>");
 assert.equal(await readFile(path.join(dest, "bible", "gen.json"), "utf8"), "{\"book\":1}");
+assert.equal(await readFile(path.join(dest, "bible", "NOTICE"), "utf8"), "copyright notice");
 assert.equal(await readFile(path.join(dest, "native-shell.js"), "utf8"), "/* shell */");
 await assert.rejects(readFile(path.join(dest, "node_modules", "pkg", "secret.js")));
 await assert.rejects(readFile(path.join(dest, "android", "upload.p12")));
