@@ -1,4 +1,4 @@
-const CACHE_NAME = "deungbul-cache-v7";
+const CACHE_NAME = "deungbul-cache-v8";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -33,8 +33,11 @@ self.addEventListener("fetch", (e) => {
   if (isSameOrigin) {
     e.respondWith(
       fetch(e.request).then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+        // 실패한 응답(404 등)은 캐시에 넣지 않아요. 성경 JSON은 읽는 순간에만 캐시됩니다.
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+        }
         return res;
       }).catch(() => caches.match(e.request).then((cached) => cached || caches.match("./index.html")))
     );
