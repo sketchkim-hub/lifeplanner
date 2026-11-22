@@ -31,16 +31,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
 
       - name: Set up Node 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
@@ -63,15 +63,64 @@ jobs:
             echo "name=release" >> "$GITHUB_OUTPUT"
           fi
 
+      # ubuntu-latest sets ANDROID_HOME but does not put sdkmanager on PATH.
+      # The binary is $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.
       - name: Install Android SDK 36
         run: |
           set -euo pipefail
-          if [ -z "${ANDROID_HOME:-}" ]; then
-            echo "ANDROID_HOME is not set on this runner." >&2
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "ANDROID_HOME and ANDROID_SDK_ROOT are unset." >&2
             exit 1
           fi
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager --install "platforms;android-36"
+          echo "SDK_ROOT=$SDK_ROOT"
+          SDKMANAGER=""
+          for candidate in \
+            "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          do
+            if [ -x "$candidate" ]; then
+              SDKMANAGER="$candidate"
+              break
+            fi
+          done
+          if [ -z "$SDKMANAGER" ]; then
+            found="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1 || true)"
+            if [ -n "$found" ] && [ -x "$found" ]; then
+              SDKMANAGER="$found"
+            fi
+          fi
+          if [ -z "$SDKMANAGER" ]; then
+            echo "No preinstalled sdkmanager. Downloading command-line tools." >&2
+            tmp="$(mktemp -d)"
+            curl -fsSL -o "$tmp/cmdtools.zip" \
+              "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip"
+            unzip -q "$tmp/cmdtools.zip" -d "$tmp"
+            bin_dir="$(find "$tmp" -type d -name bin | head -n 1)"
+            if [ -z "$bin_dir" ]; then
+              echo "Command-line tools archive has no bin directory." >&2
+              exit 1
+            fi
+            rm -rf "$SDK_ROOT/cmdline-tools/latest"
+            mkdir -p "$SDK_ROOT/cmdline-tools/latest"
+            cp -a "$(dirname "$bin_dir")/." "$SDK_ROOT/cmdline-tools/latest/"
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          test -x "$SDKMANAGER"
+          echo "Using $SDKMANAGER"
+          "$SDKMANAGER" --sdk_root="$SDK_ROOT" --version
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" --licenses >/dev/null || true
+          set -o pipefail
+          if [ ! -d "$SDK_ROOT/platforms/android-36" ]; then
+            "$SDKMANAGER" --sdk_root="$SDK_ROOT" --install "platforms;android-36"
+          else
+            echo "platforms/android-36 is already installed"
+          fi
+          test -d "$SDK_ROOT/platforms/android-36"
+          printf 'sdk.dir=%s\n' "$SDK_ROOT" > android/local.properties
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
       - name: Decode upload keystore
         if: steps.variant.outputs.name == 'release'
@@ -104,7 +153,7 @@ jobs:
 
       - name: Upload debug APK
         if: steps.variant.outputs.name == 'debug'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lifeplanner-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
@@ -112,7 +161,7 @@ jobs:
 
       - name: Upload signed AAB
         if: steps.variant.outputs.name == 'release'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: lifeplanner-aab
           path: android/app/build/outputs/bundle/release/*.aab
