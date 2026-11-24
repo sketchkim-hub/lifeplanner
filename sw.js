@@ -1,7 +1,8 @@
-const CACHE_NAME = "deungbul-cache-v8";
+const CACHE_NAME = "deungbul-cache-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./tts-speech.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
