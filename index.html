@@ -580,6 +580,35 @@ input,textarea,select{font-family:inherit;}
 }
 .bible-note{margin-top:14px;}
 .bible-note textarea{min-height:88px;}
+.bible-search{margin:0 0 16px;}
+.bible-search-row{display:flex;gap:8px;align-items:stretch;}
+.bible-search-row input{flex:1;min-width:0;font-size:16px;}
+.bible-search-row .btn{flex:none;}
+.bible-search-status{min-height:1.3em;font-size:13px;color:var(--ink-soft);margin:0 0 8px;}
+.bible-search-hit{
+  display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);
+  border-radius:10px;padding:11px 12px;margin:0 0 8px;color:inherit;cursor:pointer;
+}
+.bible-search-hit:hover{border-color:var(--gold-soft);}
+.bible-search-hit:focus{outline:2px solid var(--gold-soft);outline-offset:1px;}
+.bible-search-jump{border-color:var(--gold);background:rgba(184,134,62,0.1);}
+.bible-search-ref{display:block;font-family:'Noto Serif KR',serif;font-weight:700;color:var(--navy);font-size:14.5px;}
+.bible-search-text{display:block;margin-top:4px;font-family:'Noto Serif KR',serif;font-size:14.5px;line-height:1.75;color:var(--ink);}
+.bible-search-jump-label{display:block;margin-top:4px;font-size:12.5px;font-weight:700;color:var(--gold);}
+mark.bible-hit{background:rgba(217,174,110,0.55);color:inherit;border-radius:3px;padding:0 .05em;}
+html[data-theme="dark"] mark.bible-hit{background:rgba(217,174,110,0.38);}
+.bible-search-more{width:100%;margin:2px 0 8px;}
+.bible-search-attr{margin:0 0 10px;}
+.verse.verse-flash{border-radius:8px;animation:verseFlash 1.8s ease;}
+@keyframes verseFlash{
+  0%,45%{background:rgba(217,174,110,0.5);}
+  100%{background:transparent;}
+}
+html[data-theme="dark"] .verse.verse-flash{animation-name:verseFlashDark;}
+@keyframes verseFlashDark{
+  0%,45%{background:rgba(217,174,110,0.35);}
+  100%{background:transparent;}
+}
 
 .toast{
   position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -865,6 +894,7 @@ body.pv-open{overflow:hidden;}
 <div class="toast" id="toast"></div>
 
 <script src="tts-speech.js"></script>
+<script src="bible-search.js"></script>
 <script>
 /* =========================================================
    Firebase 설정
@@ -1532,8 +1562,35 @@ function renderBible(){
   return `
   <div class="card">
     <div class="section-title">📖 성경 본문</div>
-    <p class="section-desc">책을 고른 뒤 장을 누르면 개역한글 본문이 열려요. 읽음 표시는 성경읽기표와 함께 저장되고, 장마다 개인 메모를 남겨 둘 수 있어요.</p>
+    <p class="section-desc">단어나 구절로 찾아보거나, 책을 고른 뒤 장을 눌러 읽어요. 읽음 표시는 성경읽기표와 함께 저장되고, 장마다 개인 메모를 남겨 둘 수 있어요.</p>
     <div class="notice">${escapeHtml(BIBLE_ATTRIBUTION)}</div>
+    <div class="bible-search">
+      <div class="field">
+        <label for="bibleSearchInput">본문 검색</label>
+        <div class="bible-search-row">
+          <input id="bibleSearchInput" type="search" inputmode="search" placeholder="예: 사랑, 두려워 말라, 요 3:16" autocomplete="off" enterkeyhint="search">
+          <button class="btn gold" type="button" id="bibleSearchBtn">검색</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="bibleSearchScope">범위</label>
+        <select id="bibleSearchScope">
+          <option value="all">전체</option>
+          <option value="ot">구약</option>
+          <option value="nt">신약</option>
+          <optgroup label="구약">
+            ${BOOKS.map(([name])=>`<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}
+          </optgroup>
+          <optgroup label="신약">
+            ${NT_BOOKS.map(([name])=>`<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}
+          </optgroup>
+        </select>
+      </div>
+      <div id="bibleSearchStatus" class="bible-search-status" aria-live="polite"></div>
+      <p class="bible-attr bible-search-attr">${escapeHtml(BIBLE_ATTRIBUTION)}</p>
+      <div id="bibleSearchResults"></div>
+      <button type="button" class="btn outline bible-search-more" id="bibleSearchMore" hidden>더 보기</button>
+    </div>
     <div class="book-select-box">
       <label for="bibleBookSelect">📚 어느 책을 읽으시겠어요?</label>
       <select id="bibleBookSelect">
@@ -1908,7 +1965,7 @@ function syncNoteMark(bookName, chapterNum){
   const prog = document.getElementById("bibleBookProgress");
   if(prog) prog.textContent = bibleProgressLabel(bookName);
 }
-function paintChapter(bookName, chapterNum){
+function paintChapter(bookName, chapterNum, focusVerse){
   const verses = bibleVerses(bookName, chapterNum);
   const note = userBibleNote(bookName, chapterNum);
   const key = chapterKey(bookName, chapterNum);
@@ -1919,7 +1976,7 @@ function paintChapter(bookName, chapterNum){
   const body = verses
     ? verses.map((t,i)=>{
         const ph = isVerseMarker(t) ? " placeholder" : "";
-        return `<div class="verse${ph}"><span class="verse-num">${i+1}</span><span class="verse-body">${escapeHtml(t)}</span></div>`;
+        return `<div class="verse${ph}" data-verse="${i+1}"><span class="verse-num">${i+1}</span><span class="verse-body">${escapeHtml(t)}</span></div>`;
       }).join("")
     : `<p style="color:var(--ink-soft)">이 장의 본문을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 열어 주세요.</p>`;
   document.getElementById("modalBody").innerHTML = `
@@ -1970,8 +2027,17 @@ function paintChapter(bookName, chapterNum){
     showToast(changed ? "메모를 저장했어요." : "저장할 변경이 없어요.");
   });
   armFormModal("bibleNote", key);
+  focusBibleVerse(focusVerse);
 }
-async function openChapterViewModal(bookName, chapterNum){
+function focusBibleVerse(focusVerse){
+  const verse = Number(focusVerse);
+  if(!Number.isInteger(verse) || verse < 1) return;
+  const el = document.querySelector(`#modalBody .verse[data-verse="${verse}"]`);
+  if(!el) return;
+  el.classList.add("verse-flash");
+  requestAnimationFrame(()=>{ el.scrollIntoView({block:"center", inline:"nearest"}); });
+}
+async function openChapterViewModal(bookName, chapterNum, focusVerse){
   if(isFormDirty() && !confirm("저장하지 않은 메모가 있어요. 저장하지 않고 다른 장을 열까요?")) return;
   const seq = ++chapterViewSeq;
   stopTTS();
@@ -1987,19 +2053,202 @@ async function openChapterViewModal(bookName, chapterNum){
   }
   if(seq!==chapterViewSeq) return;
   if(!document.getElementById("modalBackdrop").classList.contains("open")) return;
-  paintChapter(bookName, chapterNum);
+  paintChapter(bookName, chapterNum, focusVerse);
+}
+const BIBLE_SEARCH_PAGE = (typeof BibleSearch !== "undefined" && BibleSearch.PAGE_SIZE) || 100;
+let bibleSearch = {
+  query:"", scope:"all", seq:0, hits:[], shown:0, textCount:0,
+  running:false, loaded:0, totalBooks:0, failed:0, message:"", touched:false
+};
+function paintBibleSearchStatus(){
+  const el = document.getElementById("bibleSearchStatus");
+  if(!el) return;
+  if(bibleSearch.running){
+    el.textContent = `검색 중… ${bibleSearch.loaded}/${bibleSearch.totalBooks}`;
+    return;
+  }
+  if(bibleSearch.message){
+    el.textContent = bibleSearch.message;
+    return;
+  }
+  if(!bibleSearch.touched){
+    el.textContent = "";
+    return;
+  }
+  const jumpOnly = bibleSearch.hits.some(h=>h.kind==="jump") && bibleSearch.textCount===0;
+  let msg = jumpOnly ? "구절로 이동할 수 있어요" : `${bibleSearch.textCount.toLocaleString("ko-KR")}구절`;
+  if(bibleSearch.failed) msg += " · 일부 책을 불러오지 못했어요";
+  el.textContent = msg;
+}
+function renderSearchHit(hit){
+  const verseAttr = hit.verse ? ` data-verse="${hit.verse}"` : "";
+  if(hit.kind==="jump"){
+    return `<button type="button" class="bible-search-hit bible-search-jump" data-book="${escapeAttr(hit.book)}" data-ch="${hit.chapter}"${verseAttr}>
+      <span class="bible-search-ref">${escapeHtml(hit.label)}</span>
+      <span class="bible-search-jump-label">${hit.verse ? "이 구절로 이동" : "이 장으로 이동"}</span>
+    </button>`;
+  }
+  const ref = `${hit.book} ${hit.chapter}:${hit.verse}`;
+  return `<button type="button" class="bible-search-hit" data-book="${escapeAttr(hit.book)}" data-ch="${hit.chapter}" data-verse="${hit.verse}">
+    <span class="bible-search-ref">${escapeHtml(ref)}</span>
+    <span class="bible-search-text">${BibleSearch.highlightHtml(hit.text, hit.ranges)}</span>
+  </button>`;
+}
+function paintBibleSearchResults(){
+  const box = document.getElementById("bibleSearchResults");
+  const more = document.getElementById("bibleSearchMore");
+  if(!box) return;
+  const hits = bibleSearch.hits.slice(0, bibleSearch.shown);
+  if(!hits.length){
+    if(bibleSearch.running || bibleSearch.message) box.innerHTML = "";
+    else {
+      const hint = bibleSearch.touched ? "해당하는 구절이 없어요." : "단어나 구절을 검색해 보세요.";
+      box.innerHTML = `<div class="empty">${escapeHtml(hint)}</div>`;
+    }
+    if(more) more.hidden = true;
+    return;
+  }
+  box.innerHTML = hits.map(renderSearchHit).join("");
+  if(more){
+    const rest = bibleSearch.hits.length - bibleSearch.shown;
+    more.hidden = rest <= 0;
+    more.textContent = rest > 0 ? `더 보기 (${bibleSearch.shown}/${bibleSearch.hits.length})` : "더 보기";
+  }
+}
+function paintBibleSearch(){
+  paintBibleSearchStatus();
+  paintBibleSearchResults();
+  const btn = document.getElementById("bibleSearchBtn");
+  if(btn) btn.disabled = !!bibleSearch.running;
+}
+function openBibleSearchResult(bookName, chapter, verse){
+  if(!bookName || !chapter) return;
+  ui.bibleBook = bookName;
+  const sel = document.getElementById("bibleBookSelect");
+  if(sel) sel.value = bookName;
+  renderBibleChapters();
+  openChapterViewModal(bookName, chapter, verse || null);
+}
+async function runBibleSearch(){
+  const input = document.getElementById("bibleSearchInput");
+  const scopeEl = document.getElementById("bibleSearchScope");
+  const query = input ? input.value : bibleSearch.query;
+  const scope = scopeEl ? scopeEl.value : bibleSearch.scope;
+  bibleSearch.query = query;
+  bibleSearch.scope = scope;
+  bibleSearch.touched = true;
+  const seq = ++bibleSearch.seq;
+  if(typeof BibleSearch === "undefined"){
+    bibleSearch.running = false;
+    bibleSearch.hits = [];
+    bibleSearch.shown = 0;
+    bibleSearch.textCount = 0;
+    bibleSearch.message = "검색 기능을 불러오지 못했어요.";
+    paintBibleSearch();
+    return;
+  }
+  const prepared = BibleSearch.prepareQuery(query);
+  const ref = BibleSearch.parseReference(query);
+  if(!prepared.ok && !ref){
+    bibleSearch.running = false;
+    bibleSearch.hits = [];
+    bibleSearch.shown = 0;
+    bibleSearch.textCount = 0;
+    bibleSearch.failed = 0;
+    bibleSearch.message = query.trim() ? "한글 한 글자 이상 입력해 주세요." : "검색할 단어를 입력해 주세요.";
+    paintBibleSearch();
+    return;
+  }
+  const names = BibleSearch.bookNamesForScope(scope);
+  bibleSearch.running = true;
+  bibleSearch.loaded = 0;
+  bibleSearch.totalBooks = names.length;
+  bibleSearch.failed = 0;
+  bibleSearch.message = "";
+  const earlyJump = ref ? BibleSearch.jumpHit(ref) : null;
+  bibleSearch.hits = earlyJump ? [earlyJump] : [];
+  bibleSearch.shown = bibleSearch.hits.length;
+  bibleSearch.textCount = 0;
+  paintBibleSearch();
+  const loaded = new Array(names.length);
+  await Promise.all(names.map(async (name, i)=>{
+    try{
+      const data = await loadBibleBook(name);
+      loaded[i] = { name, chapters: data && data.chapters };
+    }catch(e){
+      if(seq===bibleSearch.seq) bibleSearch.failed++;
+    }finally{
+      if(seq!==bibleSearch.seq) return;
+      bibleSearch.loaded++;
+      paintBibleSearchStatus();
+    }
+  }));
+  if(seq!==bibleSearch.seq) return;
+  let jump = null;
+  if(ref){
+    let chapters = null;
+    const inScope = loaded.find(b=>b && b.name===ref.book);
+    if(inScope) chapters = inScope.chapters;
+    else if(bibleBookCache[ref.book]) chapters = bibleBookCache[ref.book].chapters;
+    else {
+      try{
+        const data = await loadBibleBook(ref.book);
+        if(seq!==bibleSearch.seq) return;
+        chapters = data && data.chapters;
+      }catch(e){}
+    }
+    jump = BibleSearch.jumpHit(ref, chapters || undefined);
+  }
+  const books = loaded.filter(Boolean);
+  const textHits = prepared.ok ? BibleSearch.searchBooks(books, prepared.text) : [];
+  if(seq!==bibleSearch.seq) return;
+  bibleSearch.hits = jump ? [jump, ...textHits] : textHits;
+  bibleSearch.textCount = textHits.length;
+  bibleSearch.shown = Math.min(BIBLE_SEARCH_PAGE, bibleSearch.hits.length);
+  bibleSearch.running = false;
+  bibleSearch.message = "";
+  paintBibleSearch();
 }
 function bindBible(){
   const sel = document.getElementById("bibleBookSelect");
-  if(!sel) return;
-  sel.value = ui.bibleBook;
-  sel.addEventListener("change",()=>{
-    ui.bibleBook = sel.value;
+  if(sel){
+    sel.value = ui.bibleBook;
+    sel.addEventListener("change",()=>{
+      ui.bibleBook = sel.value;
+      renderBibleChapters();
+      loadBibleBook(ui.bibleBook).catch(()=>{});
+    });
     renderBibleChapters();
     loadBibleBook(ui.bibleBook).catch(()=>{});
+  }
+  const input = document.getElementById("bibleSearchInput");
+  const scopeEl = document.getElementById("bibleSearchScope");
+  const btn = document.getElementById("bibleSearchBtn");
+  const more = document.getElementById("bibleSearchMore");
+  const results = document.getElementById("bibleSearchResults");
+  if(input){
+    input.value = bibleSearch.query;
+    input.addEventListener("keydown",(e)=>{
+      if(e.key==="Enter"){ e.preventDefault(); runBibleSearch(); }
+    });
+  }
+  if(scopeEl){
+    scopeEl.value = bibleSearch.scope;
+    scopeEl.addEventListener("change",()=>{ bibleSearch.scope = scopeEl.value; });
+  }
+  if(btn) btn.addEventListener("click",()=>{ runBibleSearch(); });
+  if(more) more.addEventListener("click",()=>{
+    bibleSearch.shown = Math.min(bibleSearch.hits.length, bibleSearch.shown + BIBLE_SEARCH_PAGE);
+    paintBibleSearchResults();
   });
-  renderBibleChapters();
-  loadBibleBook(ui.bibleBook).catch(()=>{});
+  if(results) results.addEventListener("click",(e)=>{
+    const hit = e.target.closest(".bible-search-hit");
+    if(!hit || !hit.dataset.book) return;
+    const chapter = Number(hit.dataset.ch);
+    const verse = hit.dataset.verse ? Number(hit.dataset.verse) : null;
+    openBibleSearchResult(hit.dataset.book, chapter, verse);
+  });
+  paintBibleSearch();
 }
 
 

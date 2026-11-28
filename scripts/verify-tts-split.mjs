@@ -145,8 +145,10 @@ assert.match(html, /function stopTTS\(\)\{[\s\S]*?ttsGen\+\+;[\s\S]*?clearTtsTim
 assert.match(html, /function pauseTTS\(\)/);
 assert.match(html, /function resumeTTS\(\)/);
 const sw = readFileSync(path.join(root, "sw.js"), "utf8");
-assert.match(sw, /deungbul-cache-v9/);
+assert.match(sw, /deungbul-cache-v10/);
+assert.match(sw, /\.\/tts-speech\.js/);
 assert.doesNotMatch(sw, /deungbul-cache-v8/);
+assert.doesNotMatch(sw, /deungbul-cache-v9/);
 
 const scripts = [];
 const re = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
