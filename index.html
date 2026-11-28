@@ -864,6 +864,7 @@ body.pv-open{overflow:hidden;}
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="tts-speech.js"></script>
 <script>
 /* =========================================================
    Firebase 설정
@@ -1579,9 +1580,13 @@ function renderBibleChapters(){
 }
 /* ---------- 본문 음성으로 읽어주기 (TTS) ---------- */
 let cachedVoices = [];
-let ttsState = { queue:[], idx:0, playing:false, btn:null, voice:null };
+let ttsState = { queue:[], idx:0, playing:false, paused:false, phase:"idle", btn:null, stopBtn:null, voice:null, afterGap:null, gapLeft:0, gapStartedAt:0 };
 let ttsSpeed = 1;
+let ttsGen = 0;
+let ttsTimers = [];
 let chapterViewSeq = 0;
+const TTS_ANNOUNCE_PAUSE_MS = 380;
+const TTS_CHAPTER_PAUSE_MS = 700;
 function stripVerseNumbersForTTS(text){
   let t = text;
   // 줄 시작의 절 번호 제거 (예: "1 태초에", "1. 태초에", "1절 태초에", "1) 태초에")
@@ -1611,10 +1616,31 @@ function pickKoreanVoice(voices){
       || ko.find(v=>/여성|female|yuna|서현|지민/i.test(v.name))
       || ko[0];
 }
-function splitIntoSentences(line){
-  // 마침표·물음표·느낌표·말줄임표 뒤에서 문장을 나눠요.
-  // 문장부호가 전혀 없는 절이면 그 줄 전체가 한 문장으로 취급돼요.
-  return line.split(/(?<=[.!?…])\s+/).map(s=>s.trim()).filter(Boolean);
+function ttsScaledPause(ms){
+  const speed = Number(ttsSpeed) > 0 ? Number(ttsSpeed) : 1;
+  return ms / speed;
+}
+function ttsLater(fn, ms){
+  const id = setTimeout(()=>{
+    ttsTimers = ttsTimers.filter(t=>t!==id);
+    fn();
+  }, ms);
+  ttsTimers.push(id);
+  return id;
+}
+function clearTtsTimers(){
+  ttsTimers.forEach(id=>clearTimeout(id));
+  ttsTimers = [];
+}
+function syncTtsButtons(){
+  const btn = ttsState.btn;
+  const stopBtn = ttsState.stopBtn;
+  if(btn){
+    if(!ttsState.playing) btn.innerHTML = "🔊 읽어주기";
+    else if(ttsState.paused) btn.innerHTML = "▶ 이어 읽기";
+    else btn.innerHTML = "⏸ 일시정지";
+  }
+  if(stopBtn) stopBtn.hidden = !ttsState.playing;
 }
 // 개역한글이 있으면 그 절을 읽고, 아직 못 불러온 경우에만 저장해 둔 메모로 이어 읽어요.
 // "(없음)" 같은 출처 표지는 소리 내어 읽지 않아요.
@@ -1633,48 +1659,173 @@ function buildReadQueue(bookName, startChapter){
   while(ch <= maxCh){
     const raw = chapterSpeechText(bookName, ch);
     if(!raw || !raw.trim()) break;
-    queue.push({type:"announce", text: first ? `${bookName} ${ch}장` : `${ch}장`});
+    queue.push({type:"announce", text: first ? `${bookName} ${ch}장` : `${ch}장`, pauseMs: TTS_ANNOUNCE_PAUSE_MS});
     const cleaned = stripVerseNumbersForTTS(raw);
-    // 절(줄바꿈) 경계에서 문장이 안 끝났으면 쉬지 않고 이어지도록, 절들을 하나로 이어붙인 뒤
-    // 문장부호가 나오는 곳에서만 끊어요.
-    const joined = cleaned.split("\n").map(l=>l.trim()).filter(Boolean).join(" ");
-    splitIntoSentences(joined).forEach(sentence=>{
-      queue.push({type:"verse", text: sentence});
+    // 화면에 보이는 본문은 바꾸지 않아요. 음성으로 넘기는 조각만 문장·절 끝에서 나눕니다.
+    splitTextForSpeech(cleaned).forEach(chunk=>{
+      queue.push({type:"verse", text: chunk.text, pauseMs: chunk.pauseMs});
     });
-    queue.push({type:"chapterEnd"});
+    queue.push({type:"chapterEnd", pauseMs: TTS_CHAPTER_PAUSE_MS});
     first = false;
     ch++;
   }
   return queue;
 }
+function finishTtsPlayback(){
+  clearTtsTimers();
+  ttsState.playing = false;
+  ttsState.paused = false;
+  ttsState.phase = "idle";
+  ttsState.afterGap = null;
+  syncTtsButtons();
+}
+function startTtsGap(gen, waitMs, after){
+  const wait = Math.max(0, Math.round(waitMs));
+  ttsState.phase = "gap";
+  ttsState.gapLeft = wait;
+  ttsState.gapStartedAt = Date.now();
+  ttsState.afterGap = after;
+  ttsLater(()=>{
+    if(gen!==ttsGen || !ttsState.playing || ttsState.paused) return;
+    ttsState.phase = "idle";
+    after();
+  }, wait);
+}
 function playNextTTS(){
-  if(!ttsState.playing || ttsState.idx >= ttsState.queue.length){
-    ttsState.playing = false;
-    if(ttsState.btn) ttsState.btn.innerHTML = "🔊 읽어주기";
+  const gen = ttsGen;
+  if(gen!==ttsGen || !ttsState.playing || ttsState.paused) return;
+  if(ttsState.idx >= ttsState.queue.length){
+    finishTtsPlayback();
     return;
   }
   const item = ttsState.queue[ttsState.idx];
   if(item.type==="chapterEnd"){
-    ttsState.idx++;
-    setTimeout(playNextTTS, 700/ttsSpeed); // 장이 바뀔 때의 텀
+    if(ttsState.idx + 1 >= ttsState.queue.length){
+      ttsState.idx++;
+      finishTtsPlayback();
+      return;
+    }
+    startTtsGap(gen, ttsScaledPause(item.pauseMs || TTS_CHAPTER_PAUSE_MS), ()=>{
+      ttsState.idx++;
+      playNextTTS();
+    });
     return;
   }
+  if(!item.text || !String(item.text).trim()){
+    ttsState.idx++;
+    playNextTTS();
+    return;
+  }
+  speakTtsItem(gen, item);
+}
+function speakTtsItem(gen, item){
+  ttsState.phase = "speaking";
+  const pauseAfter = item.pauseMs != null ? item.pauseMs : (typeof TTS_SENTENCE_PAUSE_MS==="number" ? TTS_SENTENCE_PAUSE_MS : 500);
+  const after = ()=>{
+    ttsState.idx++;
+    playNextTTS();
+  };
+  ttsState.afterGap = after;
+  let settled = false;
+  const finish = ()=>{
+    if(settled || gen!==ttsGen || !ttsState.playing) return;
+    settled = true;
+    clearTtsTimers();
+    if(ttsState.paused){
+      ttsState.phase = "gap";
+      ttsState.gapLeft = Math.round(ttsScaledPause(pauseAfter));
+      ttsState.gapStartedAt = Date.now();
+      ttsState.afterGap = after;
+      return;
+    }
+    const upcoming = ttsState.queue[ttsState.idx + 1];
+    if(!upcoming || (upcoming.type==="chapterEnd" && ttsState.idx + 2 >= ttsState.queue.length)){
+      ttsState.idx++;
+      finishTtsPlayback();
+      return;
+    }
+    if(upcoming.type==="chapterEnd"){
+      after();
+      return;
+    }
+    startTtsGap(gen, ttsScaledPause(pauseAfter), after);
+  };
   const utter = new SpeechSynthesisUtterance(item.text);
   utter.lang = "ko-KR";
   if(ttsState.voice) utter.voice = ttsState.voice;
   utter.rate = (item.type==="announce" ? 0.88 : 0.9) * ttsSpeed;
   utter.pitch = 0.96;
   utter.volume = 1;
-  utter.onend = ()=>{
-    ttsState.idx++;
-    setTimeout(playNextTTS, (item.type==="announce" ? 380 : 320) / ttsSpeed); // 절(문장) 사이의 짧은 텀
+  utter.onend = finish;
+  utter.onerror = (ev)=>{
+    if(settled || gen!==ttsGen || !ttsState.playing || ttsState.paused) return;
+    const err = ev && ev.error ? ev.error : "";
+    if(err==="interrupted" || err==="canceled" || err==="cancelled") return;
+    finish();
   };
-  utter.onerror = ()=>{ ttsState.idx++; setTimeout(playNextTTS, 200); };
-  speechSynthesis.speak(utter);
+  const armWatchdog = ()=>{
+    const n = [...String(item.text)].length;
+    const ms = Math.min(25000, 4000 + n * 350);
+    ttsLater(()=>{
+      if(settled || gen!==ttsGen || !ttsState.playing || ttsState.paused) return;
+      if(ttsState.phase!=="speaking") return;
+      try{ speechSynthesis.cancel(); }catch(e){}
+      finish();
+    }, ms);
+  };
+  ttsState.rearmWatchdog = armWatchdog;
+  armWatchdog();
+  const launch = ()=>{
+    if(settled || gen!==ttsGen || !ttsState.playing) return;
+    if(ttsState.paused){
+      clearTtsTimers();
+      ttsState.phase = "gap";
+      ttsState.gapLeft = 0;
+      ttsState.gapStartedAt = Date.now();
+      ttsState.afterGap = ()=>{ speakTtsItem(gen, item); };
+      return;
+    }
+    try{ speechSynthesis.speak(utter); }
+    catch(e){ finish(); }
+  };
+  // 직전 발화가 남아 있으면 바로 speak()가 무시되는 브라우저(iOS 등)가 있어 한 박자 쉬어요.
+  if(speechSynthesis.speaking || speechSynthesis.paused){
+    try{ speechSynthesis.cancel(); }catch(e){}
+    ttsLater(launch, 80);
+  }else launch();
+}
+function pauseTTS(){
+  if(!ttsState.playing || ttsState.paused) return;
+  ttsState.paused = true;
+  if(ttsState.phase==="gap"){
+    const elapsed = Date.now() - (ttsState.gapStartedAt || Date.now());
+    ttsState.gapLeft = Math.max(0, (ttsState.gapLeft || 0) - elapsed);
+    clearTtsTimers();
+  }
+  // 읽고 있는 문장은 끝까지 마칩니다. 문장 중간을 잘라 다시 읽거나 건너뛰지 않아요.
+  syncTtsButtons();
+}
+function resumeTTS(){
+  if(!ttsState.playing || !ttsState.paused) return;
+  const gen = ttsGen;
+  ttsState.paused = false;
+  syncTtsButtons();
+  if(ttsState.phase==="gap"){
+    const after = ttsState.afterGap;
+    if(typeof after==="function") startTtsGap(gen, ttsState.gapLeft || 0, after);
+    return;
+  }
+  if(typeof ttsState.rearmWatchdog==="function") ttsState.rearmWatchdog();
 }
 async function toggleTTS(bookName, chapterNum, btn){
   if(!("speechSynthesis" in window)){ showToast("이 브라우저는 음성 읽기를 지원하지 않아요."); return; }
-  if(ttsState.playing){ stopTTS(); return; }
+  if(typeof splitTextForSpeech!=="function"){ showToast("음성 읽기 기능을 불러오지 못했어요."); return; }
+  if(ttsState.playing && ttsState.btn===btn){
+    if(ttsState.paused) resumeTTS();
+    else pauseTTS();
+    return;
+  }
+  if(ttsState.playing) stopTTS();
   if(!bibleBookCache[bookName]){
     btn.disabled = true;
     try{ await loadBibleBook(bookName); }catch(e){}
@@ -1687,14 +1838,24 @@ async function toggleTTS(bookName, chapterNum, btn){
   btn.disabled = false;
   const voice = pickKoreanVoice(voices);
   const queue = buildReadQueue(bookName, chapterNum);
-  ttsState = { queue, idx:0, playing:true, btn, voice };
-  btn.innerHTML = "⏸ 읽기 중지";
+  const stopBtn = document.getElementById("ttsStopBtn");
+  ttsGen++;
+  clearTtsTimers();
+  ttsState = { queue, idx:0, playing:true, paused:false, phase:"idle", btn, stopBtn, voice, afterGap:null, gapLeft:0, gapStartedAt:0 };
+  syncTtsButtons();
   playNextTTS();
 }
 function stopTTS(){
+  ttsGen++;
+  clearTtsTimers();
   ttsState.playing = false;
-  if("speechSynthesis" in window) speechSynthesis.cancel();
-  if(ttsState.btn) ttsState.btn.innerHTML = "🔊 읽어주기";
+  ttsState.paused = false;
+  ttsState.phase = "idle";
+  ttsState.afterGap = null;
+  if("speechSynthesis" in window){
+    try{ speechSynthesis.cancel(); }catch(e){}
+  }
+  syncTtsButtons();
 }
 function setChapterRead(bookName, chapterNum, checked){
   const key = chapterKey(bookName, chapterNum);
@@ -1767,13 +1928,14 @@ function paintChapter(bookName, chapterNum){
       <button class="btn outline small" type="button" id="prevCh" ${chapterNum<=1?"disabled":""}>← 이전 장</button>
       <button class="btn outline small" type="button" id="nextCh" ${chapterNum>=maxCh?"disabled":""}>다음 장 →</button>
       <button class="btn sage small" type="button" id="ttsBtn" ${canRead?"":"disabled"}>🔊 읽어주기</button>
+      <button class="btn outline small" type="button" id="ttsStopBtn" hidden>중지</button>
       <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" data-viewread="1" ${isRead?"checked":""}> 이 장 읽음</label>
     </div>
     <div class="speed-row">
       <span>재생 속도</span>
       ${speeds.map(s=>`<button class="speed-btn ${ttsSpeed===s?"active":""}" type="button" data-speed="${s}">${s}x</button>`).join("")}
     </div>
-    <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 8px;">재생하면 책 이름과 장을 먼저 안내하고, 이 책의 다음 장까지 이어서 읽어드려요.</p>
+    <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 8px;">재생하면 책 이름과 장을 먼저 안내하고, 이 책의 다음 장까지 이어서 읽어드려요. 문장과 절이 끝나면 잠깐 쉬었다가 다음을 읽어요.</p>
     <p class="bible-attr" style="margin:0 0 12px;">${escapeHtml(BIBLE_ATTRIBUTION)}</p>
     <div class="reader-verses">${body}</div>
     <div class="bible-note">
@@ -1787,7 +1949,9 @@ function paintChapter(bookName, chapterNum){
   document.getElementById("prevCh").addEventListener("click",()=>{ if(chapterNum>1) openChapterViewModal(bookName, chapterNum-1); });
   document.getElementById("nextCh").addEventListener("click",()=>{ if(chapterNum<maxCh) openChapterViewModal(bookName, chapterNum+1); });
   const ttsBtn = document.getElementById("ttsBtn");
+  const ttsStopBtn = document.getElementById("ttsStopBtn");
   if(canRead) ttsBtn.addEventListener("click",()=> toggleTTS(bookName, chapterNum, ttsBtn));
+  if(ttsStopBtn) ttsStopBtn.addEventListener("click",()=> stopTTS());
   document.querySelectorAll("#modalBody [data-speed]").forEach(b=>b.addEventListener("click",()=>{
     ttsSpeed = Number(b.dataset.speed);
     document.querySelectorAll("#modalBody .speed-btn").forEach(x=>x.classList.remove("active"));
@@ -4981,6 +5145,10 @@ auth.onAuthStateChanged(async (user)=>{
     document.getElementById("authScreen").style.display = "flex";
   }
 });
+
+if(typeof splitTextForSpeech!=="function"){
+  console.error("tts-speech.js 를 불러오지 못했습니다.");
+}
 
 // The Capacitor app bundles this file and sets the LifePlannerCapacitor user agent.
 // A service worker there would cache the shell inside the WebView and serve stale pages.
