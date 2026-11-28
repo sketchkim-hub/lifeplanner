@@ -566,13 +566,17 @@ input,textarea,select{font-family:inherit;}
   border-radius:9px;min-height:44px;font-weight:700;font-size:13px;cursor:pointer;
 }
 .ch-cell.read{background:rgba(91,107,79,0.16);border-color:var(--sage-soft);color:var(--sage);}
+.ch-read-mark{
+  position:absolute;left:0;right:0;bottom:2px;font-size:9px;line-height:1;font-weight:800;
+  color:var(--sage);pointer-events:none;
+}
 .ch-cell.noted::after{
   content:"";position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--gold);
 }
 .ch-cell:focus{outline:2px solid var(--gold-soft);outline-offset:1px;}
-.verse{display:flex;gap:8px;align-items:flex-start;margin:0 0 9px;}
+.verse{display:flex;gap:8px;align-items:flex-start;margin:0 0 9px;-webkit-touch-callout:none;}
 .verse-num{flex:none;min-width:1.7em;font-size:11px;font-weight:700;color:var(--gold);padding-top:6px;}
-.verse-body{font-family:'Noto Serif KR',serif;font-size:15.5px;line-height:1.85;}
+.verse-body{font-family:'Noto Serif KR',serif;font-size:15.5px;line-height:1.85;-webkit-user-select:text;user-select:text;}
 .verse.placeholder .verse-body{color:var(--ink-soft);font-family:'Noto Sans KR',sans-serif;font-size:13px;}
 .ch-link{
   border:none;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer;
@@ -608,6 +612,42 @@ html[data-theme="dark"] .verse.verse-flash{animation-name:verseFlashDark;}
 @keyframes verseFlashDark{
   0%,45%{background:rgba(217,174,110,0.35);}
   100%{background:transparent;}
+}
+.verse-hint{font-size:12px;color:var(--ink-soft);margin:0 0 8px;}
+.verse.hl-yellow,.verse.hl-green,.verse.hl-blue,.verse.hl-pink{border-radius:8px;padding:2px 4px;}
+.verse.hl-yellow{background:rgba(255,214,70,0.72);}
+.verse.hl-green{background:rgba(130,196,122,0.62);}
+.verse.hl-blue{background:rgba(126,176,230,0.58);}
+.verse.hl-pink{background:rgba(240,156,188,0.62);}
+html[data-theme="dark"] .verse.hl-yellow{background:rgba(214,168,48,0.5);}
+html[data-theme="dark"] .verse.hl-green{background:rgba(92,150,96,0.55);}
+html[data-theme="dark"] .verse.hl-blue{background:rgba(70,120,180,0.55);}
+html[data-theme="dark"] .verse.hl-pink{background:rgba(176,96,130,0.55);}
+.chapter-read-end{
+  margin:16px 0 4px;padding:12px 14px;border:1px dashed var(--line);border-radius:12px;
+  background:rgba(91,107,79,0.08);
+}
+.chapter-read-end .ch-read-check{
+  display:flex;align-items:center;gap:8px;font-weight:700;color:var(--navy);font-size:15px;
+}
+.hl-pop{
+  position:fixed;z-index:70;display:flex;align-items:center;gap:6px;padding:6px;
+  background:var(--card);border:1px solid var(--line);border-radius:999px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.18);
+}
+.hl-pop[hidden]{display:none;}
+.hl-swatch{
+  width:36px;height:36px;border-radius:50%;border:2px solid rgba(0,0,0,0.12);
+  padding:0;cursor:pointer;
+}
+.hl-swatch.is-on{box-shadow:0 0 0 2px var(--navy);}
+.hl-swatch-yellow{background:#FFE56A;}
+.hl-swatch-green{background:#9AD69A;}
+.hl-swatch-blue{background:#9ECAF8;}
+.hl-swatch-pink{background:#F6B4D0;}
+.hl-clear{
+  border:none;background:transparent;color:var(--ink);font-weight:700;font-size:12.5px;
+  padding:8px 10px;cursor:pointer;
 }
 
 .toast{
@@ -895,6 +935,7 @@ body.pv-open{overflow:hidden;}
 
 <script src="tts-speech.js"></script>
 <script src="bible-search.js"></script>
+<script src="bible-marks.js"></script>
 <script>
 /* =========================================================
    Firebase 설정
@@ -913,7 +954,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
-const APP_VERSION = "1.0.7";
+const APP_VERSION = "1.0.8";
 /* ---------- 화면 테마 ---------- */
 const SKINS = [
   {id:"cream", label:"기본(크림)", paper:"#F5F0E4", card:"#FFFDF7", navy:"#212B42", ink:"#22271F", gold:"#8F6A2E", meta:"#212B42"},
@@ -1055,6 +1096,9 @@ const TODAY = new Date();
 function defaultState(){
   return {
   readingProgress: {},
+  readingProgressSavedAt: 0,
+  bibleHighlights: {},
+  bibleHighlightsSavedAt: 0,
   memoryCards: {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
   dailyEntries: {},
   fellowship: [],
@@ -1082,6 +1126,7 @@ let recognition = null;
 // 클라우드에서 기록을 정상적으로 불러온 뒤에만 true. false인 동안에는 저장을 막아서
 // 불러오기 실패로 비어 있는 상태가 기존 기록을 덮어쓰지 않게 해요.
 let dataLoaded = false;
+let pendingMarkSync = { highlights:false, reading:false };
 
 async function loadAllFromFirestore(){
   if(!currentUser) return false;
@@ -1095,8 +1140,12 @@ async function loadAllFromFirestore(){
     if(!currentUser || currentUser.uid !== uid) return false;
     if(snap.exists){
       const d = snap.data() || {};
+      const marks = adoptMarks(d);
       state = {
-        readingProgress: d.readingProgress || {},
+        readingProgress: marks.reading,
+        readingProgressSavedAt: marks.readingSavedAt,
+        bibleHighlights: marks.highlights,
+        bibleHighlightsSavedAt: marks.highlightsSavedAt,
         memoryCards: d.memoryCards || {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
         dailyEntries: d.dailyEntries || {},
         fellowship: d.fellowship || [],
@@ -1108,14 +1157,23 @@ async function loadAllFromFirestore(){
         settings: d.settings || {tzOffsetMinutes: 540},
         gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
       };
+      pendingMarkSync = { highlights: marks.uploadHighlights, reading: marks.uploadReading };
     } else {
-      // 최초 로그인: 기본 상태로 문서 생성
+      // 최초 로그인: 이 기기에만 있던 형광펜·읽음이 있으면 함께 올리고, 나머지 필드는 비워 둡니다.
+      const marks = adoptMarks({});
+      state = defaultState();
+      state.readingProgress = marks.reading;
+      state.readingProgressSavedAt = marks.readingSavedAt;
+      state.bibleHighlights = marks.highlights;
+      state.bibleHighlightsSavedAt = marks.highlightsSavedAt;
       await db.collection("users").doc(uid).set({
         email: currentUser.email, createdAt: firebase.firestore.FieldValue.serverTimestamp(), ...state
       });
+      pendingMarkSync = { highlights:false, reading:false };
       if(!currentUser || currentUser.uid !== uid) return false;
     }
     dataLoaded = true;
+    cacheMarksLocal();
     return true;
   }catch(e){
     state = defaultState();
@@ -1127,13 +1185,62 @@ function blockedUntilLoaded(){
   showToast("기록을 아직 불러오지 못해 저장하지 않았어요. 다시 시도해 주세요.");
   return true;
 }
+function cacheMarksLocal(){
+  if(typeof BibleMarks==="undefined" || !currentUser) return;
+  try{
+    BibleMarks.writeLocal(localStorage, currentUser.uid, {
+      highlights: state.bibleHighlights,
+      highlightsSavedAt: state.bibleHighlightsSavedAt,
+      readingProgress: state.readingProgress,
+      readingSavedAt: state.readingProgressSavedAt
+    });
+  }catch(e){}
+}
+function flushMarkSync(){
+  if(!currentUser || !dataLoaded) return;
+  const pending = pendingMarkSync || { highlights:false, reading:false };
+  pendingMarkSync = { highlights:false, reading:false };
+  if(pending.reading) persist("readingProgress");
+  if(pending.highlights) persist("bibleHighlights");
+}
+function adoptMarks(remote){
+  const doc = remote && typeof remote==="object" ? remote : {};
+  if(typeof BibleMarks==="undefined" || !currentUser){
+    return {
+      reading: doc.readingProgress || {},
+      readingSavedAt: Number(doc.readingProgressSavedAt) || 0,
+      highlights: doc.bibleHighlights || {},
+      highlightsSavedAt: Number(doc.bibleHighlightsSavedAt) || 0,
+      uploadReading: false,
+      uploadHighlights: false
+    };
+  }
+  let local = BibleMarks.emptyPack();
+  try{ local = BibleMarks.readLocal(localStorage, currentUser.uid); }catch(e){}
+  const reading = BibleMarks.pickReading(doc.readingProgress, doc.readingProgressSavedAt, local.readingProgress, local.readingSavedAt);
+  const highlights = BibleMarks.pickHighlights(doc.bibleHighlights, doc.bibleHighlightsSavedAt, local.highlights, local.highlightsSavedAt);
+  return {
+    reading: reading.map,
+    readingSavedAt: reading.savedAt,
+    highlights: highlights.map,
+    highlightsSavedAt: highlights.savedAt,
+    uploadReading: reading.upload,
+    uploadHighlights: highlights.upload
+  };
+}
 async function persist(prop){
   if(!currentUser) return;
   if(blockedUntilLoaded()) return;
+  if(prop==="bibleHighlights") state.bibleHighlightsSavedAt = Date.now();
+  if(prop==="readingProgress") state.readingProgressSavedAt = Date.now();
+  if(prop==="bibleHighlights" || prop==="readingProgress") cacheMarksLocal();
   try{
-    // update()는 지정한 필드 값을 통째로 교체해요 (set+merge와 달리, 지워진 키가
-    // 이전 값과 병합되어 되살아나지 않고 실제로 삭제가 반영돼요)
-    await db.collection("users").doc(currentUser.uid).update({[prop]: state[prop]});
+    // update()는 지정한 필드만 교체해요. 형광펜·읽음도 자기 필드만 올리고,
+    // 이메일·묵상·기도처럼 다른 기록은 그대로 둡니다.
+    const patch = (typeof BibleMarks!=="undefined")
+      ? BibleMarks.userPatch(prop, state)
+      : {[prop]: state[prop]};
+    await db.collection("users").doc(currentUser.uid).update(patch);
   }catch(e){ showToast("저장에 실패했어요. 잠시 후 다시 시도해 주세요."); }
 }
 
@@ -1153,8 +1260,12 @@ async function importDataFromFile(file){
   try{
     const text = await file.text();
     const d = JSON.parse(text);
+    const now = Date.now();
     state = {
-      readingProgress: d.readingProgress || {},
+      readingProgress: (typeof BibleMarks!=="undefined") ? BibleMarks.normalizeReadingProgress(d.readingProgress) : (d.readingProgress || {}),
+      readingProgressSavedAt: now,
+      bibleHighlights: (typeof BibleMarks!=="undefined") ? BibleMarks.normalizeHighlights(d.bibleHighlights) : (d.bibleHighlights || {}),
+      bibleHighlightsSavedAt: now,
       memoryCards: d.memoryCards || {five:[], eight:[], sixty:[], oneEighty:[], oyo:[]},
       dailyEntries: d.dailyEntries || {},
       fellowship: d.fellowship || [],
@@ -1167,6 +1278,7 @@ async function importDataFromFile(file){
       gamifyCounts: d.gamifyCounts || {reviewCount:0, audioTests:0, audioGood:0, bookletsMade:0}
     };
     await db.collection("users").doc(currentUser.uid).update(state);
+    cacheMarksLocal();
     migrateReadingProgressIfNeeded();
     migrateJournalIfNeeded();
     showToast("데이터를 가져왔어요.");
@@ -1176,8 +1288,13 @@ async function importDataFromFile(file){
 async function resetAllData(){
   if(blockedUntilLoaded()) return;
   try{
-    await db.collection("users").doc(currentUser.uid).update(defaultState());
-    state = defaultState();
+    const cleared = defaultState();
+    const now = Date.now();
+    cleared.readingProgressSavedAt = now;
+    cleared.bibleHighlightsSavedAt = now;
+    await db.collection("users").doc(currentUser.uid).update(cleared);
+    state = cleared;
+    cacheMarksLocal();
     try{ await deleteAllPassages(); showToast("모든 데이터를 초기화했어요."); }
     catch(e){ showToast("데이터는 초기화했지만 본문 사진 일부를 지우지 못했어요. 다시 초기화해 주세요."); }
   }catch(e){ showToast("초기화에 실패했어요. 잠시 후 다시 시도해 주세요."); }
@@ -1227,6 +1344,7 @@ async function deleteAccountAndData(){
   try{
     await deleteAllPassages();
     await db.collection("users").doc(user.uid).delete();
+    try{ if(typeof BibleMarks!=="undefined") BibleMarks.clearLocal(localStorage, user.uid); }catch(e){}
   }catch(e){
     errEl.textContent = "기록을 삭제하지 못했어요. 계정과 기록은 그대로예요. 잠시 후 다시 시도해 주세요.";
     btn.disabled = false;
@@ -1562,7 +1680,7 @@ function renderBible(){
   return `
   <div class="card">
     <div class="section-title">📖 성경 본문</div>
-    <p class="section-desc">단어나 구절로 찾아보거나, 책을 고른 뒤 장을 눌러 읽어요. 읽음 표시는 성경읽기표와 함께 저장되고, 장마다 개인 메모를 남겨 둘 수 있어요.</p>
+    <p class="section-desc">단어나 구절로 찾아보거나, 책을 고른 뒤 장을 눌러 읽어요. 구절을 길게 누르면 형광펜을 칠할 수 있어요. 읽음 표시는 성경읽기표와 함께 저장되고, 장마다 개인 메모를 남겨 둘 수 있어요.</p>
     <div class="notice">${escapeHtml(BIBLE_ATTRIBUTION)}</div>
     <div class="bible-search">
       <div class="field">
@@ -1627,7 +1745,7 @@ function renderBibleChapters(){
   wrap.innerHTML = Array.from({length:chCount},(_,i)=>i+1).map(c=>{
     const isRead = !!state.readingProgress[chapterKey(bookName,c)];
     const noted = !!userBibleNote(bookName,c).trim();
-    return `<button type="button" class="ch-cell${isRead?" read":""}${noted?" noted":""}" data-opench="${c}" aria-label="${escapeAttr(bookName)} ${c}장">${c}</button>`;
+    return `<button type="button" class="ch-cell${isRead?" read":""}${noted?" noted":""}" data-opench="${c}" aria-label="${escapeAttr(bookName)} ${c}장${isRead?" 읽음":""}">${c}${isRead?'<span class="ch-read-mark" aria-hidden="true">✓</span>':""}</button>`;
   }).join("");
   const prog = document.getElementById("bibleBookProgress");
   if(prog) prog.textContent = bibleProgressLabel(bookName);
@@ -1915,19 +2033,38 @@ function stopTTS(){
   syncTtsButtons();
 }
 function setChapterRead(bookName, chapterNum, checked){
-  const key = chapterKey(bookName, chapterNum);
-  if(checked) state.readingProgress[key] = dstr(TODAY);
-  else delete state.readingProgress[key];
+  const date = dstr(TODAY);
+  if(typeof BibleMarks!=="undefined"){
+    state.readingProgress = BibleMarks.applyChapterRead(state.readingProgress, bookName, chapterNum, checked, date);
+  }else{
+    const key = chapterKey(bookName, chapterNum);
+    if(checked) state.readingProgress[key] = date;
+    else delete state.readingProgress[key];
+  }
   persist("readingProgress");
   syncChapterReadUi(bookName, chapterNum, checked);
 }
 function syncChapterReadUi(bookName, chapterNum, checked){
   if(ui.bibleBook===bookName){
     const cell = document.querySelector(`#chapterGrid [data-opench="${chapterNum}"]`);
-    if(cell) cell.classList.toggle("read", checked);
+    if(cell){
+      cell.classList.toggle("read", checked);
+      cell.setAttribute("aria-label", `${bookName} ${chapterNum}장${checked?" 읽음":""}`);
+      const mark = cell.querySelector(".ch-read-mark");
+      if(checked && !mark){
+        const span = document.createElement("span");
+        span.className = "ch-read-mark";
+        span.setAttribute("aria-hidden", "true");
+        span.textContent = "✓";
+        cell.appendChild(span);
+      }else if(!checked && mark) mark.remove();
+    }
     const prog = document.getElementById("bibleBookProgress");
     if(prog) prog.textContent = bibleProgressLabel(bookName);
   }
+  document.querySelectorAll("#modalBody [data-viewread]").forEach(box=>{
+    if(box.dataset.book===bookName && String(box.dataset.ch)===String(chapterNum)) box.checked = !!checked;
+  });
   const key = chapterKey(bookName, chapterNum);
   const sel = window.CSS && CSS.escape ? CSS.escape(key) : key;
   document.querySelectorAll(`[data-chkey="${sel}"]`).forEach(cb=>{
@@ -1965,7 +2102,14 @@ function syncNoteMark(bookName, chapterNum){
   const prog = document.getElementById("bibleBookProgress");
   if(prog) prog.textContent = bibleProgressLabel(bookName);
 }
+function verseHighlightClass(bookName, chapterNum, verseNum){
+  if(typeof BibleMarks==="undefined" || !state.bibleHighlights) return "";
+  const key = BibleMarks.verseKey(bookName, chapterNum, verseNum);
+  const color = key && state.bibleHighlights[key];
+  return BibleMarks.isColor(color) ? ` hl-${color}` : "";
+}
 function paintChapter(bookName, chapterNum, focusVerse){
+  cancelVerseGesture();
   const verses = bibleVerses(bookName, chapterNum);
   const note = userBibleNote(bookName, chapterNum);
   const key = chapterKey(bookName, chapterNum);
@@ -1976,7 +2120,8 @@ function paintChapter(bookName, chapterNum, focusVerse){
   const body = verses
     ? verses.map((t,i)=>{
         const ph = isVerseMarker(t) ? " placeholder" : "";
-        return `<div class="verse${ph}" data-verse="${i+1}"><span class="verse-num">${i+1}</span><span class="verse-body">${escapeHtml(t)}</span></div>`;
+        const hl = isVerseMarker(t) ? "" : verseHighlightClass(bookName, chapterNum, i+1);
+        return `<div class="verse${ph}${hl}" data-verse="${i+1}"><span class="verse-num">${i+1}</span><span class="verse-body">${escapeHtml(t)}</span></div>`;
       }).join("")
     : `<p style="color:var(--ink-soft)">이 장의 본문을 불러오지 못했어요. 인터넷 연결을 확인한 뒤 다시 열어 주세요.</p>`;
   document.getElementById("modalBody").innerHTML = `
@@ -1986,7 +2131,7 @@ function paintChapter(bookName, chapterNum, focusVerse){
       <button class="btn outline small" type="button" id="nextCh" ${chapterNum>=maxCh?"disabled":""}>다음 장 →</button>
       <button class="btn sage small" type="button" id="ttsBtn" ${canRead?"":"disabled"}>🔊 읽어주기</button>
       <button class="btn outline small" type="button" id="ttsStopBtn" hidden>중지</button>
-      <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" data-viewread="1" ${isRead?"checked":""}> 이 장 읽음</label>
+      <label class="ch-read-check" style="margin-left:auto;"><input type="checkbox" data-viewread="1" data-book="${escapeAttr(bookName)}" data-ch="${chapterNum}" ${isRead?"checked":""}> 이 장 읽음</label>
     </div>
     <div class="speed-row">
       <span>재생 속도</span>
@@ -1994,7 +2139,11 @@ function paintChapter(bookName, chapterNum, focusVerse){
     </div>
     <p style="font-size:11px;color:var(--ink-soft);margin:10px 0 8px;">재생하면 책 이름과 장을 먼저 안내하고, 이 책의 다음 장까지 이어서 읽어드려요. 문장과 절이 끝나면 잠깐 쉬었다가 다음을 읽어요.</p>
     <p class="bible-attr" style="margin:0 0 12px;">${escapeHtml(BIBLE_ATTRIBUTION)}</p>
-    <div class="reader-verses">${body}</div>
+    <p class="verse-hint">구절을 길게 누르면 형광펜 색을 고를 수 있어요.</p>
+    <div class="reader-verses" data-book="${escapeAttr(bookName)}" data-ch="${chapterNum}">${body}</div>
+    <div class="chapter-read-end">
+      <label class="ch-read-check"><input type="checkbox" data-viewread="1" data-book="${escapeAttr(bookName)}" data-ch="${chapterNum}" ${isRead?"checked":""}> 이 장 읽음</label>
+    </div>
     <div class="bible-note">
       <div class="field">
         <label for="bibleNote">내 메모 · 붙여넣기</label>
@@ -2014,11 +2163,11 @@ function paintChapter(bookName, chapterNum, focusVerse){
     document.querySelectorAll("#modalBody .speed-btn").forEach(x=>x.classList.remove("active"));
     b.classList.add("active");
   }));
-  document.querySelector("#modalBody [data-viewread]").addEventListener("change",(e)=>{
+  document.querySelectorAll("#modalBody [data-viewread]").forEach(box=>box.addEventListener("change",(e)=>{
     const before = snapshotGamify();
     setChapterRead(bookName, chapterNum, e.target.checked);
     if(e.target.checked) announceGamify(before);
-  });
+  }));
   document.getElementById("saveNoteBtn").addEventListener("click",()=>{
     const changed = writeBibleNoteFromModal();
     finishForm();
@@ -2037,10 +2186,191 @@ function focusBibleVerse(focusVerse){
   el.classList.add("verse-flash");
   requestAnimationFrame(()=>{ el.scrollIntoView({block:"center", inline:"nearest"}); });
 }
+/* 구절을 약 0.5초 누르면 형광펜. 스크롤·이동하면 취소하고, 본문 선택과 음성 읽기는 그대로 둡니다.
+   길게 누르는 동안 뜨는 기기 메뉴(복사)는 막아서 색 고르기와 겹치지 않게 해요. */
+let versePress = null;
+let versePressTimer = null;
+let hlTarget = null;
+function clearVersePressTimer(){
+  if(versePressTimer){ clearTimeout(versePressTimer); versePressTimer = null; }
+}
+function closeHighlightPopup(){
+  hlTarget = null;
+  const pop = document.getElementById("hlPop");
+  if(pop) pop.hidden = true;
+}
+function cancelVerseGesture(){
+  clearVersePressTimer();
+  versePress = null;
+  closeHighlightPopup();
+}
+function versePressLimit(){
+  return (typeof BibleMarks!=="undefined" && BibleMarks.MOVE_CANCEL_PX) || 10;
+}
+function versePressWait(){
+  return (typeof BibleMarks!=="undefined" && BibleMarks.LONG_PRESS_MS) || 500;
+}
+function verseFromEvent(e){
+  const target = e.target;
+  if(!target || !target.closest) return null;
+  const verse = target.closest(".reader-verses .verse");
+  if(!verse || verse.classList.contains("placeholder")) return null;
+  return verse;
+}
+function pressMoved(e){
+  if(!versePress) return false;
+  const x = typeof e.clientX==="number" ? e.clientX : versePress.x;
+  const y = typeof e.clientY==="number" ? e.clientY : versePress.y;
+  if(!x && !y) return false;
+  const dx = x - versePress.x;
+  const dy = y - versePress.y;
+  const limit = versePressLimit();
+  return dx*dx + dy*dy > limit*limit;
+}
+function verseMarkContext(el){
+  const root = el.closest(".reader-verses");
+  if(!root) return null;
+  const book = root.dataset.book || "";
+  const chapter = Number(root.dataset.ch);
+  const verse = Number(el.dataset.verse);
+  if(!book || !chapter || !verse) return null;
+  return { book, chapter, verse, el };
+}
+function ensureHighlightPopup(){
+  let pop = document.getElementById("hlPop");
+  if(pop) return pop;
+  pop = document.createElement("div");
+  pop.id = "hlPop";
+  pop.className = "hl-pop";
+  pop.hidden = true;
+  pop.setAttribute("role", "dialog");
+  pop.setAttribute("aria-label", "형광펜");
+  pop.addEventListener("pointerdown", (ev)=> ev.stopPropagation());
+  pop.addEventListener("click", onHighlightChoice);
+  document.body.appendChild(pop);
+  return pop;
+}
+function placeHighlightPopup(pop, verseEl){
+  pop.hidden = false;
+  const rect = verseEl.getBoundingClientRect();
+  const pw = pop.offsetWidth || 220;
+  const ph = pop.offsetHeight || 48;
+  let top = rect.top - ph - 8;
+  if(top < 8) top = Math.min(window.innerHeight - ph - 8, rect.bottom + 8);
+  let left = rect.left + (rect.width - pw) / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+  pop.style.top = top + "px";
+  pop.style.left = left + "px";
+}
+function openHighlightPopup(verseEl){
+  if(typeof BibleMarks==="undefined") return;
+  if(!verseEl || !verseEl.isConnected || verseEl.classList.contains("placeholder")) return;
+  const ctx = verseMarkContext(verseEl);
+  if(!ctx) return;
+  try{
+    const sel = window.getSelection();
+    if(sel) sel.removeAllRanges();
+  }catch(err){}
+  const pop = ensureHighlightPopup();
+  const key = BibleMarks.verseKey(ctx.book, ctx.chapter, ctx.verse);
+  const current = (key && state.bibleHighlights && state.bibleHighlights[key]) || "";
+  pop.innerHTML = BibleMarks.COLORS.map(c=>
+    `<button type="button" class="hl-swatch hl-swatch-${c.id}${current===c.id?" is-on":""}" data-color="${c.id}" aria-label="${c.label}" aria-pressed="${current===c.id?"true":"false"}"></button>`
+  ).join("") + `<button type="button" class="hl-clear" data-color="">지우기</button>`;
+  hlTarget = ctx;
+  placeHighlightPopup(pop, verseEl);
+}
+function onHighlightChoice(e){
+  const btn = e.target && e.target.closest ? e.target.closest("[data-color]") : null;
+  if(!btn || !hlTarget) return;
+  setVerseHighlight(hlTarget.book, hlTarget.chapter, hlTarget.verse, btn.getAttribute("data-color") || "");
+  closeHighlightPopup();
+}
+function setVerseHighlight(book, chapter, verse, color){
+  if(typeof BibleMarks==="undefined") return;
+  state.bibleHighlights = BibleMarks.applyHighlight(state.bibleHighlights, book, chapter, verse, color);
+  persist("bibleHighlights");
+  const key = BibleMarks.verseKey(book, chapter, verse);
+  const applied = (key && state.bibleHighlights[key]) || "";
+  document.querySelectorAll("#modalBody .reader-verses").forEach(root=>{
+    if(root.dataset.book!==book || Number(root.dataset.ch)!==Number(chapter)) return;
+    const el = root.querySelector(`.verse[data-verse="${verse}"]`);
+    if(!el) return;
+    BibleMarks.COLORS.forEach(c=> el.classList.remove("hl-"+c.id));
+    if(applied) el.classList.add("hl-"+applied);
+  });
+}
+function onVersePointerDown(e){
+  if(e.pointerType==="mouse" && e.button!==0) return;
+  const verse = verseFromEvent(e);
+  if(!verse) return;
+  clearVersePressTimer();
+  versePress = { id: e.pointerId, x: e.clientX, y: e.clientY, verse, moved: false };
+  versePressTimer = setTimeout(()=>{
+    versePressTimer = null;
+    const press = versePress;
+    versePress = null;
+    if(!press || press.moved) return;
+    if(press.verse && press.verse.isConnected) openHighlightPopup(press.verse);
+  }, versePressWait());
+}
+function onVersePointerMove(e){
+  if(!versePress || e.pointerId!==versePress.id) return;
+  if(pressMoved(e)){
+    versePress.moved = true;
+    clearVersePressTimer();
+    versePress = null;
+  }
+}
+function onVersePointerEnd(e){
+  if(!versePress || e.pointerId!==versePress.id) return;
+  clearVersePressTimer();
+  versePress = null;
+}
+function onVersePointerCancel(e){
+  if(!versePress || e.pointerId!==versePress.id) return;
+  const press = versePress;
+  const moved = press.moved || pressMoved(e);
+  clearVersePressTimer();
+  versePress = null;
+  if(!moved && press.verse && press.verse.isConnected) openHighlightPopup(press.verse);
+}
+function onVerseContextMenu(e){
+  const verse = verseFromEvent(e);
+  if(!verse) return;
+  e.preventDefault();
+  if(versePress && versePress.verse===verse && !versePress.moved){
+    clearVersePressTimer();
+    versePress = null;
+    openHighlightPopup(verse);
+  }
+}
+function installVerseLongPress(){
+  const modal = document.getElementById("modalBody");
+  if(!modal || modal.dataset.hlBound) return;
+  modal.dataset.hlBound = "1";
+  modal.addEventListener("pointerdown", onVersePointerDown);
+  modal.addEventListener("pointermove", onVersePointerMove);
+  modal.addEventListener("pointerup", onVersePointerEnd);
+  modal.addEventListener("pointercancel", onVersePointerCancel);
+  modal.addEventListener("contextmenu", onVerseContextMenu);
+  modal.addEventListener("scroll", ()=>{
+    if(versePress || hlTarget) cancelVerseGesture();
+  });
+  document.addEventListener("pointerdown", (e)=>{
+    if(!hlTarget) return;
+    if(e.target && e.target.closest && e.target.closest("#hlPop")) return;
+    closeHighlightPopup();
+  });
+  document.addEventListener("keydown", (e)=>{
+    if(e.key==="Escape") closeHighlightPopup();
+  });
+}
 async function openChapterViewModal(bookName, chapterNum, focusVerse){
   if(isFormDirty() && !confirm("저장하지 않은 메모가 있어요. 저장하지 않고 다른 장을 열까요?")) return;
   const seq = ++chapterViewSeq;
   stopTTS();
+  cancelVerseGesture();
   const modalBody = document.getElementById("modalBody");
   modalBody.innerHTML = `
     <div class="modal-head"><h3>📖 ${escapeHtml(bookName)} ${chapterNum}장</h3><button class="close-x" id="modalClose" type="button">✕</button></div>
@@ -2361,16 +2691,9 @@ function bindPlan(){
   grid.innerHTML = html;
   grid.querySelectorAll("[data-chkey]").forEach(cb=>cb.addEventListener("change",()=>{
     const before = snapshotGamify();
-    const key = cb.dataset.chkey;
-    if(!key) return;
-    if(cb.checked) state.readingProgress[key]=dstr(TODAY); else delete state.readingProgress[key];
-    persist("readingProgress");
-    const dayEl = cb.closest(".plan-day");
-    if(dayEl){
-      const allChecked = [...dayEl.querySelectorAll("[data-chkey]")].every(c=>c.checked);
-      dayEl.classList.toggle("done", allChecked);
-    }
-    renderTopStatsOnly();
+    const link = cb.parentElement && cb.parentElement.querySelector("[data-openbook]");
+    if(!link) return;
+    setChapterRead(link.dataset.openbook, Number(link.dataset.opench), cb.checked);
     if(cb.checked) announceGamify(before);
   }));
   grid.querySelectorAll("[data-openbook]").forEach(b=>b.addEventListener("click",(e)=>{
@@ -3745,10 +4068,12 @@ function openModal(){
 }
 function closeModal(){
   finishForm();
+  cancelVerseGesture();
   document.getElementById("modalBackdrop").classList.remove("open");
 }
 function requestCloseModal(){
   if(typeof stopTTS==="function" && ttsState && ttsState.playing) stopTTS();
+  cancelVerseGesture();
   leaveFormModal(()=> document.getElementById("modalBackdrop").classList.remove("open"));
 }
 function shakeModal(){
@@ -5336,6 +5661,7 @@ function resetSession(){
   if(currentUser) clearAllDrafts(currentUser.uid); // 로그아웃·계정 전환 시 작성 중 임시 저장도 삭제
   modalForm = null; clearTimeout(draftTimer); draftTimer = null;
   dataLoaded = false;
+  pendingMarkSync = { highlights:false, reading:false };
   state = defaultState();
   if(recognition){ try{ recognition.onend=null; recognition.abort(); }catch(e){} recognition = null; }
   try{ stopTTS(); }catch(e){}
@@ -5370,6 +5696,7 @@ async function startSession(){
   document.getElementById("mainApp").style.display = "block";
   migrateReadingProgressIfNeeded();
   migrateJournalIfNeeded();
+  flushMarkSync();
   loadAdminQuotes().then(()=>{ if(dataLoaded && (ui.tab==="home"||ui.tab==="quotes")) renderAll(); });
   renderAll();
 }
@@ -5377,6 +5704,7 @@ document.getElementById("dataRetryBtn").addEventListener("click", startSession);
 document.getElementById("dataLogoutBtn").addEventListener("click", ()=> auth.signOut());
 
 bindAuthScreen();
+installVerseLongPress();
 auth.onAuthStateChanged(async (user)=>{
   document.getElementById("authLoading").style.display = "none";
   resetSession();

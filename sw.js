@@ -1,8 +1,9 @@
-const CACHE_NAME = "deungbul-cache-v10";
+const CACHE_NAME = "deungbul-cache-v11";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./bible-search.js",
+  "./bible-marks.js",
   "./tts-speech.js",
   "./manifest.json",
   "./icons/icon-192.png",
