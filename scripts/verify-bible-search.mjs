@@ -43,7 +43,7 @@ function plain(html) {
 
 const html = readFileSync(path.join(root, "index.html"), "utf8");
 const sw = readFileSync(path.join(root, "sw.js"), "utf8");
-assert.match(sw, /deungbul-cache-v10/);
+assert.match(sw, /deungbul-cache-v11/);
 assert.match(sw, /\.\/bible-search\.js/);
 assert.match(html, /<script src="bible-search\.js"><\/script>/);
 assert.match(html, /function stripVerseNumbersForTTS/);
